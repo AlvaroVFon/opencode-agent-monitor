@@ -12,6 +12,7 @@ import { AgentDelegationHandler } from "./handlers/agent-delegation.handler";
 import { SubtaskDelegationHandler } from "./handlers/subtask-delegation.handler";
 import { ToolCallHandler } from "./handlers/tool-call.handler";
 import { MetricsAggregator } from "./metrics/metrics.aggregator";
+import { MetricsAggregatorHelper } from "./helpers/metrics-aggregator.helper";
 
 const currentAgent = new Map<string, string>();
 
@@ -48,7 +49,10 @@ export const AgentMonitor: Plugin = async (_input, options) => {
     typeof options?.traceDir === "string" ? options.traceDir : undefined;
   const traceHelper = new TraceHelper(traceDir);
   const eventHandler = setupEventHandlers(traceHelper);
-  const metricsAggregator = new MetricsAggregator(currentAgent);
+  const metricsAggregator = new MetricsAggregator(
+    currentAgent,
+    new MetricsAggregatorHelper(),
+  );
 
   return {
     "chat.params": async (input) => {

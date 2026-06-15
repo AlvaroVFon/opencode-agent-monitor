@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { EventType, PartStatus, PartType, Role } from "../../enums";
 import { MetricsAggregator } from "../../metrics/metrics.aggregator";
+import { MetricsAggregatorHelper } from "../../helpers/metrics-aggregator.helper";
 
 const makeLlmCallEvent = (overrides: Record<string, unknown> = {}) => ({
   type: EventType.MESSAGE_UPDATED,
@@ -63,7 +64,10 @@ const makeSessionCreatedEvent = (id: string) => ({
 describe("MetricsAggregator", () => {
   it("ingests llm_call and updates totals, bySession, byAgent, byModel", () => {
     const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = new MetricsAggregator(currentAgent);
+    const aggregator = new MetricsAggregator(
+      currentAgent,
+      new MetricsAggregatorHelper(),
+    );
 
     aggregator.ingest(makeLlmCallEvent());
 
@@ -85,7 +89,10 @@ describe("MetricsAggregator", () => {
       ["sess-1", "coder"],
       ["sess-2", "reviewer"],
     ]);
-    const aggregator = new MetricsAggregator(currentAgent);
+    const aggregator = new MetricsAggregator(
+      currentAgent,
+      new MetricsAggregatorHelper(),
+    );
 
     aggregator.ingest(makeLlmCallEvent({ sessionID: "sess-1" }));
     aggregator.ingest(
@@ -111,7 +118,10 @@ describe("MetricsAggregator", () => {
 
   it("ingests llm_error without touching tokens or cost", () => {
     const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = new MetricsAggregator(currentAgent);
+    const aggregator = new MetricsAggregator(
+      currentAgent,
+      new MetricsAggregatorHelper(),
+    );
 
     aggregator.ingest(makeLlmErrorEvent());
 
@@ -125,7 +135,10 @@ describe("MetricsAggregator", () => {
 
   it("ingests tool_call completed", () => {
     const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = new MetricsAggregator(currentAgent);
+    const aggregator = new MetricsAggregator(
+      currentAgent,
+      new MetricsAggregatorHelper(),
+    );
 
     aggregator.ingest(makeToolCallEvent(PartStatus.COMPLETED));
 
@@ -137,7 +150,10 @@ describe("MetricsAggregator", () => {
 
   it("ingests tool_call error", () => {
     const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = new MetricsAggregator(currentAgent);
+    const aggregator = new MetricsAggregator(
+      currentAgent,
+      new MetricsAggregatorHelper(),
+    );
 
     aggregator.ingest(makeToolCallEvent(PartStatus.ERROR));
 
@@ -148,7 +164,10 @@ describe("MetricsAggregator", () => {
   });
 
   it("ingests session_created and updates firstSeenAt/lastSeenAt window", () => {
-    const aggregator = new MetricsAggregator(new Map());
+    const aggregator = new MetricsAggregator(
+      new Map(),
+      new MetricsAggregatorHelper(),
+    );
 
     aggregator.ingest(makeSessionCreatedEvent("sess-A"));
 
@@ -160,7 +179,10 @@ describe("MetricsAggregator", () => {
   });
 
   it("returns zeroed snapshot for fresh aggregator", () => {
-    const aggregator = new MetricsAggregator(new Map());
+    const aggregator = new MetricsAggregator(
+      new Map(),
+      new MetricsAggregatorHelper(),
+    );
 
     const snap = aggregator.snapshot();
     assert.equal(snap.totals.llmCalls, 0);
@@ -182,7 +204,10 @@ describe("MetricsAggregator", () => {
 
   it("reset() clears all state", () => {
     const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = new MetricsAggregator(currentAgent);
+    const aggregator = new MetricsAggregator(
+      currentAgent,
+      new MetricsAggregatorHelper(),
+    );
 
     aggregator.ingest(makeLlmCallEvent());
     aggregator.ingest(makeLlmErrorEvent());

@@ -14,11 +14,7 @@ import type {
 } from "./metrics.aggregator.interface";
 
 export class MetricsAggregator {
-  private readonly helper = new MetricsAggregatorHelper();
-  private readonly totals: Aggregate & { sessionsCreated: number } = {
-    ...this.helper.emptyAggregate(),
-    sessionsCreated: 0,
-  };
+  private readonly totals: Aggregate & { sessionsCreated: number };
   private readonly bySession = new Map<string, Aggregate>();
   private readonly byAgent = new Map<string, Aggregate>();
   private readonly byModel = new Map<string, Aggregate>();
@@ -26,7 +22,14 @@ export class MetricsAggregator {
   private lastSeenAt = 0;
   private readonly registry: MetricsHandlersRegistry;
 
-  constructor(private readonly currentAgent: Map<string, string>) {
+  constructor(
+    private readonly currentAgent: Map<string, string>,
+    private readonly helper: MetricsAggregatorHelper,
+  ) {
+    this.totals = {
+      ...this.helper.emptyAggregate(),
+      sessionsCreated: 0,
+    };
     this.registry = new MetricsHandlersRegistry()
       .register(EventType.MESSAGE_UPDATED, (properties) =>
         this.ingestMessage(properties as MessageUpdatedProps),
