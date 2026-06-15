@@ -37,16 +37,14 @@ function setupEventHandlers(traceHelper: TraceHelper): EventHandler {
       EventType.MESSAGE_PART_UPDATED,
       new SubtaskDelegationHandler(traceHelper),
     )
-    .register(
-      EventType.MESSAGE_PART_UPDATED,
-      new ToolCallHandler(traceHelper),
-    );
+    .register(EventType.MESSAGE_PART_UPDATED, new ToolCallHandler(traceHelper));
 
   return new EventHandler(traceHelper, registry);
 }
 
 export const AgentMonitor: Plugin = async (_input, options) => {
-  const traceDir = typeof options?.traceDir === "string" ? options.traceDir : undefined;
+  const traceDir =
+    typeof options?.traceDir === "string" ? options.traceDir : undefined;
   const traceHelper = new TraceHelper(traceDir);
   const eventHandler = setupEventHandlers(traceHelper);
 

@@ -9,7 +9,8 @@ export class TraceHelper {
   private readonly traceErrorsPath: string;
 
   constructor(traceDir?: string) {
-    this.traceDir = traceDir ?? join(homedir(), ".config", "opencode", ".tracing");
+    this.traceDir =
+      traceDir ?? join(homedir(), ".config", "opencode", ".tracing");
     this.traceFilePath = join(this.traceDir, "trace.jsonl");
     this.traceErrorsPath = join(this.traceDir, "trace.errors.jsonl");
   }
@@ -23,11 +24,7 @@ export class TraceHelper {
   writeTrace(event: Record<string, unknown>) {
     try {
       this.ensureDir();
-      appendFileSync(
-        this.traceFilePath,
-        JSON.stringify(event) + "\n",
-        "utf-8",
-      );
+      appendFileSync(this.traceFilePath, JSON.stringify(event) + "\n", "utf-8");
     } catch (err) {
       this.writeTraceError({
         type: TraceEventType.WRITE_TRACE_ERROR,

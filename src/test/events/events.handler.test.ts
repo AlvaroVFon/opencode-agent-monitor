@@ -15,7 +15,11 @@ describe("EventHandler", () => {
     registry.register(EventType.SESSION_CREATED, h2);
 
     const eventHandler = new EventHandler(
-      { writeTrace: mock.fn(), writeTraceError: mock.fn(), ensureDir: () => {} } as any,
+      {
+        writeTrace: mock.fn(),
+        writeTraceError: mock.fn(),
+        ensureDir: () => {},
+      } as any,
       registry,
     );
 
@@ -32,7 +36,11 @@ describe("EventHandler", () => {
   it("silently ignores unregistered event types", () => {
     const registry = new EventsRegistry();
     const eventHandler = new EventHandler(
-      { writeTrace: mock.fn(), writeTraceError: mock.fn(), ensureDir: () => {} } as any,
+      {
+        writeTrace: mock.fn(),
+        writeTraceError: mock.fn(),
+        ensureDir: () => {},
+      } as any,
       registry,
     );
 
