@@ -1,58 +1,22 @@
-import { Role, UNKNOWN } from "../enums";
+import { EventType, PartStatus, PartType, Role, UNKNOWN } from "../enums";
 import type {
   MessagePartUpdatedProps,
   MessageUpdatedProps,
   SessionCreatedProps,
 } from "../types";
-
-export type TokenUsage = {
-  input: number;
-  output: number;
-  reasoning: number;
-  cacheRead: number;
-};
-
-export type Aggregate = {
-  llmCalls: number;
-  llmErrors: number;
-  toolCalls: number;
-  toolErrors: number;
-  tokens: TokenUsage;
-  cost: number;
-};
-
-export type MetricsSnapshot = {
-  totals: Aggregate & { sessionsCreated: number };
-  bySession: Record<string, Aggregate>;
-  byAgent: Record<string, Aggregate>;
-  byModel: Record<string, Aggregate>;
-  window: { firstSeenAt: number; lastSeenAt: number };
-};
-
-const emptyAggregate = (): Aggregate => ({
-  llmCalls: 0,
-  llmErrors: 0,
-  toolCalls: 0,
-  toolErrors: 0,
-  tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0 },
-  cost: 0,
-});
-
-const addTokens = (target: TokenUsage, source: TokenUsage): void => {
-  target.input += source.input;
-  target.output += source.output;
-  target.reasoning += source.reasoning;
-  target.cacheRead += source.cacheRead;
-};
-
-const addToAggregate = (target: Aggregate, source: Aggregate): void => {
-  target.llmCalls += source.llmCalls;
-  target.llmErrors += source.llmErrors;
-  target.toolCalls += source.toolCalls;
-  target.toolErrors += source.toolErrors;
-  target.cost += source.cost;
-  addTokens(target.tokens, source.tokens);
-};
+import {
+  addToAggregate,
+  cloneAggregateWithSessions,
+  emptyAggregate,
+  mapToRecord,
+} from "../helpers/metrics-aggregator.helper";
+import { MetricsHandlersRegistry } from "./metrics.aggregator.registry";
+import type {
+  Aggregate,
+  LlmAssistantMessage,
+  MetricsSnapshot,
+  TokenUsage,
+} from "./metrics.aggregator.interface";
 
 export class MetricsAggregator {
   private readonly totals: Aggregate & { sessionsCreated: number } = {
@@ -64,26 +28,24 @@ export class MetricsAggregator {
   private readonly byModel = new Map<string, Aggregate>();
   private firstSeenAt = 0;
   private lastSeenAt = 0;
+  private readonly registry: MetricsHandlersRegistry;
 
-  constructor(private readonly currentAgent: Map<string, string>) {}
+  constructor(private readonly currentAgent: Map<string, string>) {
+    this.registry = new MetricsHandlersRegistry()
+      .register(EventType.MESSAGE_UPDATED, (properties) =>
+        this.ingestMessage(properties as MessageUpdatedProps),
+      )
+      .register(EventType.MESSAGE_PART_UPDATED, (properties) =>
+        this.ingestPart(properties as MessagePartUpdatedProps),
+      )
+      .register(EventType.SESSION_CREATED, (properties) =>
+        this.ingestSessionCreated(properties as SessionCreatedProps),
+      );
+  }
 
   ingest(event: { type: string; properties: unknown }): void {
-    const now = Date.now();
-    this.touchWindow(now);
-
-    switch (event.type) {
-      case "message.updated":
-        this.ingestMessage(event.properties as MessageUpdatedProps);
-        break;
-      case "message.part.updated":
-        this.ingestPart(event.properties as MessagePartUpdatedProps);
-        break;
-      case "session.created":
-        this.ingestSessionCreated(event.properties as SessionCreatedProps);
-        break;
-      default:
-        return;
-    }
+    this.touchWindow(Date.now());
+    this.registry.dispatch(event);
   }
 
   snapshot(): MetricsSnapshot {
@@ -115,21 +77,7 @@ export class MetricsAggregator {
   }
 
   private ingestMessage(props: MessageUpdatedProps): void {
-    const msg = props.info as MessageUpdatedProps["info"] & {
-      role?: string;
-      finish?: string;
-      tokens?: {
-        input: number;
-        output: number;
-        reasoning: number;
-        cache: { read: number };
-      } | null;
-      error?: unknown;
-      providerID?: string;
-      modelID?: string;
-      sessionID?: string;
-      time?: { created?: number; completed?: number };
-    };
+    const msg = props.info as LlmAssistantMessage;
 
     if (msg.role !== Role.ASSISTANT) return;
 
@@ -155,7 +103,7 @@ export class MetricsAggregator {
           reasoning: msg.tokens.reasoning,
           cacheRead: msg.tokens.cache.read,
         },
-        cost: (msg as { cost?: number }).cost ?? 0,
+        cost: msg.cost ?? 0,
       });
     }
   }
@@ -167,16 +115,16 @@ export class MetricsAggregator {
       state?: { status?: string };
     };
 
-    if (part.type !== "tool") return;
+    if (part.type !== PartType.TOOL) return;
     if (!part.sessionID) return;
 
     const status = part.state?.status;
-    if (status !== "completed" && status !== "error") return;
+    if (status !== PartStatus.COMPLETED && status !== PartStatus.ERROR) return;
 
     const sessionID = part.sessionID;
     const agent = this.currentAgent.get(sessionID) ?? UNKNOWN;
 
-    this.recordToolCall(sessionID, agent, status === "error");
+    this.recordToolCall(sessionID, agent, status === PartStatus.ERROR);
   }
 
   private ingestSessionCreated(props: SessionCreatedProps): void {
@@ -258,29 +206,3 @@ export class MetricsAggregator {
     }
   }
 }
-
-const mapToRecord = (
-  map: Map<string, Aggregate>,
-): Record<string, Aggregate> => {
-  const record: Record<string, Aggregate> = {};
-  for (const [key, value] of map) {
-    record[key] = cloneAggregate(value);
-  }
-  return record;
-};
-
-const cloneAggregate = (agg: Aggregate): Aggregate => ({
-  llmCalls: agg.llmCalls,
-  llmErrors: agg.llmErrors,
-  toolCalls: agg.toolCalls,
-  toolErrors: agg.toolErrors,
-  tokens: { ...agg.tokens },
-  cost: agg.cost,
-});
-
-const cloneAggregateWithSessions = (
-  agg: Aggregate & { sessionsCreated: number },
-): Aggregate & { sessionsCreated: number } => ({
-  ...cloneAggregate(agg),
-  sessionsCreated: agg.sessionsCreated,
-});

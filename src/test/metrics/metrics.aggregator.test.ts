@@ -1,12 +1,13 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { EventType, PartStatus, PartType, Role } from "../../enums";
 import { MetricsAggregator } from "../../metrics/metrics.aggregator";
 
 const makeLlmCallEvent = (overrides: Record<string, unknown> = {}) => ({
-  type: "message.updated",
+  type: EventType.MESSAGE_UPDATED,
   properties: {
     info: {
-      role: "assistant",
+      role: Role.ASSISTANT,
       sessionID: "sess-1",
       finish: "stop",
       tokens: { input: 10, output: 20, reasoning: 1, cache: { read: 5 } },
@@ -20,10 +21,10 @@ const makeLlmCallEvent = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const makeLlmErrorEvent = (overrides: Record<string, unknown> = {}) => ({
-  type: "message.updated",
+  type: EventType.MESSAGE_UPDATED,
   properties: {
     info: {
-      role: "assistant",
+      role: Role.ASSISTANT,
       sessionID: "sess-1",
       providerID: "openai",
       modelID: "gpt-4",
@@ -34,20 +35,20 @@ const makeLlmErrorEvent = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const makeToolCallEvent = (
-  status: "completed" | "error",
+  status: PartStatus,
   overrides: Record<string, unknown> = {},
 ) => ({
-  type: "message.part.updated",
+  type: EventType.MESSAGE_PART_UPDATED,
   properties: {
     part: {
-      type: "tool",
+      type: PartType.TOOL,
       sessionID: "sess-1",
       callID: "call-1",
       tool: "bash",
       state: {
         status,
         time: { start: 1000, end: 1100 },
-        ...(status === "error" ? { error: "boom" } : {}),
+        ...(status === PartStatus.ERROR ? { error: "boom" } : {}),
       },
       ...overrides,
     },
@@ -55,7 +56,7 @@ const makeToolCallEvent = (
 });
 
 const makeSessionCreatedEvent = (id: string) => ({
-  type: "session.created",
+  type: EventType.SESSION_CREATED,
   properties: { info: { id, parentID: null } },
 });
 
@@ -126,7 +127,7 @@ describe("MetricsAggregator", () => {
     const currentAgent = new Map([["sess-1", "coder"]]);
     const aggregator = new MetricsAggregator(currentAgent);
 
-    aggregator.ingest(makeToolCallEvent("completed"));
+    aggregator.ingest(makeToolCallEvent(PartStatus.COMPLETED));
 
     const snap = aggregator.snapshot();
     assert.equal(snap.totals.toolCalls, 1);
@@ -138,7 +139,7 @@ describe("MetricsAggregator", () => {
     const currentAgent = new Map([["sess-1", "coder"]]);
     const aggregator = new MetricsAggregator(currentAgent);
 
-    aggregator.ingest(makeToolCallEvent("error"));
+    aggregator.ingest(makeToolCallEvent(PartStatus.ERROR));
 
     const snap = aggregator.snapshot();
     assert.equal(snap.totals.toolCalls, 1);
@@ -185,7 +186,7 @@ describe("MetricsAggregator", () => {
 
     aggregator.ingest(makeLlmCallEvent());
     aggregator.ingest(makeLlmErrorEvent());
-    aggregator.ingest(makeToolCallEvent("completed"));
+    aggregator.ingest(makeToolCallEvent(PartStatus.COMPLETED));
     aggregator.ingest(makeSessionCreatedEvent("sess-1"));
 
     aggregator.reset();
