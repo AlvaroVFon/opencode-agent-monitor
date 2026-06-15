@@ -4,12 +4,7 @@ import type {
   MessageUpdatedProps,
   SessionCreatedProps,
 } from "../types";
-import {
-  addToAggregate,
-  cloneAggregateWithSessions,
-  emptyAggregate,
-  mapToRecord,
-} from "../helpers/metrics-aggregator.helper";
+import { MetricsAggregatorHelper } from "../helpers/metrics-aggregator.helper";
 import { MetricsHandlersRegistry } from "./metrics.aggregator.registry";
 import type {
   Aggregate,
@@ -19,8 +14,9 @@ import type {
 } from "./metrics.aggregator.interface";
 
 export class MetricsAggregator {
+  private readonly helper = new MetricsAggregatorHelper();
   private readonly totals: Aggregate & { sessionsCreated: number } = {
-    ...emptyAggregate(),
+    ...this.helper.emptyAggregate(),
     sessionsCreated: 0,
   };
   private readonly bySession = new Map<string, Aggregate>();
@@ -50,10 +46,10 @@ export class MetricsAggregator {
 
   snapshot(): MetricsSnapshot {
     return {
-      totals: cloneAggregateWithSessions(this.totals),
-      bySession: mapToRecord(this.bySession),
-      byAgent: mapToRecord(this.byAgent),
-      byModel: mapToRecord(this.byModel),
+      totals: this.helper.cloneAggregateWithSessions(this.totals),
+      bySession: this.helper.mapToRecord(this.bySession),
+      byAgent: this.helper.mapToRecord(this.byAgent),
+      byModel: this.helper.mapToRecord(this.byModel),
       window: { firstSeenAt: this.firstSeenAt, lastSeenAt: this.lastSeenAt },
     };
   }
@@ -150,10 +146,13 @@ export class MetricsAggregator {
       cost: payload.cost,
     };
 
-    addToAggregate(this.totals, inc);
-    addToAggregate(this.ensureAggregate(this.bySession, sessionID), inc);
-    addToAggregate(this.ensureAggregate(this.byAgent, agent), inc);
-    addToAggregate(this.ensureAggregate(this.byModel, model), inc);
+    this.helper.addToAggregate(this.totals, inc);
+    this.helper.addToAggregate(
+      this.ensureAggregate(this.bySession, sessionID),
+      inc,
+    );
+    this.helper.addToAggregate(this.ensureAggregate(this.byAgent, agent), inc);
+    this.helper.addToAggregate(this.ensureAggregate(this.byModel, model), inc);
   }
 
   private recordLlmError(
@@ -162,14 +161,17 @@ export class MetricsAggregator {
     model: string,
   ): void {
     const inc: Aggregate = {
-      ...emptyAggregate(),
+      ...this.helper.emptyAggregate(),
       llmErrors: 1,
     };
 
-    addToAggregate(this.totals, inc);
-    addToAggregate(this.ensureAggregate(this.bySession, sessionID), inc);
-    addToAggregate(this.ensureAggregate(this.byAgent, agent), inc);
-    addToAggregate(this.ensureAggregate(this.byModel, model), inc);
+    this.helper.addToAggregate(this.totals, inc);
+    this.helper.addToAggregate(
+      this.ensureAggregate(this.bySession, sessionID),
+      inc,
+    );
+    this.helper.addToAggregate(this.ensureAggregate(this.byAgent, agent), inc);
+    this.helper.addToAggregate(this.ensureAggregate(this.byModel, model), inc);
   }
 
   private recordToolCall(
@@ -178,20 +180,23 @@ export class MetricsAggregator {
     isError: boolean,
   ): void {
     const inc: Aggregate = {
-      ...emptyAggregate(),
+      ...this.helper.emptyAggregate(),
       toolCalls: 1,
       toolErrors: isError ? 1 : 0,
     };
 
-    addToAggregate(this.totals, inc);
-    addToAggregate(this.ensureAggregate(this.bySession, sessionID), inc);
-    addToAggregate(this.ensureAggregate(this.byAgent, agent), inc);
+    this.helper.addToAggregate(this.totals, inc);
+    this.helper.addToAggregate(
+      this.ensureAggregate(this.bySession, sessionID),
+      inc,
+    );
+    this.helper.addToAggregate(this.ensureAggregate(this.byAgent, agent), inc);
   }
 
   private ensureAggregate(map: Map<string, Aggregate>, key: string): Aggregate {
     let bucket = map.get(key);
     if (!bucket) {
-      bucket = emptyAggregate();
+      bucket = this.helper.emptyAggregate();
       map.set(key, bucket);
     }
     return bucket;
