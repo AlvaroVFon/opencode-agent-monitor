@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/opencode-agent-monitor-v0.1.1...opencode-agent-monitor-v0.2.0) (2026-06-15)
+
+
+### Features
+
+* implement agent monitoring plugin with event handling ([77830a3](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/77830a3aab190aace4001bf9839576927c8fa117))
+* track tool calls, harden llm_call completion check, prep v0.1.1 ([8a3b424](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/8a3b424e74ca2b42a0a3887d89c3c399d32ad90c))
+
+## Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

@@ -1,6 +1,6 @@
 {
   "name": "@alvarovfon/opencode-agent-monitor",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "OpenCode plugin for tracing LLM calls, agent delegations, tool calls and session events to JSONL files",
   "type": "commonjs",
   "main": "src/agent-monitor.ts",
@@ -43,5 +43,10 @@
     "type": "git",
     "url": "git+https://github.com/AlvaroVFon/opencode-agent-monitor.git"
   },
-  "keywords": ["opencode", "plugin", "tracing", "telemetry"]
+  "keywords": [
+    "opencode",
+    "plugin",
+    "tracing",
+    "telemetry"
+  ]
 }
