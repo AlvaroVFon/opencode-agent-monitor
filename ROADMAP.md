@@ -20,6 +20,38 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 
 ---
 
+## Fase 0 — Automation (release-please + commitlint + husky)
+
+**Objetivo:** versionado y changelog automáticos desde el primer `feat:`. Cero intervención manual para releases.
+
+### 0.1 Conventional commits enforcement
+- [ ] `commitlint.config.cjs` con `@commitlint/config-conventional` + tipos permitidos
+- [ ] Hook `commit-msg` en `.husky/` que valida cada commit
+- [ ] Script `prepare: "husky"` en `package.json`
+
+### 0.2 release-please config
+- [ ] `release-please-config.json` con `releaseType: "node"` y secciones por tipo de commit
+- [ ] `.release-please-manifest.json` con versión actual (`"0.1.1"`)
+- [ ] `bumpMinorPreMajor: true` para que `feat:` bumpee minor incluso antes de 1.0
+- [ ] `bumpPatchForMinorPreMajor: false` para no bumpear patch por feat pre-1.0 (mantiene semver estricto)
+
+### 0.3 GitHub workflows
+- [ ] `.github/workflows/release-please.yml` — abre/actualiza Release PR en cada push a `main`
+- [ ] `.github/workflows/publish.yml` — disparado por `release: published`, ejecuta `npm ci && npm run lint && npm test && npm publish --provenance`
+- [ ] Ambos con `id-token: write` para OIDC trusted publishing
+
+### 0.4 CHANGELOG gestionado
+- [ ] `CHANGELOG.md` queda como skeleton; release-please lo regenera en cada Release PR
+- [ ] Eliminado del versionado manual de versiones
+
+### 0.5 Trusted publishing (npm)
+- [ ] `publishConfig.provenance: true` en `package.json`
+- [ ] Configurar Trusted Publisher en https://www.npmjs.com/package/@alvarovfon/opencode-agent-monitor → Settings → Trusted Publishers (workflow `publish.yml`)
+
+**Criterio de cierre:** push a `main` con commit `feat:` abre un Release PR; al mergearlo, se crea el tag, el GitHub Release, y se publica a npm con provenance.
+
+---
+
 ## Fase 1 — Estabilización y primer publish (v0.1.1)
 
 **Objetivo:** paquete publicable, código limpio, trazabilidad mínima garantizada.
@@ -225,12 +257,13 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 
 ## Orden de ejecución
 
-1. **Fase 1** (publicación) → `0.1.1` en npm
-2. **Fase 2** (aggregator) → tests verdes, sin API pública
-3. **Fase 3** (tool) → demo end-to-end con LLM
-4. **Fase 4** (CLI) → binario funcional
-5. Release conjunto: **`0.2.0`** con tool + CLI + métricas
-6. **Fase 5** (polish) → `0.3.0`
+1. **Fase 0** (automation) → release-please, commitlint, husky operativos
+2. **Fase 1** (publicación) → `0.1.1` en npm (manual, antes de tener CI)
+3. **Fase 2** (aggregator) → tests verdes, sin API pública
+4. **Fase 3** (tool) → demo end-to-end con LLM
+5. **Fase 4** (CLI) → binario funcional
+6. Release conjunto: **`0.2.0`** con tool + CLI + métricas (auto via release-please)
+7. **Fase 5** (polish) → `0.3.0`
 
 ---
 

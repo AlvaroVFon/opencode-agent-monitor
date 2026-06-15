@@ -70,6 +70,19 @@ This release (v0.1.x) only writes raw events. It does **not** yet aggregate, que
 - A tool that the LLM can invoke mid-conversation to display those metrics
 - A CLI (`agent-monitor stats | errors | tail | export`) to read the JSONL files from the terminal
 
+## Releasing
+
+Releases are fully automated via [release-please](https://github.com/googleapis/release-please) and [Conventional Commits](https://www.conventionalcommits.org/):
+
+1. Open a PR to `main` with commits following the convention (`feat:`, `fix:`, `perf:`, `refactor:`, etc.)
+2. `release-please` opens/updates a **Release PR** with a version bump and a regenerated `CHANGELOG.md`
+3. Merging the Release PR:
+   - Creates the GitHub Release (tag `vX.Y.Z`)
+   - Triggers the `publish` workflow
+   - Publishes to npm with provenance via [Trusted Publishers (OIDC)](https://docs.npmjs.com/generating-provenance-statements)
+
+Commit messages are validated locally by `husky` + `commitlint` (run `npm install` to enable the hook). To run a release dry-run locally: `npx release-please release-pr --dry-run`.
+
 ## License
 
 MIT

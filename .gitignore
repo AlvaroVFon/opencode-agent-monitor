@@ -2,3 +2,5 @@ node_modules
 dist
 .tracing
 *.jsonl
+.husky/_
+.husky/.gitignore
