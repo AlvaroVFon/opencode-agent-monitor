@@ -1,0 +1,42 @@
+import { TraceHelper } from "../helpers/trace.helpers";
+import { extractErrorMessage } from "../helpers/error.helpers";
+import { TraceEventType, UNKNOWN, Role } from "../enums";
+import { Handler } from "../handler.interface";
+import type { MessageUpdatedProps } from "../types";
+
+export class LlmErrorHandler implements Handler {
+  constructor(
+    private readonly traceHelper: TraceHelper,
+    private readonly currentAgent: Map<string, string>,
+  ) {}
+
+  handle(properties: unknown): void {
+    const msg = (properties as MessageUpdatedProps).info;
+
+    if (msg.role !== Role.ASSISTANT || !msg.error || msg.tokens) return;
+
+    const agent = this.currentAgent.get(msg.sessionID) ?? UNKNOWN;
+    const model = `${msg.providerID}/${msg.modelID}`;
+    const { name: errorName, data } = msg.error;
+
+    this.traceHelper.writeTrace({
+      type: TraceEventType.LLM_ERROR,
+      sessionID: msg.sessionID,
+      agent,
+      model,
+      errorType: errorName,
+      errorMessage: extractErrorMessage(data),
+      timestamp: Date.now(),
+    });
+
+    this.traceHelper.writeTraceError({
+      type: TraceEventType.LLM_ERROR,
+      sessionID: msg.sessionID,
+      agent,
+      model,
+      errorType: errorName,
+      errorMessage: extractErrorMessage(data),
+      timestamp: Date.now(),
+    });
+  }
+}
