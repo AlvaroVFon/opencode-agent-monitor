@@ -10,13 +10,16 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 
 - ✅ Trazado de eventos: `session_created`, `session_error`, `llm_call`, `llm_error`, `agent_delegation`, `tool_call`, `write_trace_error`
 - ✅ Doble salida (`trace.jsonl` + `trace.errors.jsonl`) con manejo defensivo de I/O
-- ✅ 42 tests, 12 suites, todos verdes
 - ✅ Tipos del SDK (`@opencode-ai/sdk`) integrados
-- ❌ No publicado en npm
-- ❌ Sin LICENSE, CHANGELOG, CI
-- ❌ `ToolCallHandler` uncommitted y sin test
-- ❌ Sin agregación de métricas
-- ❌ Sin tool/CLI de exposición
+- ✅ Publicado en npm: `@alvarovfon/opencode-agent-monitor@0.1.1`
+- ✅ LICENSE (MIT), CHANGELOG gestionado por release-please
+- ✅ `ToolCallHandler` con test (6 casos)
+- ✅ Conventional commits + commitlint + husky
+- ✅ release-please + GitHub Actions (release + publish con OIDC)
+- ✅ Prettier + CI workflow (lint, format:check, test) en PRs a `main`/`develop`
+- ✅ Git Flow con `develop` como default branch
+- 🚧 `MetricsAggregator` en progreso (Phase 2)
+- ❌ Sin tool/CLI de exposición (Phases 3 y 4)
 
 ---
 
@@ -112,57 +115,54 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 
 ---
 
-## Fase 2 — Capa de agregación de métricas (v0.2.0)
+## Fase 2 — Capa de agregación de métricas (v0.2.0) — **in progress**
 
 **Objetivo:** tener un `MetricsAggregator` que consume los mismos eventos que `EventHandler` y mantiene un snapshot en memoria, sin tocar el flujo de tracing actual.
 
 ### 2.1 Diseño
 
 - Nueva clase `MetricsAggregator` en `src/metrics/metrics.aggregator.ts`
-- Recibe los mismos eventos (`message.updated`, `message.part.updated`, etc.) por un segundo canal
+- Recibe los mismos eventos OpenCode (`message.updated`, `message.part.updated`, `session.created`) en paralelo a `EventHandler`
 - Estado interno:
   ```ts
   {
-    totals: { llmCalls, llmErrors, toolCalls, toolErrors, sessionsCreated },
-    tokens: { input, output, reasoning, cacheRead },
-    cost: number,
-    durationsMs: { llm: number[], tool: number[] },
-    byAgent:   Map<string, { llmCalls, cost, tokens: {...}, errors }>,
-    byModel:   Map<string, { llmCalls, cost, tokens: {...}, errors }>,
-    byTool:    Map<string, { calls, errors, durationMs: number[] }>,
-    bySession: Map<string, { llmCalls, cost, tokens: {...} }>,
+    totals: { llmCalls, llmErrors, toolCalls, toolErrors, sessionsCreated,
+              tokens: { input, output, reasoning, cacheRead }, cost },
+    bySession: Map<string, Aggregate>,
+    byAgent:   Map<string, Aggregate>,
+    byModel:   Map<string, Aggregate>,
     firstSeenAt: number,
     lastSeenAt: number,
   }
   ```
 - Métodos:
-  - `ingest(event)` — enrutado por tipo
-  - `snapshot(opts?: { since?: number; sessionID?: string; groupBy?: 'agent' | 'model' | 'tool' })` — devuelve objeto JSON
+  - `ingest(event)` — switch por tipo de evento
+  - `snapshot()` — devuelve objeto JSON (sin filtros en v0.2)
   - `reset()` — para tests
 
-### 2.2 Cálculo de percentiles
+### 2.2 Percentiles — pospuesto a fase futura
 
-- Mantener arrays de duración capped a N=1000 muestras (ring buffer) para p50/p95 sin memoria ilimitada
-- Función pura `percentile(arr, p)` testeable
+- Diferido: primero queremos saber qué consultas harás realmente sobre los datos (top N sesiones más caras, hotspot agent×model, etc.) y luego decidir si p50/p95 son la métrica correcta o necesitamos otra cosa.
+- Cuando se añada: ring buffer capped a N=1000, función pura `percentile(arr, p)`.
 
 ### 2.3 Tests
 
-- `src/test/metrics/metrics.aggregator.test.ts`:
-  - ingest de `llm_call` actualiza totales, tokens, cost, byAgent, byModel
-  - ingest de `llm_error` incrementa error count
-  - ingest de `tool_call` (completed) y (error) actualiza byTool
-  - ingest de `session_created` actualiza firstSeenAt, lastSeenAt
-  - `snapshot()` filtra por `sessionID`
-  - `snapshot()` agrupa correctamente
-  - p50/p95 calculados correctamente
-  - `reset()` limpia estado
+- `src/test/metrics/metrics.aggregator.test.ts` (8 casos):
+  - `llm_call` actualiza totales, byAgent, byModel, bySession
+  - 2 agentes distintos → 2 keys, totales = suma
+  - `llm_error` incrementa counter sin tocar tokens/cost
+  - `tool_call` (completed) incrementa toolCalls
+  - `tool_call` (error) incrementa toolErrors
+  - `session_created` actualiza sessionsCreated + window
+  - `snapshot()` en estado vacío
+  - `reset()` limpia todo
 
 ### 2.4 Integración con el plugin
 
-- `agent-monitor.ts`: instanciar `MetricsAggregator` y pasarle cada evento en paralelo al `EventHandler`
+- `agent-monitor.ts`: instanciar `MetricsAggregator` y pasarle cada evento en paralelo al `EventHandler` (1 línea)
 - Sin cambios en handlers ni en `TraceHelper` — aditivo
 
-**Criterio de cierre:** tests verdes; el plugin sigue escribiendo JSONL igual que antes; existe método público para obtener snapshot (aunque aún no expuesto al usuario).
+**Criterio de cierre:** 8 tests verdes + suite completa sigue verde; el plugin sigue escribiendo JSONL igual que antes; `MetricsAggregator.snapshot()` público pero aún no expuesto al usuario.
 
 ---
 
