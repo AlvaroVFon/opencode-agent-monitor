@@ -10,6 +10,7 @@ import { LlmErrorHandler } from "./handlers/llm-error.handler";
 import { LlmCallHandler } from "./handlers/llm-call.handler";
 import { AgentDelegationHandler } from "./handlers/agent-delegation.handler";
 import { SubtaskDelegationHandler } from "./handlers/subtask-delegation.handler";
+import { ToolCallHandler } from "./handlers/tool-call.handler";
 
 const currentAgent = new Map<string, string>();
 
@@ -35,6 +36,10 @@ function setupEventHandlers(traceHelper: TraceHelper): EventHandler {
     .register(
       EventType.MESSAGE_PART_UPDATED,
       new SubtaskDelegationHandler(traceHelper),
+    )
+    .register(
+      EventType.MESSAGE_PART_UPDATED,
+      new ToolCallHandler(traceHelper),
     );
 
   return new EventHandler(traceHelper, registry);

@@ -13,6 +13,7 @@ export class LlmCallHandler implements Handler {
     const msg = (properties as MessageUpdatedProps).info;
 
     if (msg.role !== Role.ASSISTANT || !msg.finish || !msg.tokens) return;
+    if (!msg.time?.completed) return;
 
     const agent = this.currentAgent.get(msg.sessionID) ?? UNKNOWN;
     const model = `${msg.providerID}/${msg.modelID}`;

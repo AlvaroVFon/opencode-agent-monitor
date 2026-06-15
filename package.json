@@ -1,15 +1,16 @@
 {
   "name": "@alvarovfon/opencode-agent-monitor",
-  "version": "0.1.0",
-  "description": "OpenCode plugin for tracing LLM calls, agent delegations, and session events to JSONL files",
+  "version": "0.1.1",
+  "description": "OpenCode plugin for tracing LLM calls, agent delegations, tool calls and session events to JSONL files",
   "type": "commonjs",
   "main": "src/agent-monitor.ts",
   "exports": {
-    ".": "./src/agent-monitor.ts",
-    "./trace-helper": "./src/helpers/trace.helpers.ts"
+    ".": "./src/agent-monitor.ts"
   },
   "scripts": {
-    "test": "node --import tsx --experimental-test-module-mocks --test 'src/test/**/*.test.ts'"
+    "test": "node --import tsx --experimental-test-module-mocks --test 'src/test/**/*.test.ts'",
+    "lint": "tsc --noEmit",
+    "prepublishOnly": "npm run lint && npm test"
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.14.50",
@@ -26,7 +27,9 @@
     "src/",
     "package.json",
     "tsconfig.json",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md",
+    "README.md"
   ],
   "license": "MIT",
   "author": "Alvaro Villamarin <alvaro.vfon@gmail.com>",

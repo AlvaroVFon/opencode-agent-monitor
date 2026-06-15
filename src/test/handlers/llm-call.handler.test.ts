@@ -86,7 +86,7 @@ describe("LlmCallHandler", () => {
     assert.equal(writeTrace.mock.calls.length, 0);
   });
 
-  it("sets durationMs to null when time is missing", () => {
+  it("skips trace when time.completed is missing", () => {
     const writeTrace = mock.fn();
     const handler = new LlmCallHandler(
       { writeTrace, writeTraceError: mock.fn(), ensureDir: () => {} } as any,
@@ -94,6 +94,6 @@ describe("LlmCallHandler", () => {
     );
 
     handler.handle(makeMsg({ time: undefined }));
-    assert.equal(writeTrace.mock.calls[0].arguments[0].durationMs, null);
+    assert.equal(writeTrace.mock.calls.length, 0);
   });
 });

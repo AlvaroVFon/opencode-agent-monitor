@@ -38,6 +38,7 @@ The `traceDir` option is optional. It defaults to `~/.config/opencode/.tracing`.
 | `session.created` | `session_created` | `sessionID`, `parentID` |
 | `message.updated` | `llm_call` | `agent`, `model`, `finish`, `inputTokens`, `outputTokens`, `reasoningTokens`, `cacheRead`, `cost`, `durationMs` |
 | `message.updated` | `llm_error` | `agent`, `model`, `errorType`, `errorMessage` |
+| `message.part.updated` | `tool_call` | `tool`, `callID`, `status`, `durationMs`, optional `error` |
 | `message.part.updated` | `agent_delegation` | `sessionID`, `childAgent` |
 | `message.part.updated` | `agent_delegation` | `sessionID`, `childAgent`, `description` (subtasks) |
 | `session.error` | `session_error` | `sessionID`, `errorType`, `errorMessage` |
@@ -60,6 +61,14 @@ Example `trace.jsonl` entry:
 ## Error Handling
 
 If writing to `trace.jsonl` fails (e.g., disk full, permission denied), the error is logged to `trace.errors.jsonl`. If writing to `trace.errors.jsonl` also fails, the error is silently swallowed to avoid disrupting the OpenCode session.
+
+## Limitations
+
+This release (v0.1.x) only writes raw events. It does **not** yet aggregate, query or display metrics. The following are planned for v0.2.0 (see [`ROADMAP.md`](./ROADMAP.md)):
+
+- Aggregated metrics (totals, per-agent / per-model / per-tool breakdowns, p50/p95 latency, error rate)
+- A tool that the LLM can invoke mid-conversation to display those metrics
+- A CLI (`agent-monitor stats | errors | tail | export`) to read the JSONL files from the terminal
 
 ## License
 

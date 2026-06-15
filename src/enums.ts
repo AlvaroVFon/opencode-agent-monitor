@@ -5,8 +5,8 @@ export enum TraceEventType {
   SESSION_ERROR = "session_error",
   LLM_ERROR = "llm_error",
   LLM_CALL = "llm_call",
+  TOOL_CALL = "tool_call",
   AGENT_DELEGATION = "agent_delegation",
-  UNHANDLED_EVENT = "unhandled_event",
   WRITE_TRACE_ERROR = "write_trace_error",
 }
 
