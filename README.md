@@ -30,7 +30,10 @@ To pass options (e.g. custom `traceDir`), use the tuple format:
 {
   "$schema": "https://opencode.ai/config.json",
   "plugin": [
-    ["@alvarovfon/opencode-agent-monitor", { "traceDir": "~/.config/opencode/.tracing" }]
+    [
+      "@alvarovfon/opencode-agent-monitor",
+      { "traceDir": "~/.config/opencode/.tracing" }
+    ]
   ]
 }
 ```
