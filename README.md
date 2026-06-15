@@ -8,28 +8,34 @@ OpenCode plugin that traces LLM calls, agent delegations, subtask assignments, a
 ## Installation
 
 ```bash
-npm install @alvarovfon/opencode-agent-monitor
+opencode plugin @alvarovfon/opencode-agent-monitor
 ```
+
+This installs the package and adds it to your `opencode.json` automatically.
 
 ## Configuration
 
-Add the plugin to your `opencode.json` or `opencode.jsonc`:
+The plugin is added to `opencode.json` or `opencode.jsonc` under the `plugin` key (singular):
 
-```jsonc
+```json
 {
-  "plugins": [
-    {
-      "name": "agent-monitor",
-      "path": "@alvarovfon/opencode-agent-monitor",
-      "options": {
-        "traceDir": "~/.config/opencode/.tracing",
-      },
-    },
-  ],
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@alvarovfon/opencode-agent-monitor"]
 }
 ```
 
-The `traceDir` option is optional. It defaults to `~/.config/opencode/.tracing`.
+To pass options (e.g. custom `traceDir`), use the tuple format:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    ["@alvarovfon/opencode-agent-monitor", { "traceDir": "~/.config/opencode/.tracing" }]
+  ]
+}
+```
+
+If not specified, `traceDir` defaults to `~/.config/opencode/.tracing`.
 
 ## Traced Events
 
