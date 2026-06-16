@@ -8,7 +8,7 @@ import type {
 const id = "agent-monitor-tui";
 
 const tui: TuiPlugin = async (api, options, _meta: TuiPluginMeta) => {
-  const { tui: realTui } = await import("./agent-monitor-tui.tsx");
+  const { tui: realTui } = await import("./agent-monitor-tui.js");
   return realTui(api, options, _meta);
 };
 
