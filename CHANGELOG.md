@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.1](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/opencode-agent-monitor-v1.0.0...opencode-agent-monitor-v1.0.1) (2026-06-16)
+
+
+### Bug Fixes
+
+* **build:** ship compiled cjs via tsup and prepack ([52b580e](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/52b580e40b556b4948c47a02f1b432345f120e3b))
+* **ci:** remove --provenance flag from pnpm publish ([5681434](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/5681434f25208a98c1429b7b87842795b30168b3))
+
 ## [1.0.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/opencode-agent-monitor-v0.2.0...opencode-agent-monitor-v1.0.0) (2026-06-16)
 
 
