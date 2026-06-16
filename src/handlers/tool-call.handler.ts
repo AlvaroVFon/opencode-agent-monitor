@@ -10,7 +10,8 @@ export class ToolCallHandler implements Handler {
     const part = (properties as MessagePartUpdatedProps).part;
 
     if (part.type !== "tool") return;
-    if (part.state.status !== "completed" && part.state.status !== "error") return;
+    if (part.state.status !== "completed" && part.state.status !== "error")
+      return;
 
     const durationMs =
       part.state.time?.end && part.state.time?.start

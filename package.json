@@ -10,9 +10,11 @@
   "scripts": {
     "test": "node --import tsx --experimental-test-module-mocks --test 'src/test/**/*.test.ts'",
     "lint": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "commitlint": "commitlint --edit",
     "prepare": "husky",
-    "prepublishOnly": "npm run lint && npm test"
+    "prepublishOnly": "npm run lint && npm run format:check && npm test"
   },
   "dependencies": {
     "@opencode-ai/plugin": "^1.14.50",
@@ -23,6 +25,7 @@
     "@commitlint/config-conventional": "^19",
     "@types/node": "^22",
     "husky": "^9",
+    "prettier": "^3.8.4",
     "tsx": "^4"
   },
   "publishConfig": {
@@ -43,5 +46,10 @@
     "type": "git",
     "url": "git+https://github.com/AlvaroVFon/opencode-agent-monitor.git"
   },
-  "keywords": ["opencode", "plugin", "tracing", "telemetry"]
+  "keywords": [
+    "opencode",
+    "plugin",
+    "tracing",
+    "telemetry"
+  ]
 }

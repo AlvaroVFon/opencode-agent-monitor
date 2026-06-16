@@ -11,6 +11,9 @@ import { LlmCallHandler } from "./handlers/llm-call.handler";
 import { AgentDelegationHandler } from "./handlers/agent-delegation.handler";
 import { SubtaskDelegationHandler } from "./handlers/subtask-delegation.handler";
 import { ToolCallHandler } from "./handlers/tool-call.handler";
+import { MetricsAggregator } from "./metrics/metrics.aggregator";
+import { MetricsAggregatorHelper } from "./helpers/metrics-aggregator.helper";
+import { createAgentMonitorStatsTool } from "./tools/agent-monitor-stats.tool";
 
 const currentAgent = new Map<string, string>();
 
@@ -37,18 +40,20 @@ function setupEventHandlers(traceHelper: TraceHelper): EventHandler {
       EventType.MESSAGE_PART_UPDATED,
       new SubtaskDelegationHandler(traceHelper),
     )
-    .register(
-      EventType.MESSAGE_PART_UPDATED,
-      new ToolCallHandler(traceHelper),
-    );
+    .register(EventType.MESSAGE_PART_UPDATED, new ToolCallHandler(traceHelper));
 
   return new EventHandler(traceHelper, registry);
 }
 
 export const AgentMonitor: Plugin = async (_input, options) => {
-  const traceDir = typeof options?.traceDir === "string" ? options.traceDir : undefined;
+  const traceDir =
+    typeof options?.traceDir === "string" ? options.traceDir : undefined;
   const traceHelper = new TraceHelper(traceDir);
   const eventHandler = setupEventHandlers(traceHelper);
+  const metricsAggregator = new MetricsAggregator(
+    currentAgent,
+    new MetricsAggregatorHelper(),
+  );
 
   return {
     "chat.params": async (input) => {
@@ -57,6 +62,11 @@ export const AgentMonitor: Plugin = async (_input, options) => {
 
     event: async ({ event }) => {
       eventHandler.handle(event);
+      metricsAggregator.ingest(event);
+    },
+
+    tool: {
+      agent_monitor_stats: createAgentMonitorStatsTool(metricsAggregator),
     },
   };
 };

@@ -25,4 +25,10 @@ export enum Role {
 export enum PartType {
   AGENT = "agent",
   SUBTASK = "subtask",
+  TOOL = "tool",
+}
+
+export enum PartStatus {
+  COMPLETED = "completed",
+  ERROR = "error",
 }
