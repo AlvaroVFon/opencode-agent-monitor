@@ -40,8 +40,10 @@
     "@opentui/core": "^0.3.4",
     "@opentui/keymap": "^0.3.4",
     "@opentui/solid": "^0.3.4",
+    "@types/js-yaml": "^4.0.9",
     "@types/node": "^22",
     "husky": "^9",
+    "js-yaml": "^4.2.0",
     "lint-staged": "^17.0.7",
     "prettier": "^3.8.4",
     "tsx": "^4"

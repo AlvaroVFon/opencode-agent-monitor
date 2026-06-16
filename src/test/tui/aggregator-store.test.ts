@@ -57,11 +57,18 @@ type SessionErrorEvent = {
   timestamp: number;
 };
 
+type AgentDelegationEvent = {
+  type: "agent_delegation";
+  timestamp: number;
+  [key: string]: unknown;
+};
+
 type TraceEvent =
   | LlmCallEvent
   | ToolCallEvent
   | SessionCreatedEvent
-  | SessionErrorEvent;
+  | SessionErrorEvent
+  | AgentDelegationEvent;
 
 // ---------------------------------------------------------------------------
 // Fixture builders — small helpers that produce events with sensible defaults
@@ -113,6 +120,31 @@ function makeSessionCreatedEvent(
     sessionID,
     parentID: null,
     timestamp: 1_700_000_002_000,
+    ...overrides,
+  };
+}
+
+function makeSessionErrorEvent(
+  sessionID: string,
+  overrides: Partial<SessionErrorEvent> = {},
+): SessionErrorEvent {
+  return {
+    type: "session_error",
+    sessionID,
+    errorType: "boom",
+    timestamp: 1_700_000_003_000,
+    ...overrides,
+  };
+}
+
+function makeAgentDelegationEvent(
+  overrides: Partial<AgentDelegationEvent> = {},
+): AgentDelegationEvent {
+  return {
+    type: "agent_delegation",
+    from: "agentA",
+    to: "agentB",
+    timestamp: 1_700_000_004_000,
     ...overrides,
   };
 }
@@ -540,5 +572,366 @@ describe("AggregatorStore", () => {
     // reset() also clears byAgentModel
     store.reset();
     assert.deepEqual(store.snapshot().byAgentModel, {});
+  });
+});
+
+// ---------------------------------------------------------------------------
+// lastActiveAgent — identifies the agent that most recently received an
+// llm_call event (per spec tui-working-agent-dot.md).
+//
+// All assertions below will fail until AggregatorStore learns about the
+// `lastActiveAgent` field, the MetricsSnapshot interface gains the matching
+// property, and ingest/snapshot/reset implement the rules. That red signal is
+// the expected TDD starting point for the implementer.
+// ---------------------------------------------------------------------------
+
+describe("lastActiveAgent", () => {
+  it("lastActiveAgent_is_null_initially: a fresh store has lastActiveAgent === null on its snapshot", () => {
+    const store = new AggregatorStore();
+    const snap = store.snapshot();
+
+    assert.equal(
+      snap.lastActiveAgent,
+      null,
+      "snapshot.lastActiveAgent must be null before any event is ingested",
+    );
+  });
+
+  it("llm_call_sets_lastActiveAgent: ingesting an llm_call sets lastActiveAgent to { name, timestamp }", () => {
+    const store = new AggregatorStore();
+    const ts = 1_700_000_123_456;
+
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "agentA",
+        timestamp: ts,
+      }),
+    );
+
+    const last = store.snapshot().lastActiveAgent;
+    assert.ok(
+      last !== null && last !== undefined,
+      "snapshot.lastActiveAgent must be set after an llm_call",
+    );
+    assert.equal(last.name, "agentA", "lastActiveAgent.name");
+    assert.equal(last.timestamp, ts, "lastActiveAgent.timestamp");
+  });
+
+  it("later_llm_call_for_different_agent_overrides: agentB with a later timestamp replaces agentA", () => {
+    const store = new AggregatorStore();
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "agentA",
+        timestamp: 1_700_000_000_100,
+      }),
+    );
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "agentB",
+        timestamp: 1_700_000_000_200,
+      }),
+    );
+
+    const last = store.snapshot().lastActiveAgent;
+    assert.ok(
+      last !== null && last !== undefined,
+      "snapshot.lastActiveAgent must be set after two llm_calls",
+    );
+    assert.equal(last.name, "agentB", "lastActiveAgent.name");
+    assert.equal(
+      last.timestamp,
+      1_700_000_000_200,
+      "lastActiveAgent.timestamp",
+    );
+  });
+
+  it("out_of_order_llm_call_with_earlier_timestamp_does_not_regress: an llm_call whose timestamp is older than the current lastActiveAgent must not change the field", () => {
+    const store = new AggregatorStore();
+
+    // Establish agentA as active at ts=100.
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "agentA",
+        timestamp: 100,
+      }),
+    );
+
+    // A later-arriving event for agentB at ts=50 must not regress the field.
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "agentB",
+        timestamp: 50,
+      }),
+    );
+
+    const last = store.snapshot().lastActiveAgent;
+    assert.ok(
+      last !== null && last !== undefined,
+      "snapshot.lastActiveAgent must remain set",
+    );
+    assert.equal(
+      last.name,
+      "agentA",
+      "lastActiveAgent.name must not regress to the earlier-timestamp agent",
+    );
+    assert.equal(
+      last.timestamp,
+      100,
+      "lastActiveAgent.timestamp must not regress to the earlier timestamp",
+    );
+  });
+
+  it("out_of_order_safety_with_three_events: among A(100), B(200), C(150) the field ends at B(200) regardless of arrival order", () => {
+    const store = new AggregatorStore();
+
+    // Arrival order: A(100) → B(200) → C(150). Highest timestamp wins.
+    store.ingest(makeLlmCallEvent({ agent: "agentA", timestamp: 100 }));
+    store.ingest(makeLlmCallEvent({ agent: "agentB", timestamp: 200 }));
+    store.ingest(makeLlmCallEvent({ agent: "agentC", timestamp: 150 }));
+
+    const last = store.snapshot().lastActiveAgent;
+    assert.ok(
+      last !== null && last !== undefined,
+      "snapshot.lastActiveAgent must be set",
+    );
+    assert.equal(
+      last.name,
+      "agentB",
+      "lastActiveAgent.name must be the agent with the highest timestamp",
+    );
+    assert.equal(last.timestamp, 200, "lastActiveAgent.timestamp");
+  });
+
+  it("tool_call_does_not_change_lastActiveAgent: a tool_call after an llm_call leaves the field alone", () => {
+    const store = new AggregatorStore();
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "agentA",
+        timestamp: 1_700_000_000_100,
+      }),
+    );
+    store.ingest(
+      makeToolCallEvent("bash", "completed", {
+        sessionID: "sess-1",
+        timestamp: 1_700_000_000_500,
+      }),
+    );
+
+    const last = store.snapshot().lastActiveAgent;
+    assert.ok(
+      last !== null && last !== undefined,
+      "snapshot.lastActiveAgent must remain set after a tool_call",
+    );
+    assert.equal(
+      last.name,
+      "agentA",
+      "lastActiveAgent.name must not change on a tool_call",
+    );
+    assert.equal(
+      last.timestamp,
+      1_700_000_000_100,
+      "lastActiveAgent.timestamp must not change on a tool_call",
+    );
+  });
+
+  it("session_created_does_not_change_lastActiveAgent: a session_created after an llm_call leaves the field alone", () => {
+    const store = new AggregatorStore();
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "agentA",
+        timestamp: 1_700_000_000_100,
+      }),
+    );
+    store.ingest(
+      makeSessionCreatedEvent("sess-99", {
+        timestamp: 1_700_000_000_500,
+      }),
+    );
+
+    const last = store.snapshot().lastActiveAgent;
+    assert.ok(
+      last !== null && last !== undefined,
+      "snapshot.lastActiveAgent must remain set after a session_created",
+    );
+    assert.equal(
+      last.name,
+      "agentA",
+      "lastActiveAgent.name must not change on a session_created",
+    );
+    assert.equal(
+      last.timestamp,
+      1_700_000_000_100,
+      "lastActiveAgent.timestamp must not change on a session_created",
+    );
+  });
+
+  it("session_error_does_not_change_lastActiveAgent: a session_error after an llm_call leaves the field alone", () => {
+    const store = new AggregatorStore();
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "agentA",
+        timestamp: 1_700_000_000_100,
+      }),
+    );
+    store.ingest(
+      makeSessionErrorEvent("sess-99", {
+        errorType: "boom",
+        timestamp: 1_700_000_000_500,
+      }),
+    );
+
+    const last = store.snapshot().lastActiveAgent;
+    assert.ok(
+      last !== null && last !== undefined,
+      "snapshot.lastActiveAgent must remain set after a session_error",
+    );
+    assert.equal(
+      last.name,
+      "agentA",
+      "lastActiveAgent.name must not change on a session_error",
+    );
+    assert.equal(
+      last.timestamp,
+      1_700_000_000_100,
+      "lastActiveAgent.timestamp must not change on a session_error",
+    );
+  });
+
+  it("agent_delegation_does_not_change_lastActiveAgent: an agent_delegation after an llm_call leaves the field alone", () => {
+    const store = new AggregatorStore();
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "agentA",
+        timestamp: 1_700_000_000_100,
+      }),
+    );
+    store.ingest(
+      makeAgentDelegationEvent({
+        from: "agentA",
+        to: "agentB",
+        timestamp: 1_700_000_000_500,
+      }),
+    );
+
+    const last = store.snapshot().lastActiveAgent;
+    assert.ok(
+      last !== null && last !== undefined,
+      "snapshot.lastActiveAgent must remain set after an agent_delegation",
+    );
+    assert.equal(
+      last.name,
+      "agentA",
+      "lastActiveAgent.name must not change on an agent_delegation",
+    );
+    assert.equal(
+      last.timestamp,
+      1_700_000_000_100,
+      "lastActiveAgent.timestamp must not change on an agent_delegation",
+    );
+  });
+
+  it("reset_clears_lastActiveAgent_to_null: reset() returns lastActiveAgent to null", () => {
+    const store = new AggregatorStore();
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "agentA",
+        timestamp: 1_700_000_000_100,
+      }),
+    );
+    assert.ok(
+      store.snapshot().lastActiveAgent !== null &&
+        store.snapshot().lastActiveAgent !== undefined,
+      "precondition: lastActiveAgent must be set before reset",
+    );
+
+    store.reset();
+
+    assert.equal(
+      store.snapshot().lastActiveAgent,
+      null,
+      "snapshot.lastActiveAgent must be null after reset()",
+    );
+  });
+
+  it("snapshot_lastActiveAgent_is_cloned_on_subsequent_ingest: a stale snapshot's lastActiveAgent is not affected by later ingests", () => {
+    const store = new AggregatorStore();
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "agentA",
+        timestamp: 1_700_000_000_100,
+      }),
+    );
+
+    // Snapshot #1 captures the current state.
+    const snap1 = store.snapshot();
+    const nameFromSnap1 = snap1.lastActiveAgent?.name;
+    assert.equal(
+      nameFromSnap1,
+      "agentA",
+      "precondition: snap1.lastActiveAgent.name === 'agentA'",
+    );
+
+    // A new llm_call supersedes the previous active agent.
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "agentB",
+        timestamp: 1_700_000_000_200,
+      }),
+    );
+
+    // The first snapshot must NOT reflect the new ingest (it must be a clone).
+    assert.equal(
+      snap1.lastActiveAgent?.name,
+      "agentA",
+      "snap1.lastActiveAgent.name must be unaffected by later ingests",
+    );
+    assert.equal(
+      snap1.lastActiveAgent?.timestamp,
+      1_700_000_000_100,
+      "snap1.lastActiveAgent.timestamp must be unaffected by later ingests",
+    );
+
+    // The new snapshot reflects the new state.
+    const snap2 = store.snapshot();
+    assert.equal(
+      snap2.lastActiveAgent?.name,
+      "agentB",
+      "snap2.lastActiveAgent.name must show the new agent",
+    );
+  });
+
+  it("snapshot_lastActiveAgent_is_cloned_against_mutation: mutating a snapshot's lastActiveAgent must not affect subsequent snapshots", () => {
+    const store = new AggregatorStore();
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "agentA",
+        timestamp: 1_700_000_000_100,
+      }),
+    );
+
+    // Take a snapshot and mutate its lastActiveAgent in place.
+    const snap1 = store.snapshot();
+    if (snap1.lastActiveAgent === null || snap1.lastActiveAgent === undefined) {
+      throw new Error("precondition: lastActiveAgent must be set");
+    }
+    snap1.lastActiveAgent.name = "MUTATED";
+    snap1.lastActiveAgent.timestamp = 999;
+
+    // A fresh snapshot from the store must still show the original values.
+    const snap2 = store.snapshot();
+    assert.ok(
+      snap2.lastActiveAgent !== null && snap2.lastActiveAgent !== undefined,
+      "snap2.lastActiveAgent must remain set",
+    );
+    assert.equal(
+      snap2.lastActiveAgent.name,
+      "agentA",
+      "snap2.lastActiveAgent.name must not be affected by mutating snap1",
+    );
+    assert.equal(
+      snap2.lastActiveAgent.timestamp,
+      1_700_000_000_100,
+      "snap2.lastActiveAgent.timestamp must not be affected by mutating snap1",
+    );
   });
 });

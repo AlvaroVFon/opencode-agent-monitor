@@ -56,6 +56,7 @@ export class MetricsAggregator {
       byModel: this.helper.mapToRecord(this.byModel),
       byAgentModel: this.helper.mapToNestedRecord(this.byAgentModel),
       window: { firstSeenAt: this.firstSeenAt, lastSeenAt: this.lastSeenAt },
+      lastActiveAgent: null,
     };
   }
 

@@ -3,7 +3,13 @@
 [![npm version](https://img.shields.io/npm/v/@alvarovfon/opencode-agent-monitor)](https://www.npmjs.com/package/@alvarovfon/opencode-agent-monitor)
 [![License](https://img.shields.io/npm/l/@alvarovfon/opencode-agent-monitor)](LICENSE)
 
-OpenCode plugin that traces LLM calls, agent delegations, subtask assignments, and session events to JSONL files for monitoring and analysis.
+OpenCode plugin that traces LLM calls, agent delegations, tool calls, and session events to JSONL files for monitoring and analysis. Includes a real-time TUI sidebar panel and a batch metrics script.
+
+## Prerequisites
+
+- **Node.js** >= 24
+- **OpenCode** installed and configured
+- **pnpm** (only needed if running the batch metrics script manually)
 
 ## Installation
 
@@ -11,11 +17,11 @@ OpenCode plugin that traces LLM calls, agent delegations, subtask assignments, a
 opencode plugin @alvarovfon/opencode-agent-monitor
 ```
 
-This installs the package and adds it to your `opencode.json` automatically.
+This installs the npm package and adds it to your `opencode.json` automatically.
 
 ## Configuration
 
-The plugin is added to `opencode.json` or `opencode.jsonc` under the `plugin` key (singular):
+Add the plugin to `opencode.json` (or `opencode.jsonc`) under the `plugin` key:
 
 ```json
 {
@@ -24,7 +30,7 @@ The plugin is added to `opencode.json` or `opencode.jsonc` under the `plugin` ke
 }
 ```
 
-To pass options (e.g. custom `traceDir`), use the tuple format:
+To set a custom trace directory:
 
 ```json
 {
@@ -38,7 +44,9 @@ To pass options (e.g. custom `traceDir`), use the tuple format:
 }
 ```
 
-If not specified, `traceDir` defaults to `~/.config/opencode/.tracing`.
+| Option     | Default                       | Description                              |
+| ---------- | ----------------------------- | ---------------------------------------- |
+| `traceDir` | `~/.config/opencode/.tracing` | Directory where trace files are written. |
 
 ## Traced Events
 
@@ -57,36 +65,22 @@ If not specified, `traceDir` defaults to `~/.config/opencode/.tracing`.
 Events are written as newline-delimited JSON to two files inside the trace directory:
 
 - **`trace.jsonl`** — all traced events
-- **`trace.errors.jsonl`** — LLM errors and session errors (duplicated from `trace.jsonl` for easier error monitoring)
+- **`trace.errors.jsonl`** — LLM errors and session errors (duplicated for easier error monitoring)
 
-Each line is a JSON object with a `type` field identifying the event kind and a `timestamp` field in milliseconds.
-
-Example `trace.jsonl` entry:
+Each line has a `type` field identifying the event kind and a `timestamp` field in milliseconds.
 
 ```json
-{
-  "type": "llm_call",
-  "sessionID": "sess-abc",
-  "agent": "planner",
-  "model": "openai/gpt-4o",
-  "finish": "stop",
-  "inputTokens": 450,
-  "outputTokens": 120,
-  "reasoningTokens": 0,
-  "cacheRead": 0,
-  "cost": 0.003,
-  "durationMs": 3200,
-  "timestamp": 1718000000000
-}
+{"type":"session_created","sessionID":"sess-abc","parentID":null,"timestamp":1718000000000}
+{"type":"llm_call","sessionID":"sess-abc","agent":"planner","model":"openai/gpt-4o","finish":"stop","inputTokens":450,"outputTokens":120,"reasoningTokens":0,"cacheRead":0,"cost":0.003,"durationMs":3200,"timestamp":1718000003200}
+{"type":"llm_error","sessionID":"sess-abc","agent":"planner","model":"openai/gpt-4o","errorType":"rate_limit","errorMessage":"Rate limit exceeded","timestamp":1718000004000}
+{"type":"tool_call","sessionID":"sess-abc","tool":"bash","callID":"call-1","status":"completed","durationMs":1500,"timestamp":1718000005000}
+{"type":"agent_delegation","sessionID":"sess-abc","childAgent":"test-writer","timestamp":1718000006000}
+{"type":"session_error","sessionID":"sess-abc","errorType":"timeout","errorMessage":"Session timed out after 5 minutes","timestamp":1718000007000}
 ```
-
-## Error Handling
-
-If writing to `trace.jsonl` fails (e.g., disk full, permission denied), the error is logged to `trace.errors.jsonl`. If writing to `trace.errors.jsonl` also fails, the error is silently swallowed to avoid disrupting the OpenCode session.
 
 ## Live TUI Monitor
 
-v0.3.0 includes a real-time TUI plugin that displays per-agent cost, context tokens, and call stats directly in the OpenCode sidebar.
+The plugin includes a real-time TUI sidebar panel that displays per-agent cost, context tokens, and call stats.
 
 ### Installation
 
@@ -101,33 +95,68 @@ Add to your `tui.json` (`~/.config/opencode/tui.json` or project-local):
 
 ### Usage
 
-- **Sidebar panel** — shows per-agent rows sorted by cost descending (context tokens, input/output tokens, cost, calls, errors). Appears in the sidebar content area.
+- **Sidebar panel** — shows agents sorted by cost descending. Each row includes cost, per-model breakdown, context tokens (input/output), call count, cache hit rate, average cost per call, and error count. The currently active agent is marked with a dot.
 - **Fullscreen dialog** — press `Ctrl+A` to toggle an expanded table with totals and per-model breakdown.
 
-The panel updates in real-time as your agents run. Cursor position is persisted across TUI restarts (via `api.kv`).
+The trace directory is read from the same `traceDir` option used in the server plugin config (default: `~/.config/opencode/.tracing`).
 
-### Configuration
+## Batch Metrics Script
 
-| Option     | Default                       | Description                              |
-| ---------- | ----------------------------- | ---------------------------------------- |
-| `traceDir` | `~/.config/opencode/.tracing` | Directory where `trace.jsonl` is written |
+Aggregate all traced events from the command line into a Markdown or JSON report:
+
+```bash
+pnpm metrics
+```
+
+This reads `trace.jsonl` and `trace.errors.jsonl` from the trace directory and outputs a formatted report.
+
+### Options
+
+| Flag                  | Description                                              |
+| --------------------- | -------------------------------------------------------- |
+| `--dir <path>`        | Trace directory (default: `~/.config/opencode/.tracing`) |
+| `--json`              | Output as JSON (default: Markdown)                       |
+| `--markdown` / `--md` | Output as Markdown (default)                             |
+| `-h` / `--help`       | Show help                                                |
+
+### Example output (Markdown)
+
+```
+# Agent Monitor Metrics
+
+**Window:** 2026-06-16T10:00:00.000Z → 2026-06-16T12:30:00.000Z (2h 30m)
+
+## Summary
+
+| Metric          | Value       |
+|-----------------|-------------|
+| LLM Calls       | 142         |
+| LLM Errors      | 3           |
+| Tool Calls      | 589         |
+| Tool Errors     | 1           |
+| Sessions Created| 12          |
+| Session Errors  | 1           |
+| Input Tokens    | 1,234,567   |
+| Output Tokens   | 89,012      |
+| Total Cost      | $12.3456    |
+
+## By Agent
+
+| Agent        | Calls | Errors | Input Tokens | Output Tokens | Cost      | Avg Duration |
+|--------------|-------|--------|--------------|---------------|-----------|--------------|
+| implementer | 58    | 1      | 520,000      | 34,000        | $5.2000   | 4,200ms      |
+| planner     | 42    | 1      | 380,000      | 28,000        | $3.8000   | 3,100ms      |
+| test-writer | 32    | 0      | 280,000      | 22,000        | $2.8000   | 2,800ms      |
+```
+
+## Error Handling
+
+If writing to `trace.jsonl` fails (e.g., disk full, permission denied), the error is logged to `trace.errors.jsonl`. If writing to `trace.errors.jsonl` also fails, the error is silently swallowed to avoid disrupting the OpenCode session.
 
 ## Limitations
 
-- The LLM-callable metrics tool was removed in v0.3.0. Available consumers are: the `metrics` script (batch) and the TUI widget (real-time). A standalone CLI is planned for v0.4.0 (see [`ROADMAP.md`](./ROADMAP.md)).
-
-## Releasing
-
-Releases are fully automated via [release-please](https://github.com/googleapis/release-please) and [Conventional Commits](https://www.conventionalcommits.org/):
-
-1. Open a PR to `main` with commits following the convention (`feat:`, `fix:`, `perf:`, `refactor:`, etc.)
-2. `release-please` opens/updates a **Release PR** with a version bump and a regenerated `CHANGELOG.md`
-3. Merging the Release PR:
-   - Creates the GitHub Release (tag `vX.Y.Z`)
-   - Triggers the `publish` workflow
-   - Publishes to npm with provenance via [Trusted Publishers (OIDC)](https://docs.npmjs.com/generating-provenance-statements)
-
-Commit messages are validated locally by `husky` + `commitlint` (run `pnpm install` to enable the hook). To run a release dry-run locally: `npx release-please release-pr --dry-run`.
+- The LLM-callable metrics tool was removed. Metrics are available via the TUI widget (real-time) and the `metrics` script (batch).
+- The TUI components (Solid JSX) are implementation-only and lack DOM-based tests — all logic is extracted into pure format functions with full test coverage.
 
 ## License
 

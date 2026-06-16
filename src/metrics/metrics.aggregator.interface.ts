@@ -1,18 +1,5 @@
-/**
- * Shared metrics types.
- *
- * These types are the contract between the server plugin's
- * `MetricsAggregator` and the TUI plugin's `AggregatorStore`. Per
- * ADR-002, the two implementations do NOT share runtime code — each
- * ingests events from its own source (OpenCode SDK events vs JSONL
- * trace events). They do share this shape so consumers (TUI
- * components, formatters) can render either snapshot without
- * knowing its origin.
- *
- * If a new field is needed by both implementations, add it here.
- * Internal helpers (e.g. `LlmAssistantMessage`) live in the
- * server's private types.
- */
+import type { AssistantMessage } from "@opencode-ai/sdk";
+
 export type TokenUsage = {
   input: number;
   output: number;
@@ -37,4 +24,9 @@ export type MetricsSnapshot = {
   byAgentModel: Record<string, Record<string, Aggregate>>;
   window: { firstSeenAt: number; lastSeenAt: number };
   lastActiveAgent: { name: string; timestamp: number } | null;
+};
+
+export type LlmAssistantMessage = Omit<AssistantMessage, "tokens"> & {
+  tokens?: AssistantMessage["tokens"] | null;
+  cost?: number;
 };
