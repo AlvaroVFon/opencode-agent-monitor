@@ -11,41 +11,41 @@ import {
 //
 // Per the spec, the panel header shows three pieces of information:
 //   - a collapse indicator ("▾" expanded, "▸" collapsed)
-//   - a fixed title string ("Agent Monitor")
+//   - a fixed title string ("Agents Monitor")
 //   - the formatted total cost, echoed verbatim
 //
 // The helper is a pure function: no I/O, no side effects, no string mutation
 // of the cost input. These tests pin the contract for the implementer.
 
 describe("formatPanelHeader", () => {
-  it("expanded: returns '▾' indicator, 'Agent Monitor' title, echoed totalCost", () => {
+  it("expanded: returns '▾' indicator, 'Agents Monitor' title, echoed totalCost", () => {
     // The canonical example from the spec:
     //   formatPanelHeader(false, "$0.0234")
-    //     === { indicator: "▾", title: "Agent Monitor", totalCost: "$0.0234" }
+    //     === { indicator: "▾", title: "Agents Monitor", totalCost: "$0.0234" }
     const header = formatPanelHeader(false, "$0.0234");
 
     assert.deepEqual(
       header,
-      { indicator: "▾", title: "Agent Monitor", totalCost: "$0.0234" },
+      { indicator: "▾", title: "Agents Monitor", totalCost: "$0.0234" },
       "expanded header must use the down-pointing indicator and the fixed title",
     );
   });
 
-  it("collapsed: returns '▸' indicator, 'Agent Monitor' title, echoed totalCost", () => {
+  it("collapsed: returns '▸' indicator, 'Agents Monitor' title, echoed totalCost", () => {
     // The canonical example from the spec:
     //   formatPanelHeader(true, "$0.0234")
-    //     === { indicator: "▸", title: "Agent Monitor", totalCost: "$0.0234" }
+    //     === { indicator: "▸", title: "Agents Monitor", totalCost: "$0.0234" }
     const header = formatPanelHeader(true, "$0.0234");
 
     assert.deepEqual(
       header,
-      { indicator: "▸", title: "Agent Monitor", totalCost: "$0.0234" },
+      { indicator: "▸", title: "Agents Monitor", totalCost: "$0.0234" },
       "collapsed header must use the right-pointing indicator and the fixed title",
     );
   });
 
-  it("title is always 'Agent Monitor' regardless of collapsed", () => {
-    // Acceptance criterion 8: header text must remain 'Agent Monitor' in
+  it("title is always 'Agents Monitor' regardless of collapsed", () => {
+    // Acceptance criterion 8: header text must remain 'Agents Monitor' in
     // both states. We check both states explicitly so a future refactor that
     // accidentally couples the title to the indicator cannot pass.
     const expanded = formatPanelHeader(false, "$1.0000");
@@ -53,13 +53,13 @@ describe("formatPanelHeader", () => {
 
     assert.equal(
       expanded.title,
-      "Agent Monitor",
-      "title must be 'Agent Monitor' when expanded",
+      "Agents Monitor",
+      "title must be 'Agents Monitor' when expanded",
     );
     assert.equal(
       collapsed.title,
-      "Agent Monitor",
-      "title must be 'Agent Monitor' when collapsed",
+      "Agents Monitor",
+      "title must be 'Agents Monitor' when collapsed",
     );
   });
 

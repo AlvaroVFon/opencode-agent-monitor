@@ -153,32 +153,6 @@ export function AgentCostPanel(props: {
         </text>
       </box>
 
-      {/* Totals row (hidden when collapsed) */}
-      <Show when={!collapsed()}>
-        <box paddingTop={0}>
-          <text>
-            <span style={{ fg: props.theme.textMuted }}>avg </span>
-            <span style={{ fg: props.theme.accent }}>
-              {totals().avgCostPerCall}
-            </span>
-            <span style={{ fg: props.theme.textMuted }}>/call · </span>
-            <span style={{ fg: props.theme.text }}>
-              {totals().calls} calls{" "}
-            </span>
-            <span style={{ fg: props.theme.textMuted }}> · </span>
-            <span
-              style={{
-                fg: hasTotalsErrors()
-                  ? props.theme.error
-                  : props.theme.textMuted,
-              }}
-            >
-              {totals().errors} errors
-            </span>
-          </text>
-        </box>
-      </Show>
-
       {/* Separator (hidden when collapsed) */}
       <Show when={!collapsed()}>
         <text style={{ fg: props.theme.border }}>{separator()}</text>
@@ -235,12 +209,6 @@ export function AgentCostPanel(props: {
                             <span style={{ fg: props.theme.textMuted }}>
                               {model.callsLabel}
                             </span>
-                            <span style={{ fg: props.theme.textMuted }}>
-                              {"  ·  "}
-                            </span>
-                            <span style={{ fg: props.theme.text }}>
-                              {model.cost}
-                            </span>
                           </text>
                         )}
                       </For>
@@ -251,7 +219,7 @@ export function AgentCostPanel(props: {
                   <Show when={row.models.length > 0}>
                     <box paddingLeft={1} paddingTop={0}>
                       <text style={{ fg: props.theme.borderSubtle }}>
-                        {"─".repeat(20)}
+                        {"─".repeat(30)}
                       </text>
                     </box>
                   </Show>
@@ -269,6 +237,13 @@ export function AgentCostPanel(props: {
                           {row.input}
                         </span>
                       </text>
+                      <text>
+                        <span style={{ fg: props.theme.textMuted }}>avg </span>
+                        <span style={{ fg: props.theme.text }}>
+                          {row.avgCostPerCall}
+                        </span>
+                        <span style={{ fg: props.theme.textMuted }}>/call</span>
+                      </text>
                     </box>
                     <box flexDirection="column" paddingLeft={3}>
                       <text>
@@ -283,19 +258,6 @@ export function AgentCostPanel(props: {
                           {row.calls}
                         </span>
                       </text>
-                    </box>
-                  </box>
-
-                  {/* Derived metrics row */}
-                  <box flexDirection="row" paddingLeft={1} paddingTop={0}>
-                    <text>
-                      <span style={{ fg: props.theme.textMuted }}>avg </span>
-                      <span style={{ fg: props.theme.text }}>
-                        {row.avgCostPerCall}
-                      </span>
-                      <span style={{ fg: props.theme.textMuted }}>/call </span>
-                    </text>
-                    <box paddingLeft={2}>
                       <text>
                         <span style={{ fg: props.theme.textMuted }}>
                           cache{" "}

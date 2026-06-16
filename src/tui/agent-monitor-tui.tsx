@@ -153,7 +153,11 @@ export const tui: TuiPlugin = async (
         title: "Toggle agent monitor",
         description: "Toggle the agent monitor fullscreen stats dialog",
         run: () => {
-          openDialog();
+          if (dialogOpen) {
+            closeDialog();
+          } else {
+            openDialog();
+          }
           return true;
         },
       },
@@ -161,7 +165,7 @@ export const tui: TuiPlugin = async (
     bindings: [
       {
         key: "ctrl+a",
-        command: "agent-monitor.toggle",
+        cmd: "agent-monitor.toggle",
       },
     ],
   });
