@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/opencode-agent-monitor-v0.1.1...opencode-agent-monitor-v0.2.0) (2026-06-16)
+
+
+### Features
+
+* add metrics aggregation and agent_monitor_stats tool ([#6](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/6)) ([571b3be](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/571b3bef6d890188be7599ae8cfeb271488af1c1))
+* add metrics aggregator with session, agent and model breakdowns ([#3](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/3)) ([21763b1](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/21763b1001d7635c55b2ac8b67226d5649960e0b))
+
+## Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

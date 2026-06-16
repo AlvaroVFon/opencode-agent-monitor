@@ -1,6 +1,6 @@
 {
   "name": "@alvarovfon/opencode-agent-monitor",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "OpenCode plugin for tracing LLM calls, agent delegations, tool calls and session events to JSONL files",
   "type": "commonjs",
   "main": "src/agent-monitor.ts",
@@ -42,6 +42,7 @@
     "@opentui/solid": "^0.3.4",
     "@types/node": "^22",
     "husky": "^9",
+    "lint-staged": "^17.0.7",
     "prettier": "^3.8.4",
     "tsx": "^4"
   },
@@ -58,6 +59,9 @@
     "CHANGELOG.md",
     "README.md"
   ],
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,cjs,mjs,json,md,yml,yaml}": "prettier --write"
+  },
   "license": "MIT",
   "author": "Alvaro Villamarin <alvaro.vfon@gmail.com>",
   "repository": {
