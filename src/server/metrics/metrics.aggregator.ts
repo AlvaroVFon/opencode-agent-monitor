@@ -6,12 +6,12 @@ import type {
 } from "../types";
 import { MetricsAggregatorHelper } from "../helpers/metrics-aggregator.helper";
 import { MetricsHandlersRegistry } from "./metrics.aggregator.registry";
+import type { LlmAssistantMessage } from "./messages.types";
 import type {
   Aggregate,
-  LlmAssistantMessage,
   MetricsSnapshot,
   TokenUsage,
-} from "./metrics.aggregator.interface";
+} from "../../shared/metrics.types";
 
 export class MetricsAggregator {
   private readonly totals: Aggregate & { sessionsCreated: number };

@@ -1,7 +1,7 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { LlmErrorHandler } from "../../handlers/llm-error.handler";
-import { TraceEventType } from "../../enums";
+import { LlmErrorHandler } from "../../../server/handlers/llm-error.handler";
+import { TraceEventType } from "../../../server/enums";
 
 function makeErrorMsg(overrides: Record<string, unknown> = {}) {
   return {

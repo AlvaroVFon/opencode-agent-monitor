@@ -1,4 +1,4 @@
-import type { Aggregate } from "../../metrics/metrics.aggregator.interface";
+import type { Aggregate } from "../../shared/metrics.types";
 
 function formatNumber(n: number): string {
   return n.toLocaleString("en-US");

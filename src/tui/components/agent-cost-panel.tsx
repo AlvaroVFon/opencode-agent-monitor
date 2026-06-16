@@ -1,10 +1,7 @@
 import { createMemo, For, Show } from "solid-js";
 import type { JSX } from "@opentui/solid";
 import type { TuiThemeCurrent } from "@opencode-ai/plugin/tui";
-import type {
-  Aggregate,
-  MetricsSnapshot,
-} from "../../metrics/metrics.aggregator.interface.js";
+import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types.js";
 
 type ModelRow = {
   name: string;

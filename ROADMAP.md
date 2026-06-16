@@ -128,7 +128,7 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 
 ### 2.1 Diseño
 
-- ✅ Nueva clase `MetricsAggregator` en `src/metrics/metrics.aggregator.ts`
+- ✅ Nueva clase `MetricsAggregator` en `src/server/metrics/metrics.aggregator.ts` (tipos compartidos en `src/shared/metrics.types.ts`)
 - ✅ Recibe los mismos eventos OpenCode (`message.updated`, `message.part.updated`, `session.created`) en paralelo a `EventHandler`
 - ✅ Estado interno con totals, bySession, byAgent, byModel + window
 - ✅ Métodos `ingest()`, `snapshot()`, `reset()`
@@ -140,11 +140,11 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 
 ### 2.3 Tests
 
-- ✅ `src/test/metrics/metrics.aggregator.test.ts` (8 casos)
+- ✅ `src/test/server/metrics/metrics.aggregator.test.ts` (8 casos)
 
 ### 2.4 Integración con el plugin
 
-- ✅ `agent-monitor.ts`: `MetricsAggregator` instanciado y cada evento se pasa a `metricsAggregator.ingest(event)` en paralelo al `EventHandler`
+- ✅ `src/server/agent-monitor.ts`: `MetricsAggregator` instanciado y cada evento se pasa a `metricsAggregator.ingest(event)` en paralelo al `EventHandler`
 - ✅ Sin cambios en handlers ni en `TraceHelper` — aditivo
 
 **Criterio de cierre:** ✅ 8 tests verdes + suite completa (89 tests) sigue verde; el plugin sigue escribiendo JSONL igual que antes; `MetricsAggregator.snapshot()` disponible para consumidores internos (próximo uso previsto: `scripts/metrics.mts` en Fase 2.5).
@@ -174,7 +174,7 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
   errors: ErrorEntry[]                     // capped N=1000, { sessionID, type, message, timestamp }
   ```
 - `snapshot({ since?, groupBy?, sessionID?, top?, format? })` con backward-compat (sin args = comportamiento actual)
-- Formatters en `src/metrics/formatters/{markdown,json,csv}.ts` (funciones puras: `MetricSnapshot → string`)
+- Formatters en `src/server/metrics/formatters/{markdown,json,csv}.ts` (funciones puras: `MetricsSnapshot → string`)
 - `getErrors(sessionID?)` helper — acceso a la lista de errores
 
 ### 2.5.3 Refactor de scripts/metrics.mts

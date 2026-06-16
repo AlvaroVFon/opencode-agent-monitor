@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { UserMessageHandler } from "../../handlers/user-message.handler";
+import { UserMessageHandler } from "../../../server/handlers/user-message.handler";
 
 describe("UserMessageHandler", () => {
   it("updates currentAgent when message role is USER", () => {

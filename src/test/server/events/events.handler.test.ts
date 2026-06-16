@@ -1,9 +1,9 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { EventHandler } from "../../events/events.handler";
-import { EventsRegistry } from "../../events/events.registry";
-import { EventType } from "../../enums";
-import type { Handler } from "../../handler.interface";
+import { EventHandler } from "../../../server/events/events.handler";
+import { EventsRegistry } from "../../../server/events/events.registry";
+import { EventType } from "../../../server/enums";
+import type { Handler } from "../../../server/handler.interface";
 
 describe("EventHandler", () => {
   it("dispatches event properties to every registered handler", () => {

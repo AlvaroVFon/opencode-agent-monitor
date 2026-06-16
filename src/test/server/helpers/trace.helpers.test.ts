@@ -2,7 +2,10 @@ import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import * as path from "path";
 
-const MOD_PATH = path.resolve(__dirname, "../../helpers/trace.helpers.ts");
+const MOD_PATH = path.resolve(
+  __dirname,
+  "../../../server/helpers/trace.helpers.ts",
+);
 
 function fresh() {
   delete require.cache[MOD_PATH];

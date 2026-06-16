@@ -6,8 +6,10 @@
 
 The package exports two independent plugins:
 
-1. **Server plugin** (`src/agent-monitor.ts`) — `Plugin` type, hooks into OpenCode server events, writes to `trace.jsonl`
+1. **Server plugin** (`src/server/agent-monitor.ts`) — `Plugin` type, hooks into OpenCode server events, writes to `trace.jsonl`
 2. **TUI plugin** (`src/tui/agent-monitor-tui.tsx`) — `TuiPluginModule` type, reads from `trace.jsonl`, renders in sidebar
+
+The directory layout reflects this: `src/server/` (server plugin), `src/tui/` (TUI plugin), and `src/shared/` (types consumed by both). The TUI does not import from `src/server/`; the server does not import from `src/tui/`. Cross-product contracts live in `src/shared/`.
 
 They communicate via the shared `trace.jsonl` file, not in-memory. This allows them to run in separate processes (server vs TUI host).
 
@@ -21,10 +23,10 @@ trace.jsonl → JsonlTailer → AggregatorStore.ingest() → Solid signal → Co
 
 Two aggregation implementations exist:
 
-1. `MetricsAggregator` — ingests OpenCode SDK events (message.updated, etc.), used by server plugin
-2. `AggregatorStore` — ingests trace.jsonl events (llm_call, tool_call, etc.), used by TUI plugin
+1. `MetricsAggregator` (`src/server/metrics/`) — ingests OpenCode SDK events (message.updated, etc.), used by server plugin
+2. `AggregatorStore` (`src/tui/`) — ingests trace.jsonl events (llm_call, tool_call, etc.), used by TUI plugin
 
-Both produce compatible `MetricsSnapshot` / `Aggregate` shapes but consume different input formats.
+Both produce compatible `MetricsSnapshot` / `Aggregate` shapes (defined in `src/shared/metrics.types.ts`) but consume different input formats.
 
 ## Key Patterns
 
