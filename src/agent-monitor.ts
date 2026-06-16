@@ -13,7 +13,6 @@ import { SubtaskDelegationHandler } from "./handlers/subtask-delegation.handler"
 import { ToolCallHandler } from "./handlers/tool-call.handler";
 import { MetricsAggregator } from "./metrics/metrics.aggregator";
 import { MetricsAggregatorHelper } from "./helpers/metrics-aggregator.helper";
-import { createAgentMonitorStatsTool } from "./tools/agent-monitor-stats.tool";
 
 const currentAgent = new Map<string, string>();
 
@@ -63,10 +62,6 @@ export const AgentMonitor: Plugin = async (_input, options) => {
     event: async ({ event }) => {
       eventHandler.handle(event);
       metricsAggregator.ingest(event);
-    },
-
-    tool: {
-      agent_monitor_stats: createAgentMonitorStatsTool(metricsAggregator),
     },
   };
 };

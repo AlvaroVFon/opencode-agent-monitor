@@ -3,13 +3,11 @@ import assert from "node:assert/strict";
 import { AgentMonitor } from "../agent-monitor";
 
 describe("AgentMonitor plugin", () => {
-  it("returns chat.params, event, and tool hooks", async () => {
+  it("returns chat.params and event hooks", async () => {
     const plugin = await AgentMonitor(undefined as any);
 
     assert.equal(typeof plugin["chat.params"], "function");
     assert.equal(typeof plugin.event, "function");
-    assert.equal(typeof plugin.tool?.agent_monitor_stats, "object");
-    assert.equal(typeof plugin.tool?.agent_monitor_stats?.execute, "function");
   });
 
   it("does not throw when storing agent and dispatching event", async () => {
