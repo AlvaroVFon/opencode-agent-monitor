@@ -126,7 +126,7 @@ export function AgentCostPanel(props: {
       {/* Title bar */}
       <text>
         <span style={{ fg: props.theme.accent }}>Agent Monitor</span>
-        <span style={{ fg: props.theme.textMuted }}>  ·  </span>
+        <span style={{ fg: props.theme.textMuted }}> · </span>
         <span style={{ fg: props.theme.success }}>{totalCost()}</span>
       </text>
 
@@ -197,7 +197,7 @@ export function AgentCostPanel(props: {
                     <span style={{ fg: props.theme.text }}>{row.ctx}</span>
                   </text>
                   <text>
-                    <span style={{ fg: props.theme.textMuted }}>in  </span>
+                    <span style={{ fg: props.theme.textMuted }}>in </span>
                     <span style={{ fg: props.theme.text }}>{row.input}</span>
                   </text>
                 </box>
@@ -236,7 +236,7 @@ export function AgentCostPanel(props: {
               <Show when={row.hasErrors}>
                 <box paddingLeft={1}>
                   <text>
-                    <span style={{ fg: props.theme.error }}>err  </span>
+                    <span style={{ fg: props.theme.error }}>err </span>
                     <span style={{ fg: props.theme.error }}>
                       {formatNumber(row.errors)}
                     </span>
