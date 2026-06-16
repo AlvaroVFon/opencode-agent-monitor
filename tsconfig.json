@@ -14,7 +14,7 @@
     "jsx": "preserve",
     "jsxImportSource": "@opentui/solid",
     "allowImportingTsExtensions": true,
-    "noEmit": true
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "src/test"]

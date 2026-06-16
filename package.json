@@ -3,19 +3,24 @@
   "version": "1.0.0",
   "description": "OpenCode plugin for tracing LLM calls, agent delegations, tool calls and session events to JSONL files",
   "type": "commonjs",
-  "main": "src/server/agent-monitor.ts",
+  "main": "dist/agent-monitor.js",
+  "types": "dist/agent-monitor.d.ts",
   "exports": {
-    ".": "./src/server/agent-monitor.ts",
+    ".": {
+      "types": "./dist/agent-monitor.d.ts",
+      "import": "./dist/agent-monitor.js"
+    },
     "./tui": {
-      "import": "./src/tui/tui-detect.ts",
-      "types": "./src/tui/tui-detect.ts"
+      "types": "./dist/tui-detect.d.ts",
+      "import": "./dist/tui-detect.js"
     },
     "./tui/real": {
-      "import": "./src/tui/agent-monitor-tui.tsx",
-      "types": "./src/tui/agent-monitor-tui.tsx"
+      "types": "./dist/agent-monitor-tui.d.ts",
+      "import": "./dist/agent-monitor-tui.js"
     }
   },
   "scripts": {
+    "build": "tsup",
     "test": "node --import tsx --experimental-test-module-mocks --test 'src/test/**/*.test.ts'",
     "lint": "tsc --noEmit",
     "format": "prettier --write .",
@@ -23,7 +28,8 @@
     "commitlint": "commitlint --edit",
     "metrics": "tsx scripts/metrics.mts",
     "prepare": "husky",
-    "prepublishOnly": "pnpm run lint && pnpm run format:check && pnpm test"
+    "prepack": "pnpm run build",
+    "prepublishOnly": "pnpm run build && pnpm run lint && pnpm run format:check && pnpm test"
   },
   "engines": {
     "node": ">=24"
@@ -44,10 +50,12 @@
     "@commitlint/config-conventional": "^19",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^22",
+    "esbuild-plugin-solid": "^0.6.0",
     "husky": "^9",
     "js-yaml": "^4.2.0",
     "lint-staged": "^17.0.7",
     "prettier": "^3.8.4",
+    "tsup": "^8.5.0",
     "tsx": "^4"
   },
   "publishConfig": {
@@ -55,8 +63,7 @@
     "provenance": true
   },
   "files": [
-    "src/",
-    "tui.json",
+    "dist",
     "package.json",
     "tsconfig.json",
     "LICENSE",
