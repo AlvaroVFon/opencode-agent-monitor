@@ -32,6 +32,7 @@ function emptySnapshot(): MetricsSnapshot {
     byAgent: {},
     bySession: {},
     byModel: {},
+    byAgentModel: {},
     window: { firstSeenAt: 0, lastSeenAt: 0 },
   };
 }

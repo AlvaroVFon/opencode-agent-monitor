@@ -133,6 +133,7 @@ export class AggregatorStore {
   private byAgent: Map<string, Aggregate>;
   private bySession: Map<string, SessionAggregate>;
   private byModel: Map<string, Aggregate>;
+  private byAgentModel: Map<string, Map<string, Aggregate>>;
   private firstSeenAt: number;
   private lastSeenAt: number;
   private readonly onSnapshot?: (snap: MetricsSnapshot) => void;
@@ -143,6 +144,7 @@ export class AggregatorStore {
     this.byAgent = new Map();
     this.bySession = new Map();
     this.byModel = new Map();
+    this.byAgentModel = new Map();
     this.firstSeenAt = 0;
     this.lastSeenAt = 0;
   }
@@ -156,6 +158,7 @@ export class AggregatorStore {
         this.addLlm(this.getAgent(event.agent), event);
         this.addLlm(this.getSession(event.sessionID), event);
         this.addLlm(this.getModel(event.model), event);
+        this.addLlm(this.getAgentModel(event.agent, event.model), event);
         break;
       }
 
@@ -211,6 +214,17 @@ export class AggregatorStore {
           cloneAggregate(v),
         ]),
       ),
+      byAgentModel: Object.fromEntries(
+        Array.from(this.byAgentModel.entries()).map(([agent, inner]) => [
+          agent,
+          Object.fromEntries(
+            Array.from(inner.entries()).map(([model, agg]) => [
+              model,
+              cloneAggregate(agg),
+            ]),
+          ),
+        ]),
+      ),
       window: {
         firstSeenAt: this.firstSeenAt,
         lastSeenAt: this.lastSeenAt,
@@ -223,6 +237,7 @@ export class AggregatorStore {
     this.byAgent = new Map();
     this.bySession = new Map();
     this.byModel = new Map();
+    this.byAgentModel = new Map();
     this.firstSeenAt = 0;
     this.lastSeenAt = 0;
   }
@@ -262,6 +277,15 @@ export class AggregatorStore {
 
   private getModel(model: string): Aggregate {
     return getOrCreate(this.byModel, model, emptyAggregate);
+  }
+
+  private getAgentModel(agent: string, model: string): Aggregate {
+    let inner = this.byAgentModel.get(agent);
+    if (!inner) {
+      inner = new Map();
+      this.byAgentModel.set(agent, inner);
+    }
+    return getOrCreate(inner, model, emptyAggregate);
   }
 
   private emitSnapshot(): void {

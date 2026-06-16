@@ -58,4 +58,14 @@ export class MetricsAggregatorHelper {
     }
     return record;
   }
+
+  mapToNestedRecord(
+    map: Map<string, Map<string, Aggregate>>,
+  ): Record<string, Record<string, Aggregate>> {
+    const record: Record<string, Record<string, Aggregate>> = {};
+    for (const [key, inner] of map) {
+      record[key] = this.mapToRecord(inner);
+    }
+    return record;
+  }
 }

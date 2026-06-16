@@ -82,6 +82,26 @@ describe("MetricsAggregator", () => {
     assert.equal(snap.byAgent["coder"].llmCalls, 1);
     assert.equal(snap.byModel["openai/gpt-4"].llmCalls, 1);
     assert.equal(snap.bySession["sess-1"].cost, 0.002);
+
+    // byAgentModel — the per-agent+model bucket
+    assert.ok(
+      "coder" in snap.byAgentModel,
+      "byAgentModel must contain the event's agent name",
+    );
+    assert.ok(
+      "openai/gpt-4" in snap.byAgentModel["coder"]!,
+      "byAgentModel[coder] must contain the event's model",
+    );
+    assert.equal(
+      snap.byAgentModel["coder"]!["openai/gpt-4"]!.llmCalls,
+      1,
+      "byAgentModel[coder][openai/gpt-4].llmCalls",
+    );
+    assert.equal(
+      snap.byAgentModel["coder"]!["openai/gpt-4"]!.cost,
+      0.002,
+      "byAgentModel[coder][openai/gpt-4].cost",
+    );
   });
 
   it("splits aggregates across distinct agents and models", () => {
@@ -114,6 +134,66 @@ describe("MetricsAggregator", () => {
     assert.equal(Object.keys(snap.byModel).length, 2);
     assert.equal(snap.byModel["openai/gpt-4"].cost, 0.002);
     assert.equal(snap.byModel["anthropic/claude-3"].cost, 0.003);
+
+    // byAgentModel — each agent must keep its model segregated
+    assert.equal(Object.keys(snap.byAgentModel).length, 2);
+    assert.equal(snap.byAgentModel["coder"]!["openai/gpt-4"]!.cost, 0.002);
+    assert.equal(
+      snap.byAgentModel["reviewer"]!["anthropic/claude-3"]!.cost,
+      0.003,
+    );
+    assert.equal(
+      Object.keys(snap.byAgentModel["coder"]!).length,
+      1,
+      "coder must have exactly one model bucket",
+    );
+    assert.equal(
+      Object.keys(snap.byAgentModel["reviewer"]!).length,
+      1,
+      "reviewer must have exactly one model bucket",
+    );
+  });
+
+  it("byAgentModel separates multiple models for the same agent", () => {
+    const currentAgent = new Map([["sess-1", "coder"]]);
+    const aggregator = new MetricsAggregator(
+      currentAgent,
+      new MetricsAggregatorHelper(),
+    );
+
+    aggregator.ingest(
+      makeLlmCallEvent({
+        modelID: "gpt-4",
+        cost: 0.001,
+        tokens: { input: 10, output: 5, reasoning: 0, cache: { read: 0 } },
+      }),
+    );
+    aggregator.ingest(
+      makeLlmCallEvent({
+        modelID: "gpt-4o-mini",
+        cost: 0.0005,
+        tokens: { input: 20, output: 10, reasoning: 0, cache: { read: 0 } },
+      }),
+    );
+    aggregator.ingest(
+      makeLlmCallEvent({
+        modelID: "gpt-4",
+        cost: 0.002,
+        tokens: { input: 30, output: 15, reasoning: 0, cache: { read: 0 } },
+      }),
+    );
+
+    const snap = aggregator.snapshot();
+    const coder = snap.byAgentModel["coder"]!;
+    assert.equal(
+      Object.keys(coder).length,
+      2,
+      "coder must have two model buckets",
+    );
+    assert.equal(coder["openai/gpt-4"]!.llmCalls, 2);
+    assert.equal(coder["openai/gpt-4"]!.cost, 0.003);
+    assert.equal(coder["openai/gpt-4o-mini"]!.llmCalls, 1);
+    assert.equal(coder["openai/gpt-4o-mini"]!.cost, 0.0005);
   });
 
   it("ingests llm_error without touching tokens or cost", () => {
@@ -200,6 +280,7 @@ describe("MetricsAggregator", () => {
     assert.deepEqual(snap.bySession, {});
     assert.deepEqual(snap.byAgent, {});
     assert.deepEqual(snap.byModel, {});
+    assert.deepEqual(snap.byAgentModel, {});
   });
 
   it("reset() clears all state", () => {

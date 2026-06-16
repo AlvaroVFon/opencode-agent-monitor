@@ -18,6 +18,7 @@ export class MetricsAggregator {
   private readonly bySession = new Map<string, Aggregate>();
   private readonly byAgent = new Map<string, Aggregate>();
   private readonly byModel = new Map<string, Aggregate>();
+  private readonly byAgentModel = new Map<string, Map<string, Aggregate>>();
   private firstSeenAt = 0;
   private lastSeenAt = 0;
   private readonly registry: MetricsHandlersRegistry;
@@ -53,6 +54,7 @@ export class MetricsAggregator {
       bySession: this.helper.mapToRecord(this.bySession),
       byAgent: this.helper.mapToRecord(this.byAgent),
       byModel: this.helper.mapToRecord(this.byModel),
+      byAgentModel: this.helper.mapToNestedRecord(this.byAgentModel),
       window: { firstSeenAt: this.firstSeenAt, lastSeenAt: this.lastSeenAt },
     };
   }
@@ -71,6 +73,7 @@ export class MetricsAggregator {
     this.bySession.clear();
     this.byAgent.clear();
     this.byModel.clear();
+    this.byAgentModel.clear();
     this.firstSeenAt = 0;
     this.lastSeenAt = 0;
   }
@@ -156,6 +159,10 @@ export class MetricsAggregator {
     );
     this.helper.addToAggregate(this.ensureAggregate(this.byAgent, agent), inc);
     this.helper.addToAggregate(this.ensureAggregate(this.byModel, model), inc);
+    this.helper.addToAggregate(
+      this.ensureNestedAggregate(this.byAgentModel, agent, model),
+      inc,
+    );
   }
 
   private recordLlmError(
@@ -175,6 +182,10 @@ export class MetricsAggregator {
     );
     this.helper.addToAggregate(this.ensureAggregate(this.byAgent, agent), inc);
     this.helper.addToAggregate(this.ensureAggregate(this.byModel, model), inc);
+    this.helper.addToAggregate(
+      this.ensureNestedAggregate(this.byAgentModel, agent, model),
+      inc,
+    );
   }
 
   private recordToolCall(
@@ -201,6 +212,24 @@ export class MetricsAggregator {
     if (!bucket) {
       bucket = this.helper.emptyAggregate();
       map.set(key, bucket);
+    }
+    return bucket;
+  }
+
+  private ensureNestedAggregate(
+    map: Map<string, Map<string, Aggregate>>,
+    outerKey: string,
+    innerKey: string,
+  ): Aggregate {
+    let inner = map.get(outerKey);
+    if (!inner) {
+      inner = new Map();
+      map.set(outerKey, inner);
+    }
+    let bucket = inner.get(innerKey);
+    if (!bucket) {
+      bucket = this.helper.emptyAggregate();
+      inner.set(innerKey, bucket);
     }
     return bucket;
   }

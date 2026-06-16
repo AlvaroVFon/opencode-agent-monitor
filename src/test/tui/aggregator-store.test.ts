@@ -468,6 +468,7 @@ describe("AggregatorStore", () => {
     assert.deepEqual(snap.byAgent, {});
     assert.deepEqual(snap.bySession, {});
     assert.deepEqual(snap.byModel, {});
+    assert.deepEqual(snap.byAgentModel, {});
 
     // reset() must round-trip back to the same zeroed shape.
     store.ingest(makeLlmCallEvent({ agent: "coder", cost: 0.001 }));
@@ -482,7 +483,65 @@ describe("AggregatorStore", () => {
     assert.deepEqual(afterReset.byAgent, {});
     assert.deepEqual(afterReset.bySession, {});
     assert.deepEqual(afterReset.byModel, {});
+    assert.deepEqual(afterReset.byAgentModel, {});
     assert.equal(afterReset.window.firstSeenAt, 0);
     assert.equal(afterReset.window.lastSeenAt, 0);
+  });
+
+  it("byAgentModel splits aggregates by model per agent", () => {
+    const store = new AggregatorStore();
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "coder",
+        model: "openai/gpt-4",
+        cost: 0.001,
+      }),
+    );
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "coder",
+        model: "openai/gpt-4o-mini",
+        cost: 0.0005,
+      }),
+    );
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "coder",
+        model: "openai/gpt-4",
+        cost: 0.002,
+      }),
+    );
+    store.ingest(
+      makeLlmCallEvent({
+        agent: "reviewer",
+        model: "anthropic/claude-3",
+        cost: 0.003,
+      }),
+    );
+
+    const snap = store.snapshot();
+
+    // Two distinct agents
+    assert.equal(Object.keys(snap.byAgentModel).length, 2);
+    assert.ok("coder" in snap.byAgentModel);
+    assert.ok("reviewer" in snap.byAgentModel);
+
+    // coder has two models with correct per-model aggregates
+    const coder = snap.byAgentModel["coder"]!;
+    assert.equal(Object.keys(coder).length, 2);
+    assert.equal(coder["openai/gpt-4"]!.llmCalls, 2);
+    assert.equal(coder["openai/gpt-4"]!.cost, 0.003);
+    assert.equal(coder["openai/gpt-4o-mini"]!.llmCalls, 1);
+    assert.equal(coder["openai/gpt-4o-mini"]!.cost, 0.0005);
+
+    // reviewer has one model
+    const reviewer = snap.byAgentModel["reviewer"]!;
+    assert.equal(Object.keys(reviewer).length, 1);
+    assert.equal(reviewer["anthropic/claude-3"]!.llmCalls, 1);
+    assert.equal(reviewer["anthropic/claude-3"]!.cost, 0.003);
+
+    // reset() also clears byAgentModel
+    store.reset();
+    assert.deepEqual(store.snapshot().byAgentModel, {});
   });
 });
