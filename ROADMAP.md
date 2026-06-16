@@ -8,8 +8,6 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 
 ## Estado actual (snapshot al 2026-06-16)
 
-## Estado actual (snapshot al 2026-06-16)
-
 - ✅ Trazado de eventos: `session_created`, `session_error`, `llm_call`, `llm_error`, `agent_delegation`, `tool_call`, `write_trace_error`
 - ✅ Doble salida (`trace.jsonl` + `trace.errors.jsonl`) con manejo defensivo de I/O
 - ✅ Tipos del SDK (`@opencode-ai/sdk`) integrados
@@ -20,20 +18,15 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 - ✅ release-please + GitHub Actions (release + publish con OIDC)
 - ✅ Prettier + CI workflow (lint, format:check, test) en PRs a `main`/`develop`
 - ✅ Git Flow con `develop` como default branch
-  <<<<<<< HEAD
-- ✅ `MetricsAggregator` completo (Fase 2): `bySession` / `byAgent` / `byModel` / `byAgentModel`
+- ✅ `MetricsAggregator` completo (Fase 2): `bySession` / `byAgent` / `byModel` / `byAgentModel` — 8 tests
 - ✅ TUI plugin real-time (Fase 3.5): sidebar panel + fullscreen dialog + `byAgentModel` + métricas derivadas (30 tests)
 - ✅ `scripts/metrics.mts` — script batch para métricas JSON/markdown
 - ✅ Fases 0 y 1 completas (release-please + primera publicación)
 - ❌ `MetricsAggregator` no tiene `byTool`, `errors[]`, ni `snapshot({ filters })` (Fase 2.5 pendiente)
 - ❌ Sin `schemaVersion` en eventos JSONL (5.a pendiente)
-- ❌ Tool LLM-callable eliminado del scope (no aporta al estudio de datos; TUI ya cubre display)
+- ❌ Tool `agent_monitor_stats` eliminada (no aporta al estudio de datos; TUI ya cubre display; PR en curso)
 - ⏸ CLI diferido post-persistencia (script `metrics.mts` cubre extracción humana actual)
-- # ⏸ Persistencia formal (SQL) pendiente de estudio de tradeoffs
-- ✅ `MetricsAggregator` completado con 8 tests (Phase 2)
-- ✅ `agent_monitor_stats` tool expuesta via `Hooks.tool` (Phase 3)
-- ❌ Sin CLI de exposición (Phase 4)
-  > > > > > > > develop
+- ⏸ Persistencia formal (SQL) pendiente de estudio de tradeoffs
 
 ---
 
@@ -154,11 +147,9 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 - ✅ `agent-monitor.ts`: `MetricsAggregator` instanciado y cada evento se pasa a `metricsAggregator.ingest(event)` en paralelo al `EventHandler`
 - ✅ Sin cambios en handlers ni en `TraceHelper` — aditivo
 
-**Criterio de cierre:** ✅ 8 tests verdes + suite completa (62 tests) sigue verde; el plugin sigue escribiendo JSONL igual que antes; `MetricsAggregator.snapshot()` expuesto via tool `agent_monitor_stats`.
+**Criterio de cierre:** ✅ 8 tests verdes + suite completa (89 tests) sigue verde; el plugin sigue escribiendo JSONL igual que antes; `MetricsAggregator.snapshot()` disponible para consumidores internos (próximo uso previsto: `scripts/metrics.mts` en Fase 2.5).
 
 ---
-
-<<<<<<< HEAD
 
 ## Fase 2.5 — Extender `MetricsAggregator` con filtros, `byTool`, errores y formatters (v0.3.0)
 
@@ -210,50 +201,11 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 
 ---
 
-## Fase 3 — Tool para OpenCode ~~(v0.2.0)~~ ❌ ELIMINADA
+## Fase 3 — Tool para OpenCode ❌ ELIMINADA (2026-06-16)
 
-**Motivo:** el objetivo del proyecto es generar métricas de **estudio**, no que el LLM las muestre. El TUI plugin (Fase 3.5) ya da display en tiempo real y `scripts/metrics.mts` da extracción offline. El tool duplicaba ambas funciones para un consumidor (LLM) que no aporta valor de estudio.
+**Motivo:** el objetivo del proyecto es generar métricas de **estudio**, no que el LLM las muestre. El TUI plugin (Fase 3.5) ya da display en tiempo real y `scripts/metrics.mts` da extracción offline. El tool duplicaba ambas funciones para un consumidor (LLM) que no aporta valor de estudio. Su existencia añadió además una dependencia de `zod` y un hook `tool` que ya no se justifican.
 
-El contenido original se preserva abajo como referencia histórica.
-
-<details>
-<summary>Spec original (2026-06-15)</summary>
-
-### 3.1 Implementación
-
-=======
-
-## Fase 3 — Tool para OpenCode (v0.2.0) — ✅ **completado (2026-06-16)**
-
-> > > > > > > develop
-
-**Objetivo:** exponer las métricas como tool que el LLM puede invocar mid-conversation.
-
-### 3.1 Implementación
-
-- ✅ `src/tools/agent-monitor-stats.interface.ts` — tipos `StatsToolArgs`, `StatsFormat`, `FilteredSnapshot`
-- ✅ `src/tools/agent-monitor-stats.helper.ts` — clase `StatsFormatter` con formateo markdown/JSON + filtrado por `sessionID`
-- ✅ `src/tools/agent-monitor-stats.tool.ts` — factory `createAgentMonitorStatsTool()` que construye `ToolDefinition` con schema zod (`since`, `groupBy`, `sessionID`, `format`)
-- ✅ Markdown por defecto (tabla ASCII), JSON bajo `format: "json"`
-- ✅ Acepta `groupBy: "agent" | "model" | "tool"` (tool muestra solo totales, sin breakdown por no estar implementado en aggregator)
-
-### 3.2 Registro
-
-- ✅ `agent-monitor.ts` registra `agent_monitor_stats` en `Hooks.tool`
-
-### 3.3 Tests
-
-- ✅ `src/test/tools/agent-monitor-stats.test.ts` (6 casos):
-  - tabla markdown con totales
-  - agrupa por agent
-  - agrupa por model
-  - formato JSON estructurado
-  - filtro por sessionID
-  - sin datos
-
-**Criterio de cierre:** ✅ el usuario puede pedirle al agente "muéstrame las métricas" y obtiene una tabla; 62 tests pasan.
-
-</details>
+Acción: eliminados `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src/test/tools/agent-monitor-stats.test.ts`, y la dependencia `zod`. `agent-monitor.ts` ya no expone `Hooks.tool`. `MetricsAggregator` se mantiene intacto para la Fase 2.5.
 
 ---
 
@@ -509,28 +461,18 @@ El contenido original se preserva abajo como referencia histórica.
 
 ## Orden de ejecución (revisado 2026-06-16)
 
-<<<<<<< HEAD
-
-1. **Fase 0** (automation) ✅ release-please, commitlint, husky operativos
-2. **Fase 1** (publicación) ✅ `0.1.1` en npm
-3. **Fase 2** (aggregator) ✅ `MetricsAggregator` con bySession, byAgent, byModel, byAgentModel
-4. **Fase 3.5** (TUI widget) ✅ completado (30 tests, panel sidebar + diálogo fullscreen + byAgentModel)
-5. **Release 0.2.0** → merge develop → main, release-please auto-bump, publish
-6. **Fase 2.5** (extender aggregator) → `byTool`, `errors[]`, `snapshot({ filters })`, formatters, refactor script
-7. **Fase 5.a** (`schemaVersion: 1`) → campo aditivo en cada evento
-8. **Release 0.3.0** → aggregator extendido + schema, bajo riesgo, release-please auto
-9. **Observar estabilidad** → sin nuevas features
-10. **Re-evaluar**: Fase 5.b (crecimiento disco), Fase 6 (persistencia), Fase 4 (CLI)
-11. **Fase 5.c/d/e/f** → según decisión post-estabilidad
-12. # **Release 0.4.0** → crecimiento disco + `dispose()` + persistencia si se decide
-13. ✅ **Fase 0** (automation) → release-please, commitlint, husky operativos
-14. ✅ **Fase 1** (publicación) → `0.1.1` en npm
-15. ✅ **Fase 2** (aggregator) → tests verdes, sin API pública
-16. ✅ **Fase 3** (tool) → demo end-to-end con LLM
-17. ❌ **Fase 4** (CLI) → binario funcional
-18. 🔜 Release conjunto: **`0.2.0`** con tool + CLI + métricas (auto via release-please)
-19. ❌ **Fase 5** (polish) → `0.3.0`
-    > > > > > > > develop
+1. ✅ **Fase 0** (automation) → release-please, commitlint, husky operativos
+2. ✅ **Fase 1** (publicación) → `0.1.1` en npm
+3. ✅ **Fase 2** (aggregator) → tests verdes, sin API pública
+4. ✅ **Fase 3.5** (TUI widget) → 30 tests, panel sidebar + diálogo fullscreen + byAgentModel
+5. ❌ **Fase 3** (tool LLM) → **eliminada** en este PR (no aporta al estudio; TUI cubre display)
+6. ❌ **Fase 4** (CLI) → diferida post-persistencia
+7. 🔜 **Fase 2.5** (extender aggregator) → `byTool`, `errors[]`, `snapshot({ filters })`, formatters, refactor `scripts/metrics.mts`
+8. 🔜 **Fase 5.a** (`schemaVersion: 1`) → campo aditivo en cada evento
+9. 🔜 **Release 0.3.0** → aggregator extendido + schema, bajo riesgo (auto via release-please)
+10. ⏸ **Observar estabilidad** → sin nuevas features
+11. ⏸ **Re-evaluar**: Fase 5.b (crecimiento disco), Fase 6 (persistencia), Fase 4 (CLI)
+12. ⏸ **Release 0.4.0** → según decisiones post-estabilidad
 
 ---
 
