@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.0.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/opencode-agent-monitor-v0.2.0...opencode-agent-monitor-v1.0.0) (2026-06-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* the agent_monitor_stats tool is no longer exposed via Hooks.tool. Consumers relying on it must migrate to the metrics batch script (scripts/metrics.mts) or the real-time TUI plugin.
+
+### release
+
+* 0.3.0 ([#12](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/12)) ([8435a92](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/8435a92bd5ef3050191d6ccbe22c347a905da27e))
+
+
+### Features
+
+* implement agent monitoring plugin with event handling ([77830a3](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/77830a3aab190aace4001bf9839576927c8fa117))
+* track tool calls, harden llm_call completion check, prep v0.1.1 ([8a3b424](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/8a3b424e74ca2b42a0a3887d89c3c399d32ad90c))
+
+
+### Bug Fixes
+
+* **tui:** correct plugin path in tui.json and move opentui deps to peer ([b8b0ac7](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/b8b0ac7716a22f285a4328086a71faad36fc9fe9))
+
 ## [0.2.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/opencode-agent-monitor-v0.1.1...opencode-agent-monitor-v0.2.0) (2026-06-16)
 
 
