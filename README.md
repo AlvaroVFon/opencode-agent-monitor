@@ -211,7 +211,7 @@ Releases are fully automated via [release-please](https://github.com/googleapis/
    - Triggers the `publish` workflow
    - Publishes to npm with provenance via [Trusted Publishers (OIDC)](https://docs.npmjs.com/generating-provenance-statements)
 
-Commit messages are validated locally by `husky` + `commitlint` (run `npm install` to enable the hook). To run a release dry-run locally: `npx release-please release-pr --dry-run`.
+Commit messages are validated locally by `husky` + `commitlint` (run `pnpm install` to enable the hook). To run a release dry-run locally: `npx release-please release-pr --dry-run`.
 
 ## License
 
