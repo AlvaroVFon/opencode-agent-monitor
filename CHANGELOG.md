@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.0.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/opencode-agent-monitor-v0.2.0...opencode-agent-monitor-v1.0.0) (2026-06-16)
+
+
+### ⚠ BREAKING CHANGES
+
+* the agent_monitor_stats tool is no longer exposed via Hooks.tool. Consumers relying on it must migrate to the metrics batch script (scripts/metrics.mts) or the real-time TUI plugin.
+
+### Features
+
+* tui sidebar plugin with real-time per-agent cost monitoring ([#7](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/7)) ([0ac8b11](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/0ac8b1164a1e940df504fea8fb88798a6d6fb508))
+
+
+### Bug Fixes
+
+* remove agent_monitor_stats tool test assertion after tool removal ([6b91e6f](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/6b91e6f156465659678844d2d38daa8ad2aa34ca))
+* **tui:** improve toggle, simplify cost panel, update imports after restructure ([#11](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/11)) ([9533475](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/9533475ab028656616ac46c4a64420fd2238df29))
+
+
+### Miscellaneous Chores
+
+* remove agent_monitor_stats tool ([#9](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/9)) ([fb2691d](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/fb2691d126207b11a3199880b860df2afe159400))
+
 ## [0.2.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/opencode-agent-monitor-v0.1.1...opencode-agent-monitor-v0.2.0) (2026-06-16)
 
 
