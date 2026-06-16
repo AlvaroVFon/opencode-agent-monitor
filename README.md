@@ -80,6 +80,90 @@ Example `trace.jsonl` entry:
 }
 ```
 
+## Metrics
+
+The plugin aggregates events in-memory and exposes them through an `agent_monitor_stats` tool that the LLM can invoke mid-conversation.
+
+### agent_monitor_stats
+
+The tool accepts the following parameters:
+
+| Parameter   | Type                                   | Default      | Description                                 |
+| ----------- | -------------------------------------- | ------------ | ------------------------------------------- |
+| `since`     | `"1h"` \| `"24h"` \| `"7d"` \| `"all"` | `"24h"`      | Time window (time-based filtering upcoming) |
+| `groupBy`   | `"agent"` \| `"model"` \| `"tool"`     | —            | Breakdown dimension (optional)              |
+| `sessionID` | `string`                               | —            | Filter to a specific session (optional)     |
+| `format`    | `"markdown"` \| `"json"`               | `"markdown"` | Output format                               |
+
+#### Example (markdown, default)
+
+The LLM can ask "show me the metrics" and receive a table:
+
+```
+## Agent Monitor Stats
+
+| Metric | Value |
+|--------|-------|
+| Sessions Created | 3 |
+| LLM Calls | 15 |
+| LLM Errors | 1 |
+| Tool Calls | 42 |
+| Tool Errors | 2 |
+| Tokens (Input) | 12,500 |
+| Tokens (Output) | 34,000 |
+| Tokens (Reasoning) | 500 |
+| Tokens (Cache Read) | 2,000 |
+| Cost | $0.0850 |
+```
+
+With `groupBy: "agent"` a breakdown section is appended:
+
+```
+### By Agent
+| Agent | LLM Calls | LLM Errors | Tool Calls | Tool Errors | Cost |
+|-------|-----------|------------|------------|-------------|------|
+| coder | 8 | 0 | 25 | 1 | $0.0450 |
+```
+
+#### Example (JSON)
+
+```json
+{
+  "totals": {
+    "llmCalls": 15,
+    "llmErrors": 1,
+    "toolCalls": 42,
+    "toolErrors": 2,
+    "tokens": {
+      "input": 12500,
+      "output": 34000,
+      "reasoning": 500,
+      "cacheRead": 2000
+    },
+    "cost": 0.085,
+    "sessionsCreated": 3
+  },
+  "breakdown": {
+    "coder": {
+      "llmCalls": 8,
+      "llmErrors": 0,
+      "toolCalls": 25,
+      "toolErrors": 1,
+      "cost": 0.045
+    },
+    "reviewer": {
+      "llmCalls": 7,
+      "llmErrors": 1,
+      "toolCalls": 17,
+      "toolErrors": 1,
+      "cost": 0.04
+    }
+  }
+}
+```
+
+> **Note:** `since` filtering is accepted but not yet enforced (per-event timestamps will be tracked in a future release). All events are always included regardless of the `since` value.
+
 ## Error Handling
 
 If writing to `trace.jsonl` fails (e.g., disk full, permission denied), the error is logged to `trace.errors.jsonl`. If writing to `trace.errors.jsonl` also fails, the error is silently swallowed to avoid disrupting the OpenCode session.

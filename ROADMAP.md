@@ -18,6 +18,7 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 - ✅ release-please + GitHub Actions (release + publish con OIDC)
 - ✅ Prettier + CI workflow (lint, format:check, test) en PRs a `main`/`develop`
 - ✅ Git Flow con `develop` como default branch
+<<<<<<< HEAD
 - ✅ `MetricsAggregator` completo (Fase 2): `bySession` / `byAgent` / `byModel` / `byAgentModel`
 - ✅ TUI plugin real-time (Fase 3.5): sidebar panel + fullscreen dialog + `byAgentModel` + métricas derivadas (30 tests)
 - ✅ `scripts/metrics.mts` — script batch para métricas JSON/markdown
@@ -27,6 +28,11 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 - ❌ Tool LLM-callable eliminado del scope (no aporta al estudio de datos; TUI ya cubre display)
 - ⏸ CLI diferido post-persistencia (script `metrics.mts` cubre extracción humana actual)
 - ⏸ Persistencia formal (SQL) pendiente de estudio de tradeoffs
+=======
+- ✅ `MetricsAggregator` completado con 8 tests (Phase 2)
+- ✅ `agent_monitor_stats` tool expuesta via `Hooks.tool` (Phase 3)
+- ❌ Sin CLI de exposición (Phase 4)
+>>>>>>> develop
 
 ---
 
@@ -122,30 +128,16 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 
 ---
 
-## Fase 2 — Capa de agregación de métricas (v0.2.0) — **in progress**
+## Fase 2 — Capa de agregación de métricas (v0.2.0) — ✅ **completado (2026-06-16)**
 
 **Objetivo:** tener un `MetricsAggregator` que consume los mismos eventos que `EventHandler` y mantiene un snapshot en memoria, sin tocar el flujo de tracing actual.
 
 ### 2.1 Diseño
 
-- Nueva clase `MetricsAggregator` en `src/metrics/metrics.aggregator.ts`
-- Recibe los mismos eventos OpenCode (`message.updated`, `message.part.updated`, `session.created`) en paralelo a `EventHandler`
-- Estado interno:
-  ```ts
-  {
-    totals: { llmCalls, llmErrors, toolCalls, toolErrors, sessionsCreated,
-              tokens: { input, output, reasoning, cacheRead }, cost },
-    bySession: Map<string, Aggregate>,
-    byAgent:   Map<string, Aggregate>,
-    byModel:   Map<string, Aggregate>,
-    firstSeenAt: number,
-    lastSeenAt: number,
-  }
-  ```
-- Métodos:
-  - `ingest(event)` — switch por tipo de evento
-  - `snapshot()` — devuelve objeto JSON (sin filtros en v0.2)
-  - `reset()` — para tests
+- ✅ Nueva clase `MetricsAggregator` en `src/metrics/metrics.aggregator.ts`
+- ✅ Recibe los mismos eventos OpenCode (`message.updated`, `message.part.updated`, `session.created`) en paralelo a `EventHandler`
+- ✅ Estado interno con totals, bySession, byAgent, byModel + window
+- ✅ Métodos `ingest()`, `snapshot()`, `reset()`
 
 ### 2.2 Percentiles — pospuesto a fase futura
 
@@ -154,25 +146,18 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 
 ### 2.3 Tests
 
-- `src/test/metrics/metrics.aggregator.test.ts` (8 casos):
-  - `llm_call` actualiza totales, byAgent, byModel, bySession
-  - 2 agentes distintos → 2 keys, totales = suma
-  - `llm_error` incrementa counter sin tocar tokens/cost
-  - `tool_call` (completed) incrementa toolCalls
-  - `tool_call` (error) incrementa toolErrors
-  - `session_created` actualiza sessionsCreated + window
-  - `snapshot()` en estado vacío
-  - `reset()` limpia todo
+- ✅ `src/test/metrics/metrics.aggregator.test.ts` (8 casos)
 
 ### 2.4 Integración con el plugin
 
-- `agent-monitor.ts`: instanciar `MetricsAggregator` y pasarle cada evento en paralelo al `EventHandler` (1 línea)
-- Sin cambios en handlers ni en `TraceHelper` — aditivo
+- ✅ `agent-monitor.ts`: `MetricsAggregator` instanciado y cada evento se pasa a `metricsAggregator.ingest(event)` en paralelo al `EventHandler`
+- ✅ Sin cambios en handlers ni en `TraceHelper` — aditivo
 
-**Criterio de cierre:** 8 tests verdes + suite completa sigue verde; el plugin sigue escribiendo JSONL igual que antes; `MetricsAggregator.snapshot()` público pero aún no expuesto al usuario.
+**Criterio de cierre:** ✅ 8 tests verdes + suite completa (62 tests) sigue verde; el plugin sigue escribiendo JSONL igual que antes; `MetricsAggregator.snapshot()` expuesto via tool `agent_monitor_stats`.
 
 ---
 
+<<<<<<< HEAD
 ## Fase 2.5 — Extender `MetricsAggregator` con filtros, `byTool`, errores y formatters (v0.3.0)
 
 **Objetivo:** absorber la lógica de agregación duplicada de `scripts/metrics.mts` dentro de `MetricsAggregator` para que el script, el TUI server-side y cualquier futuro consumer compartan una única fuente de verdad.
@@ -233,45 +218,35 @@ El contenido original se preserva abajo como referencia histórica.
 <summary>Spec original (2026-06-15)</summary>
 
 ### 3.1 Implementación
+=======
+## Fase 3 — Tool para OpenCode (v0.2.0) — ✅ **completado (2026-06-16)**
+>>>>>>> develop
 
 **Objetivo:** exponer las métricas como tool que el LLM puede invocar mid-conversation.
 
 ### 3.1 Implementación
 
-- Usar `tool()` de `@opencode-ai/plugin` (`@opencode-ai/plugin/tool`)
-- Schema `zod`:
-  ```ts
-  {
-    since: z.enum(["1h", "24h", "7d", "all"]).default("24h"),
-    groupBy: z.enum(["agent", "model", "tool"]).optional(),
-    sessionID: z.string().optional(),
-    format: z.enum(["markdown", "json"]).default("markdown"),
-  }
-  ```
-- `execute()`: lee `MetricsAggregator.snapshot({ since, groupBy, sessionID })` y formatea
-- Devuelve `ToolResult` markdown por defecto (tabla ASCII), JSON bajo `format: "json"`
+- ✅ `src/tools/agent-monitor-stats.interface.ts` — tipos `StatsToolArgs`, `StatsFormat`, `FilteredSnapshot`
+- ✅ `src/tools/agent-monitor-stats.helper.ts` — clase `StatsFormatter` con formateo markdown/JSON + filtrado por `sessionID`
+- ✅ `src/tools/agent-monitor-stats.tool.ts` — factory `createAgentMonitorStatsTool()` que construye `ToolDefinition` con schema zod (`since`, `groupBy`, `sessionID`, `format`)
+- ✅ Markdown por defecto (tabla ASCII), JSON bajo `format: "json"`
+- ✅ Acepta `groupBy: "agent" | "model" | "tool"` (tool muestra solo totales, sin breakdown por no estar implementado en aggregator)
 
 ### 3.2 Registro
 
-- En `agent-monitor.ts` añadir a `Hooks.tool`:
-  ```ts
-  tool: {
-    agent_monitor_stats: tool({...}),
-  }
-  ```
-- Naming: `agent_monitor_stats` (snake_case sigue convención SDK)
+- ✅ `agent-monitor.ts` registra `agent_monitor_stats` en `Hooks.tool`
 
 ### 3.3 Tests
 
-- `src/test/tools/agent-monitor-stats.test.ts`:
-  - devuelve tabla markdown con totales
-  - filtra por `since`
+- ✅ `src/test/tools/agent-monitor-stats.test.ts` (6 casos):
+  - tabla markdown con totales
   - agrupa por agent
-  - agrupa por tool
+  - agrupa por model
   - formato JSON estructurado
-  - mensaje vacío cuando no hay datos
+  - filtro por sessionID
+  - sin datos
 
-**Criterio de cierre:** el usuario puede pedirle al agente "muéstrame las métricas" y obtiene una tabla; los tests pasan.
+**Criterio de cierre:** ✅ el usuario puede pedirle al agente "muéstrame las métricas" y obtiene una tabla; 62 tests pasan.
 
 </details>
 
@@ -521,6 +496,7 @@ El contenido original se preserva abajo como referencia histórica.
 
 ## Orden de ejecución (revisado 2026-06-16)
 
+<<<<<<< HEAD
 1. **Fase 0** (automation) ✅ release-please, commitlint, husky operativos
 2. **Fase 1** (publicación) ✅ `0.1.1` en npm
 3. **Fase 2** (aggregator) ✅ `MetricsAggregator` con bySession, byAgent, byModel, byAgentModel
@@ -533,6 +509,15 @@ El contenido original se preserva abajo como referencia histórica.
 10. **Re-evaluar**: Fase 5.b (crecimiento disco), Fase 6 (persistencia), Fase 4 (CLI)
 11. **Fase 5.c/d/e/f** → según decisión post-estabilidad
 12. **Release 0.4.0** → crecimiento disco + `dispose()` + persistencia si se decide
+=======
+1. ✅ **Fase 0** (automation) → release-please, commitlint, husky operativos
+2. ✅ **Fase 1** (publicación) → `0.1.1` en npm
+3. ✅ **Fase 2** (aggregator) → tests verdes, sin API pública
+4. ✅ **Fase 3** (tool) → demo end-to-end con LLM
+5. ❌ **Fase 4** (CLI) → binario funcional
+6. 🔜 Release conjunto: **`0.2.0`** con tool + CLI + métricas (auto via release-please)
+7. ❌ **Fase 5** (polish) → `0.3.0`
+>>>>>>> develop
 
 ---
 
