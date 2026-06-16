@@ -52,7 +52,10 @@ export class JsonlTailer {
       });
       this._watcher.on("error", (err) => this._emitError(this._toError(err)));
     } catch (err) {
-      this._emitError(this._toError(err));
+      const nodeErr = err as NodeJS.ErrnoException;
+      if (nodeErr.code !== "ENOENT") {
+        this._emitError(this._toError(err));
+      }
     }
 
     this._pollTimer = setInterval(() => this._read(), this.pollIntervalMs);
@@ -79,7 +82,10 @@ export class JsonlTailer {
       try {
         stats = statSync(this.filePath);
       } catch (err) {
-        this._emitError(this._toError(err));
+        const nodeErr = err as NodeJS.ErrnoException;
+        if (nodeErr.code !== "ENOENT") {
+          this._emitError(this._toError(err));
+        }
         return;
       }
 
