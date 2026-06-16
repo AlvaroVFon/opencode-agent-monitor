@@ -4,4 +4,5 @@ dist
 .husky
 CHANGELOG.md
 package-lock.json
+pnpm-lock.yaml
 *.jsonl

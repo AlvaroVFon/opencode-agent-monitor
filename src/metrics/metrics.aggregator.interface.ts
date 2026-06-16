@@ -21,6 +21,7 @@ export type MetricsSnapshot = {
   bySession: Record<string, Aggregate>;
   byAgent: Record<string, Aggregate>;
   byModel: Record<string, Aggregate>;
+  byAgentModel: Record<string, Record<string, Aggregate>>;
   window: { firstSeenAt: number; lastSeenAt: number };
 };
 
