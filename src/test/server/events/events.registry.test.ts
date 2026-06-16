@@ -1,8 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { EventsRegistry } from "../../events/events.registry";
-import { EventType } from "../../enums";
-import type { Handler } from "../../handler.interface";
+import { EventsRegistry } from "../../../server/events/events.registry";
+import { EventType } from "../../../server/enums";
+import type { Handler } from "../../../server/handler.interface";
 
 function dummy(): Handler {
   return { handle: () => {} };

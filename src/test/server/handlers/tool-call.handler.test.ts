@@ -1,7 +1,7 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { ToolCallHandler } from "../../handlers/tool-call.handler";
-import { TraceEventType } from "../../enums";
+import { ToolCallHandler } from "../../../server/handlers/tool-call.handler";
+import { TraceEventType } from "../../../server/enums";
 
 function makePart(overrides: Record<string, unknown> = {}) {
   return {

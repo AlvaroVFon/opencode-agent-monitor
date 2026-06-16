@@ -1,7 +1,7 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { SessionErrorHandler } from "../../handlers/session-error.handler";
-import { TraceEventType } from "../../enums";
+import { SessionErrorHandler } from "../../../server/handlers/session-error.handler";
+import { TraceEventType } from "../../../server/enums";
 
 describe("SessionErrorHandler", () => {
   it("writes both trace and traceError on session error", () => {

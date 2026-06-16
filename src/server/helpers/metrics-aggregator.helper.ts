@@ -1,7 +1,4 @@
-import type {
-  Aggregate,
-  TokenUsage,
-} from "../metrics/metrics.aggregator.interface";
+import type { Aggregate, TokenUsage } from "../../shared/metrics.types";
 
 export class MetricsAggregatorHelper {
   emptyAggregate(): Aggregate {

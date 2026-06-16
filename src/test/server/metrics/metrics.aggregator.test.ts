@@ -1,8 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { EventType, PartStatus, PartType, Role } from "../../enums";
-import { MetricsAggregator } from "../../metrics/metrics.aggregator";
-import { MetricsAggregatorHelper } from "../../helpers/metrics-aggregator.helper";
+import { EventType, PartStatus, PartType, Role } from "../../../server/enums";
+import { MetricsAggregator } from "../../../server/metrics/metrics.aggregator";
+import { MetricsAggregatorHelper } from "../../../server/helpers/metrics-aggregator.helper";
 
 const makeLlmCallEvent = (overrides: Record<string, unknown> = {}) => ({
   type: EventType.MESSAGE_UPDATED,

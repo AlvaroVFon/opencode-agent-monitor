@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { extractErrorMessage } from "../../helpers/error.helpers";
-import { UNKNOWN } from "../../enums";
+import { extractErrorMessage } from "../../../server/helpers/error.helpers";
+import { UNKNOWN } from "../../../server/enums";
 
 describe("extractErrorMessage", () => {
   it("returns UNKNOWN for null", () => {

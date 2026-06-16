@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { AgentMonitor } from "../agent-monitor";
+import { AgentMonitor } from "../../server/agent-monitor";
 
 describe("AgentMonitor plugin", () => {
   it("returns chat.params and event hooks", async () => {

@@ -3,9 +3,9 @@
   "version": "0.2.0",
   "description": "OpenCode plugin for tracing LLM calls, agent delegations, tool calls and session events to JSONL files",
   "type": "commonjs",
-  "main": "src/agent-monitor.ts",
+  "main": "src/server/agent-monitor.ts",
   "exports": {
-    ".": "./src/agent-monitor.ts",
+    ".": "./src/server/agent-monitor.ts",
     "./tui": {
       "import": "./src/tui/tui-detect.ts",
       "types": "./src/tui/tui-detect.ts"
