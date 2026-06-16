@@ -133,6 +133,7 @@ export class AggregatorStore {
   private byAgentModel: Map<string, Map<string, Aggregate>>;
   private firstSeenAt: number;
   private lastSeenAt: number;
+  private lastActiveAgent: { name: string; timestamp: number } | null;
   private readonly onSnapshot?: (snap: MetricsSnapshot) => void;
 
   constructor(opts?: { onSnapshot?: (snap: MetricsSnapshot) => void }) {
@@ -144,6 +145,7 @@ export class AggregatorStore {
     this.byAgentModel = new Map();
     this.firstSeenAt = 0;
     this.lastSeenAt = 0;
+    this.lastActiveAgent = null;
   }
 
   ingest(event: TraceEvent): void {
@@ -156,6 +158,17 @@ export class AggregatorStore {
         this.addLlm(this.getSession(event.sessionID), event);
         this.addLlm(this.getModel(event.model), event);
         this.addLlm(this.getAgentModel(event.agent, event.model), event);
+
+        // Track the most recent active agent (out-of-order safe).
+        if (
+          this.lastActiveAgent === null ||
+          event.timestamp >= this.lastActiveAgent.timestamp
+        ) {
+          this.lastActiveAgent = {
+            name: event.agent,
+            timestamp: event.timestamp,
+          };
+        }
         break;
       }
 
@@ -192,6 +205,7 @@ export class AggregatorStore {
       totals: {
         ...cloneAggregate(this.totals),
         sessionsCreated: this.totals.sessionsCreated,
+        sessionErrors: this.totals.sessionErrors,
       },
       byAgent: Object.fromEntries(
         Array.from(this.byAgent.entries()).map(([k, v]) => [
@@ -226,6 +240,9 @@ export class AggregatorStore {
         firstSeenAt: this.firstSeenAt,
         lastSeenAt: this.lastSeenAt,
       },
+      lastActiveAgent: this.lastActiveAgent
+        ? { ...this.lastActiveAgent }
+        : null,
     };
   }
 
@@ -237,6 +254,7 @@ export class AggregatorStore {
     this.byAgentModel = new Map();
     this.firstSeenAt = 0;
     this.lastSeenAt = 0;
+    this.lastActiveAgent = null;
   }
 
   private touch(timestamp: number): void {

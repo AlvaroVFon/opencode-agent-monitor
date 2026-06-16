@@ -1,7 +1,13 @@
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import type { JSX } from "@opentui/solid";
 import type { TuiThemeCurrent } from "@opencode-ai/plugin/tui";
 import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types.js";
+import {
+  formatPanelHeader,
+  toggleCollapsed,
+} from "../formatters/format-panel-header";
+import { formatTotalsRow } from "../formatters/format-totals-row";
+import { capitalizeName, getAgentColor } from "../formatters/agent-name";
 
 type ModelRow = {
   name: string;
@@ -110,6 +116,8 @@ export function AgentCostPanel(props: {
   sessionId?: string;
   theme: TuiThemeCurrent;
 }): JSX.Element {
+  const [collapsed, setCollapsed] = createSignal(false);
+
   const rows = createMemo(() =>
     buildAgentRows(props.snapshot.byAgent, props.snapshot.byAgentModel ?? {}),
   );
@@ -118,131 +126,165 @@ export function AgentCostPanel(props: {
   );
   const separator = createMemo(() => buildSeparator(28));
 
+  const header = createMemo(() => formatPanelHeader(collapsed(), totalCost()));
+  const totals = createMemo(() => formatTotalsRow(props.snapshot));
+  const activeAgent = createMemo(() => props.snapshot.lastActiveAgent);
+  const hasTotalsErrors = createMemo(() => {
+    const t = props.snapshot.totals;
+    return t.llmErrors + t.toolErrors + (t.sessionErrors ?? 0) > 0;
+  });
+
   return (
     <box flexDirection="column" padding={1}>
-      {/* Title bar */}
-      <text>
-        <span style={{ fg: props.theme.accent }}>Agent Monitor</span>
-        <span style={{ fg: props.theme.textMuted }}> · </span>
-        <span style={{ fg: props.theme.success }}>{totalCost()}</span>
-      </text>
-
-      {/* Separator */}
-      <text style={{ fg: props.theme.border }}>{separator()}</text>
-
-      {/* Agent list or empty state */}
-      <Show
-        when={rows().length > 0}
-        fallback={
-          <box paddingTop={1}>
-            <text style={{ fg: props.theme.textMuted }}>No data yet</text>
-          </box>
-        }
+      {/* Title bar — clickable; toggles collapsed */}
+      <box
+        flexDirection="row"
+        onMouseUp={() => setCollapsed(toggleCollapsed(collapsed()))}
       >
-        <For each={rows()}>
-          {(row) => (
-            <box flexDirection="column" paddingTop={1}>
-              {/* Agent subtitle */}
-              <text style={{ fg: props.theme.text }}>{row.name}</text>
+        <text>
+          <span style={{ fg: props.theme.textMuted }}>
+            {header().indicator}{" "}
+          </span>
+          <span style={{ fg: props.theme.warning, bold: true }}>
+            {header().title}
+          </span>
+          <span style={{ fg: props.theme.textMuted }}> · </span>
+          <span style={{ fg: props.theme.success }}>{header().totalCost}</span>
+        </text>
+      </box>
 
-              {/* Cost (accent) */}
-              <box paddingLeft={1}>
-                <text style={{ fg: props.theme.accent }}>{row.cost}</text>
-              </box>
+      {/* Separator (hidden when collapsed) */}
+      <Show when={!collapsed()}>
+        <text style={{ fg: props.theme.border }}>{separator()}</text>
+      </Show>
 
-              {/* Per-model breakdown */}
-              <Show when={row.models.length > 0}>
-                <box flexDirection="column" paddingLeft={2} paddingTop={0}>
-                  <For each={row.models}>
-                    {(model) => (
+      {/* Agent list or empty state (hidden when collapsed) */}
+      <Show when={!collapsed()}>
+        <Show
+          when={rows().length > 0}
+          fallback={
+            <box paddingTop={1}>
+              <text style={{ fg: props.theme.textMuted }}>No data yet</text>
+            </box>
+          }
+        >
+          <For each={rows()}>
+            {(row) => {
+              const isActive = activeAgent()?.name === row.name;
+              const colorKey = getAgentColor(row.name);
+              return (
+                <box flexDirection="column" paddingTop={1}>
+                  {/* Agent subtitle */}
+                  <text>
+                    <span
+                      style={{
+                        fg: props.theme[colorKey],
+                        ...(isActive ? {} : { dim: true }),
+                      }}
+                    >
+                      {capitalizeName(row.name)}
+                    </span>
+                    <Show when={isActive}>
+                      <span style={{ fg: props.theme.success }}> ●</span>
+                    </Show>
+                  </text>
+
+                  {/* Cost (accent) */}
+                  <box paddingLeft={1}>
+                    <text style={{ fg: props.theme.accent }}>{row.cost}</text>
+                  </box>
+
+                  {/* Per-model breakdown */}
+                  <Show when={row.models.length > 0}>
+                    <box flexDirection="column" paddingLeft={2} paddingTop={0}>
+                      <For each={row.models}>
+                        {(model) => (
+                          <text>
+                            <span style={{ fg: props.theme.secondary }}>
+                              {model.name}
+                            </span>
+                            <span style={{ fg: props.theme.textMuted }}>
+                              {"  ·  "}
+                            </span>
+                            <span style={{ fg: props.theme.textMuted }}>
+                              {model.callsLabel}
+                            </span>
+                          </text>
+                        )}
+                      </For>
+                    </box>
+                  </Show>
+
+                  {/* Per-model sub-separator */}
+                  <Show when={row.models.length > 0}>
+                    <box paddingLeft={1} paddingTop={0}>
+                      <text style={{ fg: props.theme.borderSubtle }}>
+                        {"─".repeat(30)}
+                      </text>
+                    </box>
+                  </Show>
+
+                  {/* Metric grid: two columns */}
+                  <box flexDirection="row" paddingLeft={1} paddingTop={0}>
+                    <box flexDirection="column">
                       <text>
-                        <span style={{ fg: props.theme.secondary }}>
-                          {model.name}
-                        </span>
-                        <span style={{ fg: props.theme.textMuted }}>
-                          {"  ·  "}
-                        </span>
-                        <span style={{ fg: props.theme.textMuted }}>
-                          {model.callsLabel}
-                        </span>
-                        <span style={{ fg: props.theme.textMuted }}>
-                          {"  ·  "}
-                        </span>
+                        <span style={{ fg: props.theme.textMuted }}>ctx </span>
+                        <span style={{ fg: props.theme.text }}>{row.ctx}</span>
+                      </text>
+                      <text>
+                        <span style={{ fg: props.theme.textMuted }}>in </span>
                         <span style={{ fg: props.theme.text }}>
-                          {model.cost}
+                          {row.input}
                         </span>
                       </text>
-                    )}
-                  </For>
-                </box>
-              </Show>
+                      <text>
+                        <span style={{ fg: props.theme.textMuted }}>avg </span>
+                        <span style={{ fg: props.theme.text }}>
+                          {row.avgCostPerCall}
+                        </span>
+                        <span style={{ fg: props.theme.textMuted }}>/call</span>
+                      </text>
+                    </box>
+                    <box flexDirection="column" paddingLeft={3}>
+                      <text>
+                        <span style={{ fg: props.theme.textMuted }}>out </span>
+                        <span style={{ fg: props.theme.text }}>
+                          {row.output}
+                        </span>
+                      </text>
+                      <text>
+                        <span style={{ fg: props.theme.textMuted }}>call </span>
+                        <span style={{ fg: props.theme.text }}>
+                          {row.calls}
+                        </span>
+                      </text>
+                      <text>
+                        <span style={{ fg: props.theme.textMuted }}>
+                          cache{" "}
+                        </span>
+                        <span style={{ fg: props.theme.info }}>
+                          {row.cacheHitRate}
+                        </span>
+                      </text>
+                    </box>
+                  </box>
 
-              {/* Per-model sub-separator */}
-              <Show when={row.models.length > 0}>
-                <box paddingLeft={1} paddingTop={0}>
-                  <text style={{ fg: props.theme.borderSubtle }}>
-                    {"─".repeat(20)}
-                  </text>
+                  {/* Error indicator (only if errors > 0) */}
+                  <Show when={row.hasErrors}>
+                    <box paddingLeft={1}>
+                      <text>
+                        <span style={{ fg: props.theme.error }}>err </span>
+                        <span style={{ fg: props.theme.error }}>
+                          {formatNumber(row.errors)}
+                        </span>
+                      </text>
+                    </box>
+                  </Show>
                 </box>
-              </Show>
-
-              {/* Metric grid: two columns */}
-              <box flexDirection="row" paddingLeft={1} paddingTop={0}>
-                <box flexDirection="column">
-                  <text>
-                    <span style={{ fg: props.theme.textMuted }}>ctx </span>
-                    <span style={{ fg: props.theme.text }}>{row.ctx}</span>
-                  </text>
-                  <text>
-                    <span style={{ fg: props.theme.textMuted }}>in </span>
-                    <span style={{ fg: props.theme.text }}>{row.input}</span>
-                  </text>
-                </box>
-                <box flexDirection="column" paddingLeft={3}>
-                  <text>
-                    <span style={{ fg: props.theme.textMuted }}>out </span>
-                    <span style={{ fg: props.theme.text }}>{row.output}</span>
-                  </text>
-                  <text>
-                    <span style={{ fg: props.theme.textMuted }}>call</span>
-                    <span style={{ fg: props.theme.text }}>{row.calls}</span>
-                  </text>
-                </box>
-              </box>
-
-              {/* Derived metrics row */}
-              <box flexDirection="row" paddingLeft={1} paddingTop={0}>
-                <text>
-                  <span style={{ fg: props.theme.textMuted }}>avg </span>
-                  <span style={{ fg: props.theme.text }}>
-                    {row.avgCostPerCall}
-                  </span>
-                  <span style={{ fg: props.theme.textMuted }}>/call</span>
-                </text>
-                <box paddingLeft={2}>
-                  <text>
-                    <span style={{ fg: props.theme.textMuted }}>cache </span>
-                    <span style={{ fg: props.theme.info }}>
-                      {row.cacheHitRate}
-                    </span>
-                  </text>
-                </box>
-              </box>
-
-              {/* Error indicator (only if errors > 0) */}
-              <Show when={row.hasErrors}>
-                <box paddingLeft={1}>
-                  <text>
-                    <span style={{ fg: props.theme.error }}>err </span>
-                    <span style={{ fg: props.theme.error }}>
-                      {formatNumber(row.errors)}
-                    </span>
-                  </text>
-                </box>
-              </Show>
-            </box>
-          )}
-        </For>
+              );
+            }}
+          </For>
+        </Show>
       </Show>
     </box>
   );
