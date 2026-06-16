@@ -10,8 +10,12 @@
     "outDir": "dist",
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "jsx": "preserve",
+    "jsxImportSource": "@opentui/solid",
+    "allowImportingTsExtensions": true,
+    "noEmit": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "src/test"]
 }

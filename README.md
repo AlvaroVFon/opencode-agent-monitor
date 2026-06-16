@@ -84,13 +84,37 @@ Example `trace.jsonl` entry:
 
 If writing to `trace.jsonl` fails (e.g., disk full, permission denied), the error is logged to `trace.errors.jsonl`. If writing to `trace.errors.jsonl` also fails, the error is silently swallowed to avoid disrupting the OpenCode session.
 
+## Live TUI Monitor
+
+v0.3.0 includes a real-time TUI plugin that displays per-agent cost, context tokens, and call stats directly in the OpenCode sidebar.
+
+### Installation
+
+Add to your `tui.json` (`~/.config/opencode/tui.json` or project-local):
+
+```json
+{
+  "$schema": "https://opencode.ai/tui.json",
+  "plugin": ["@alvarovfon/opencode-agent-monitor/tui"]
+}
+```
+
+### Usage
+
+- **Sidebar panel** — shows per-agent rows sorted by cost descending (context tokens, input/output tokens, cost, calls, errors). Appears in the sidebar content area.
+- **Fullscreen dialog** — press `Ctrl+A` to toggle an expanded table with totals and per-model breakdown.
+
+The panel updates in real-time as your agents run. Cursor position is persisted across TUI restarts (via `api.kv`).
+
+### Configuration
+
+| Option     | Default                       | Description                              |
+| ---------- | ----------------------------- | ---------------------------------------- |
+| `traceDir` | `~/.config/opencode/.tracing` | Directory where `trace.jsonl` is written |
+
 ## Limitations
 
-This release (v0.1.x) only writes raw events. It does **not** yet aggregate, query or display metrics. The following are planned for v0.2.0 (see [`ROADMAP.md`](./ROADMAP.md)):
-
-- Aggregated metrics (totals, per-agent / per-model / per-tool breakdowns, p50/p95 latency, error rate)
-- A tool that the LLM can invoke mid-conversation to display those metrics
-- A CLI (`agent-monitor stats | errors | tail | export`) to read the JSONL files from the terminal
+- `metrics` script (batch) and TUI widget (real-time) are available. The LLM-callable tool and standalone CLI are planned for v0.4.0 (see [`ROADMAP.md`](./ROADMAP.md)).
 
 ## Releasing
 

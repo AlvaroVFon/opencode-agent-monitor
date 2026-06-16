@@ -18,8 +18,10 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 - ✅ release-please + GitHub Actions (release + publish con OIDC)
 - ✅ Prettier + CI workflow (lint, format:check, test) en PRs a `main`/`develop`
 - ✅ Git Flow con `develop` como default branch
-- 🚧 `MetricsAggregator` en progreso (Phase 2)
-- ❌ Sin tool/CLI de exposición (Phases 3 y 4)
+- ✅ `MetricsAggregator` completo (Phase 2)
+- ✅ TUI plugin real-time: sidebar panel + fullscreen dialog con cost/tokens por agente (Phase 3.5)
+- ✅ `scripts/metrics.mts` — script batch para métricas JSON/markdown
+- ❌ Sin tool LLM-callable / CLI (Phases 3 y 4)
 
 ---
 
@@ -209,6 +211,50 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 
 ---
 
+## Fase 3.5 — TUI live widget (v0.3.0)
+
+**Objetivo:** inyectar un panel reactivo en el TUI de opencode que muestra costes, tokens y contexto por agente **en tiempo real**, sin abrir ventanas externas.
+
+### 3.5.1 Arquitectura
+
+- Mismo paquete, nuevo export `./tui` con un `TuiPluginModule`.
+- La fuente de verdad es el `trace.jsonl` que ya escribe la parte server del plugin.
+- `JsonlTailer` lee el JSONL incrementalmente (fs.watch + polling) y emite líneas nuevas.
+- `AggregatorStore` ingiere cada evento y mantiene un snapshot agregado (totals, byAgent, bySession, byModel).
+- Componentes Solid renderizan el snapshot en `sidebar_content` (vista compacta) y en un diálogo fullscreen (`Ctrl+A`).
+- KV (`api.kv`) persiste el cursor de lectura entre reinicios del TUI.
+
+### 3.5.2 Componentes
+
+- `src/tui/jsonl-tailer.ts` — lector incremental de JSONL con manejo de truncado y errores
+- `src/tui/aggregator-store.ts` — ingesta de eventos y snapshot agregado
+- `src/tui/formatters/format-agent-row.ts` — formato de fila (cost $0.0000, tokens con locale)
+- `src/tui/formatters/format-fullscreen-table.ts` — tabla multilínea con totales
+- `src/tui/components/agent-cost-panel.tsx` — Solid component sidebar
+- `src/tui/components/fullscreen-stats-dialog.tsx` — Solid component diálogo
+- `src/tui/agent-monitor-tui.tsx` — entry point: wires cola, store, slots, keymap, kv
+
+### 3.5.3 Instalación
+
+```jsonc
+// ~/.config/opencode/tui.json
+{
+  "$schema": "https://opencode.ai/tui.json",
+  "plugin": ["@alvarovfon/opencode-agent-monitor/tui"],
+}
+```
+
+### 3.5.4 Tests
+
+- [x] `jsonl-tailer.test.ts` — 5 casos (backfill, append, truncate, fs error, partial lines)
+- [x] `format-agent-row.test.ts` — 9 casos (0 agents, 1 agent, N agents sorted, locale formatting)
+- [x] `format-fullscreen-table.test.ts` — 12 casos (basic view, total row, error indicators)
+- [x] `aggregator-store.test.ts` — 4 casos (ingest LLM, replay vs script, stream vs batch, empty)
+
+**Criterio de cierre:** panel renderiza en sidebar_content; `Ctrl+A` abre diálogo fullscreen; cursor persiste entre reinicios del TUI; 30 tests nuevos verdes; `tsc --noEmit` limpio.
+
+---
+
 ## Fase 4 — CLI (v0.2.0)
 
 **Objetivo:** binario ejecutable para humanos, sin pasar por el agent loop.
@@ -284,10 +330,11 @@ Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y 
 1. **Fase 0** (automation) → release-please, commitlint, husky operativos
 2. **Fase 1** (publicación) → `0.1.1` en npm (manual, antes de tener CI)
 3. **Fase 2** (aggregator) → tests verdes, sin API pública
-4. **Fase 3** (tool) → demo end-to-end con LLM
-5. **Fase 4** (CLI) → binario funcional
-6. Release conjunto: **`0.2.0`** con tool + CLI + métricas (auto via release-please)
-7. **Fase 5** (polish) → `0.3.0`
+4. **Fase 3.5** (TUI widget) → ✅ completado (30 tests, panel sidebar + diálogo fullscreen)
+5. **Fase 3** (tool) → demo end-to-end con LLM
+6. **Fase 4** (CLI) → binario funcional
+7. Release conjunto: **`0.3.0`** con tool + CLI + TUI widget (auto via release-please)
+8. **Fase 5** (polish) → `0.4.0`
 
 ---
 
