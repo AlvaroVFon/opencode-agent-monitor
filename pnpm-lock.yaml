@@ -14,6 +14,15 @@ importers:
       '@opencode-ai/sdk':
         specifier: ^1.x
         version: 1.17.7
+      '@opentui/core':
+        specifier: ^0.3.4
+        version: 0.3.4(typescript@6.0.3)(web-tree-sitter@0.25.10)
+      '@opentui/keymap':
+        specifier: ^0.3.4
+        version: 0.3.4(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10))(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10)
+      '@opentui/solid':
+        specifier: ^0.3.4
+        version: 0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10)
       solid-js:
         specifier: ^1.9.0
         version: 1.9.13
@@ -24,15 +33,6 @@ importers:
       '@commitlint/config-conventional':
         specifier: ^19
         version: 19.8.1
-      '@opentui/core':
-        specifier: ^0.3.4
-        version: 0.3.4(typescript@6.0.3)(web-tree-sitter@0.25.10)
-      '@opentui/keymap':
-        specifier: ^0.3.4
-        version: 0.3.4(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10))(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10)
-      '@opentui/solid':
-        specifier: ^0.3.4
-        version: 0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10)
       '@types/js-yaml':
         specifier: ^4.0.9
         version: 4.0.9
