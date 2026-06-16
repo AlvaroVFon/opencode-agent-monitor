@@ -4,7 +4,7 @@ import {
   formatAgentRow,
   formatAgentRows,
 } from "../../tui/formatters/format-agent-row";
-import type { Aggregate } from "../../metrics/metrics.aggregator.interface";
+import type { Aggregate } from "../../shared/metrics.types";
 
 // ---------------------------------------------------------------------------
 // Test fixture builder

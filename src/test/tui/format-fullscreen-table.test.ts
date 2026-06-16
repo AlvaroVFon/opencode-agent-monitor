@@ -1,10 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { formatFullscreenTable } from "../../tui/formatters/format-fullscreen-table";
-import type {
-  Aggregate,
-  MetricsSnapshot,
-} from "../../metrics/metrics.aggregator.interface";
+import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types";
 
 // ---------------------------------------------------------------------------
 // Test fixture builders

@@ -12,7 +12,7 @@
 - **Date:** 2026-06-16
 - **Context:** `MetricsAggregator` expects OpenCode SDK events (`message.updated` with `AssistantMessage` shape). `trace.jsonl` has a different format (`llm_call` with flat fields like `inputTokens`, `outputTokens`).
 - **Decision:** AggregatorStore implements its own incremental aggregation matching the `scripts/metrics.mts` pattern, producing compatible `Aggregate` shapes.
-- **Consequences:** Some code duplication, but avoids an awkward translation layer. Both use the same `Aggregate` interface from `metrics.aggregator.interface.ts`.
+- **Consequences:** Some code duplication, but avoids an awkward translation layer. Both consume the shared types from `src/shared/metrics.types.ts` (`Aggregate`, `MetricsSnapshot`, `TokenUsage`).
 
 ## ADR-003: Solid components are implementation-only (no TDD)
 

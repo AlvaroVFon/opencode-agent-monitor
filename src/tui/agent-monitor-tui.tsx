@@ -10,7 +10,7 @@ import type {
   TuiThemeCurrent,
 } from "@opencode-ai/plugin/tui";
 import type { TuiSlotPlugin } from "@opencode-ai/plugin/tui";
-import type { MetricsSnapshot } from "../metrics/metrics.aggregator.interface.js";
+import type { MetricsSnapshot } from "../shared/metrics.types.js";
 import { AggregatorStore, type TraceEvent } from "./aggregator-store.js";
 import { JsonlTailer } from "./jsonl-tailer.js";
 import { AgentCostPanel } from "./components/agent-cost-panel.js";

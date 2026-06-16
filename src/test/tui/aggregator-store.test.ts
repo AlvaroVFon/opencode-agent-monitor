@@ -5,10 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 import { AggregatorStore } from "../../tui/aggregator-store";
-import type {
-  Aggregate,
-  MetricsSnapshot,
-} from "../../metrics/metrics.aggregator.interface";
+import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types";
 
 // ---------------------------------------------------------------------------
 // TraceEvent — the union type accepted by `store.ingest()`.

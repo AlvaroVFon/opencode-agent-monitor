@@ -1,7 +1,7 @@
 import { createMemo } from "solid-js";
 import { useKeyboard, type JSX } from "@opentui/solid";
 import type { TuiThemeCurrent } from "@opencode-ai/plugin/tui";
-import type { MetricsSnapshot } from "../../metrics/metrics.aggregator.interface.js";
+import type { MetricsSnapshot } from "../../shared/metrics.types.js";
 import { formatFullscreenTable } from "../formatters/format-fullscreen-table.js";
 
 export function FullscreenStatsDialog(props: {

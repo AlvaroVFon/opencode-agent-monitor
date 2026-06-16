@@ -1,7 +1,4 @@
-import type {
-  Aggregate,
-  MetricsSnapshot,
-} from "../metrics/metrics.aggregator.interface";
+import type { Aggregate, MetricsSnapshot } from "../shared/metrics.types";
 
 // ---------------------------------------------------------------------------
 // TraceEvent — the shape produced by the JSONL tailer from trace.jsonl files.
