@@ -4,3 +4,8 @@ dist
 *.jsonl
 .husky/_
 .husky/.gitignore
+.memory-bank/spec/*
+.memory-bank/tasks
+.memory-bank/task_list.yaml
+.memory-bank/activeContext.md
+.memory-bank/progress.md
