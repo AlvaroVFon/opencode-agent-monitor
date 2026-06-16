@@ -88,12 +88,12 @@ The plugin aggregates events in-memory and exposes them through an `agent_monito
 
 The tool accepts the following parameters:
 
-| Parameter   | Type                                     | Default  | Description                                 |
-| ----------- | ---------------------------------------- | -------- | ------------------------------------------- |
-| `since`     | `"1h"` \| `"24h"` \| `"7d"` \| `"all"`  | `"24h"`  | Time window (time-based filtering upcoming) |
-| `groupBy`   | `"agent"` \| `"model"` \| `"tool"`      | —        | Breakdown dimension (optional)              |
-| `sessionID` | `string`                                 | —        | Filter to a specific session (optional)     |
-| `format`    | `"markdown"` \| `"json"`                | `"markdown"` | Output format                          |
+| Parameter   | Type                                   | Default      | Description                                 |
+| ----------- | -------------------------------------- | ------------ | ------------------------------------------- |
+| `since`     | `"1h"` \| `"24h"` \| `"7d"` \| `"all"` | `"24h"`      | Time window (time-based filtering upcoming) |
+| `groupBy`   | `"agent"` \| `"model"` \| `"tool"`     | —            | Breakdown dimension (optional)              |
+| `sessionID` | `string`                               | —            | Filter to a specific session (optional)     |
+| `format`    | `"markdown"` \| `"json"`               | `"markdown"` | Output format                               |
 
 #### Example (markdown, default)
 
@@ -134,13 +134,30 @@ With `groupBy: "agent"` a breakdown section is appended:
     "llmErrors": 1,
     "toolCalls": 42,
     "toolErrors": 2,
-    "tokens": { "input": 12500, "output": 34000, "reasoning": 500, "cacheRead": 2000 },
+    "tokens": {
+      "input": 12500,
+      "output": 34000,
+      "reasoning": 500,
+      "cacheRead": 2000
+    },
     "cost": 0.085,
     "sessionsCreated": 3
   },
   "breakdown": {
-    "coder": { "llmCalls": 8, "llmErrors": 0, "toolCalls": 25, "toolErrors": 1, "cost": 0.045 },
-    "reviewer": { "llmCalls": 7, "llmErrors": 1, "toolCalls": 17, "toolErrors": 1, "cost": 0.040 }
+    "coder": {
+      "llmCalls": 8,
+      "llmErrors": 0,
+      "toolCalls": 25,
+      "toolErrors": 1,
+      "cost": 0.045
+    },
+    "reviewer": {
+      "llmCalls": 7,
+      "llmErrors": 1,
+      "toolCalls": 17,
+      "toolErrors": 1,
+      "cost": 0.04
+    }
   }
 }
 ```
