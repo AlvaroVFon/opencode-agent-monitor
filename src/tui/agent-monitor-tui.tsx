@@ -7,6 +7,7 @@ import type {
   TuiPluginApi,
   TuiPluginMeta,
   TuiPluginModule,
+  TuiThemeCurrent,
 } from "@opencode-ai/plugin/tui";
 import type { TuiSlotPlugin } from "@opencode-ai/plugin/tui";
 import type { MetricsSnapshot } from "../metrics/metrics.aggregator.interface.js";
@@ -50,7 +51,7 @@ export const tui: TuiPlugin = async (
 
   // 2. Register sidebar slot FIRST so the panel always appears,
   //    even if tailer setup fails.
-  const accentColor = () => api.theme.current.accent;
+  const theme = (): TuiThemeCurrent => api.theme.current;
 
   api.slots.register({
     order: 200,
@@ -59,7 +60,7 @@ export const tui: TuiPlugin = async (
         <AgentCostPanel
           snapshot={snapshot() ?? store.snapshot()}
           sessionId={props.session_id}
-          accentColor={accentColor()}
+          theme={theme()}
         />
       ),
     },
@@ -131,7 +132,7 @@ export const tui: TuiPlugin = async (
         <FullscreenStatsDialog
           snapshot={snapshot() ?? store.snapshot()}
           onClose={closeDialog}
-          accentColor={accentColor()}
+          theme={theme()}
         />
       ),
       () => {
