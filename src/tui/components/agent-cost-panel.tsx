@@ -8,6 +8,7 @@ import {
 } from "../formatters/format-panel-header";
 import { formatTotalsRow } from "../formatters/format-totals-row";
 import { capitalizeName, getAgentColor } from "../formatters/agent-name";
+import { formatDuration } from "../formatters/format-duration";
 
 type ModelRow = {
   name: string;
@@ -21,6 +22,7 @@ type AgentRow = {
   name: string;
   cost: string;
   costValue: number;
+  workDurationMs: number;
   ctx: string;
   input: string;
   output: string;
@@ -84,6 +86,7 @@ function buildAgentRow(
     name,
     cost: formatCost(aggregate.cost),
     costValue: aggregate.cost,
+    workDurationMs: aggregate.workDurationMs,
     ctx: formatNumber(ctx),
     input: formatNumber(aggregate.tokens.input),
     output: formatNumber(aggregate.tokens.output),
@@ -124,9 +127,18 @@ export function AgentCostPanel(props: {
   const totalCost = createMemo(() =>
     formatCost(rows().reduce((sum, r) => sum + r.costValue, 0)),
   );
+  const agentCount = createMemo(
+    () => Object.keys(props.snapshot.byAgent).length,
+  );
+  const tokenTotals = createMemo(() => {
+    const t = props.snapshot.totals.tokens;
+    return { input: formatNumber(t.input), output: formatNumber(t.output) };
+  });
   const separator = createMemo(() => buildSeparator(28));
 
-  const header = createMemo(() => formatPanelHeader(collapsed(), totalCost()));
+  const header = createMemo(() =>
+    formatPanelHeader(collapsed(), totalCost(), agentCount()),
+  );
   const totals = createMemo(() => formatTotalsRow(props.snapshot));
   const activeAgent = createMemo(() => props.snapshot.lastActiveAgent);
   const hasTotalsErrors = createMemo(() => {
@@ -148,8 +160,25 @@ export function AgentCostPanel(props: {
           <span style={{ fg: props.theme.warning, bold: true }}>
             {header().title}
           </span>
+          <Show when={agentCount() > 0}>
+            <span style={{ fg: props.theme.info }}> </span>
+            <span style={{ fg: props.theme.warning }}>
+              {header().agentCount}
+            </span>
+          </Show>
           <span style={{ fg: props.theme.textMuted }}> · </span>
           <span style={{ fg: props.theme.success }}>{header().totalCost}</span>
+        </text>
+      </box>
+
+      {/* Token totals — always visible */}
+      <box flexDirection="row" paddingLeft={1}>
+        <text>
+          <span style={{ fg: props.theme.textMuted }}>in </span>
+          <span style={{ fg: props.theme.text }}>{tokenTotals().input}</span>
+          <span style={{ fg: props.theme.textMuted }}>{"  ·  "}</span>
+          <span style={{ fg: props.theme.textMuted }}> out </span>
+          <span style={{ fg: props.theme.text }}>{tokenTotals().output}</span>
         </text>
       </box>
 
@@ -176,6 +205,9 @@ export function AgentCostPanel(props: {
                 <box flexDirection="column" paddingTop={1}>
                   {/* Agent subtitle */}
                   <text>
+                    <Show when={isActive}>
+                      <span style={{ fg: props.theme.success }}>● </span>
+                    </Show>
                     <span
                       style={{
                         fg: props.theme[colorKey],
@@ -184,31 +216,22 @@ export function AgentCostPanel(props: {
                     >
                       {capitalizeName(row.name)}
                     </span>
-                    <Show when={isActive}>
-                      <span style={{ fg: props.theme.success }}> ●</span>
+                    <Show when={row.workDurationMs > 0}>
+                      <span style={{ fg: props.theme.textMuted }}>
+                        {" "}
+                        {formatDuration(row.workDurationMs)}
+                      </span>
                     </Show>
+                    <span style={{ fg: props.theme.warning }}> {row.cost}</span>
                   </text>
-
-                  {/* Cost (accent) */}
-                  <box paddingLeft={1}>
-                    <text style={{ fg: props.theme.accent }}>{row.cost}</text>
-                  </box>
 
                   {/* Per-model breakdown */}
                   <Show when={row.models.length > 0}>
-                    <box flexDirection="column" paddingLeft={2} paddingTop={0}>
+                    <box flexDirection="column" paddingTop={0}>
                       <For each={row.models}>
                         {(model) => (
-                          <text>
-                            <span style={{ fg: props.theme.secondary }}>
-                              {model.name}
-                            </span>
-                            <span style={{ fg: props.theme.textMuted }}>
-                              {"  ·  "}
-                            </span>
-                            <span style={{ fg: props.theme.textMuted }}>
-                              {model.callsLabel}
-                            </span>
+                          <text style={{ fg: props.theme.secondary }}>
+                            {model.name}
                           </text>
                         )}
                       </For>

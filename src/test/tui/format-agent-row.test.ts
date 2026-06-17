@@ -24,6 +24,7 @@ function makeAggregate(overrides: Partial<Aggregate> = {}): Aggregate {
     toolErrors: 0,
     tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0 },
     cost: 0,
+    workDurationMs: 0,
     ...overrides,
     // Always start from a clean tokens object so callers don't have to
     // worry about accidentally inheriting partial token data.

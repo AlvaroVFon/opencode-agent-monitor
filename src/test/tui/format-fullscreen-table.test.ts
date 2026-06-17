@@ -24,6 +24,7 @@ function makeAggregate(overrides: Partial<Aggregate> = {}): Aggregate {
     toolErrors: 0,
     tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0 },
     cost: 0,
+    workDurationMs: 0,
     ...overrides,
     // Always start from a clean tokens object so callers don't have to
     // worry about accidentally inheriting partial token data.
@@ -45,6 +46,7 @@ function makeSnapshot(
     byAgent,
     bySession: {},
     byModel: {},
+    byAgentModel: {},
     window: { firstSeenAt: 0, lastSeenAt: 0 },
     totals: {
       llmCalls: 0,
@@ -53,6 +55,7 @@ function makeSnapshot(
       toolErrors: 0,
       tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0 },
       cost: 0,
+      workDurationMs: 0,
       sessionsCreated: 0,
       ...totalsOverride,
       tokens: {

@@ -151,6 +151,7 @@ export class MetricsAggregator {
       toolErrors: 0,
       tokens: { ...payload.tokens },
       cost: payload.cost,
+      workDurationMs: 0,
     };
 
     this.helper.addToAggregate(this.totals, inc);

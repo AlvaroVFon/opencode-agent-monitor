@@ -166,7 +166,7 @@ describe("JsonlTailer", () => {
     }
   });
 
-  it("fs_error_calls_onError_without_crashing: handles missing file and retries on next poll", async () => {
+  it("missing_file_handled_gracefully: ENOENT is silent, tailer recovers when file appears", async () => {
     const dir = makeTempDir();
     const filePath = path.join(dir, "trace.jsonl");
     // Note: file does not exist yet
@@ -181,8 +181,9 @@ describe("JsonlTailer", () => {
 
     tailer.start();
     try {
-      // onError should be called without the tailer crashing
-      await waitFor(() => errors.length > 0);
+      // Wait several poll cycles to confirm ENOENT does NOT trigger onError
+      await sleep(SETTLE_MS * 3);
+      assert.equal(errors.length, 0, "ENOENT must not be reported as an error");
       assert.equal(
         emitted.length,
         0,

@@ -9,6 +9,7 @@ export class MetricsAggregatorHelper {
       toolErrors: 0,
       tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0 },
       cost: 0,
+      workDurationMs: 0,
     };
   }
 
@@ -25,6 +26,7 @@ export class MetricsAggregatorHelper {
     target.toolCalls += source.toolCalls;
     target.toolErrors += source.toolErrors;
     target.cost += source.cost;
+    target.workDurationMs += source.workDurationMs;
     this.addTokens(target.tokens, source.tokens);
   }
 
@@ -36,6 +38,7 @@ export class MetricsAggregatorHelper {
       toolErrors: agg.toolErrors,
       tokens: { ...agg.tokens },
       cost: agg.cost,
+      workDurationMs: agg.workDurationMs,
     };
   }
 
