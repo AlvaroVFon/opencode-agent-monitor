@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/opencode-agent-monitor-v1.0.1...opencode-agent-monitor-v1.1.0) (2026-06-17)
+
+
+### Features
+
+* promote tui monitor to primary role with improved documentation ([#22](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/22)) ([b5a5800](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/b5a5800e6194331464eb889cda94bf196f1467ce))
+* track work duration per agent and enhance tui panel layout ([d37395e](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/d37395ebaab1dc02feaaa2908f4766585f14b74b))
+
+
+### Bug Fixes
+
+* **tailer:** handle errors gracefully without crashing ([fd47262](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/fd47262ee6af9df29a9ee65f58b0dc86d0a1d6e0))
+
 ## [1.0.1](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/opencode-agent-monitor-v1.0.0...opencode-agent-monitor-v1.0.1) (2026-06-16)
 
 
