@@ -72,6 +72,7 @@ function emptyAggregate(): Aggregate {
     toolErrors: 0,
     tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0 },
     cost: 0,
+    workDurationMs: 0,
   };
 }
 
@@ -101,6 +102,7 @@ function cloneAggregate(aggregate: Aggregate): Aggregate {
     toolErrors: aggregate.toolErrors,
     tokens: cloneTokens(aggregate.tokens),
     cost: aggregate.cost,
+    workDurationMs: aggregate.workDurationMs,
   };
 }
 
@@ -273,6 +275,7 @@ export class AggregatorStore {
     aggregate.tokens.reasoning += event.reasoningTokens;
     aggregate.tokens.cacheRead += event.cacheRead;
     aggregate.cost += event.cost;
+    aggregate.workDurationMs += event.durationMs;
   }
 
   private addTool(aggregate: Aggregate, event: ToolCallEvent): void {

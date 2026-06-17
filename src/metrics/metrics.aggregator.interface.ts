@@ -14,6 +14,7 @@ export type Aggregate = {
   toolErrors: number;
   tokens: TokenUsage;
   cost: number;
+  workDurationMs: number;
 };
 
 export type MetricsSnapshot = {

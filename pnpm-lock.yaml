@@ -10,26 +10,26 @@ importers:
     dependencies:
       '@opencode-ai/plugin':
         specifier: ^1.14.50
-        version: 1.17.7(@opentui/core@0.3.4(typescript@6.0.3)(web-tree-sitter@0.25.10))(@opentui/keymap@0.3.4(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10))(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10))(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10))
+        version: 1.17.7(@opentui/core@0.3.4(typescript@5.8.3)(web-tree-sitter@0.25.10))(@opentui/keymap@0.3.4(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10))(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10))(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10))
       '@opencode-ai/sdk':
         specifier: ^1.x
         version: 1.17.7
       '@opentui/core':
         specifier: ^0.3.4
-        version: 0.3.4(typescript@6.0.3)(web-tree-sitter@0.25.10)
+        version: 0.3.4(typescript@5.8.3)(web-tree-sitter@0.25.10)
       '@opentui/keymap':
         specifier: ^0.3.4
-        version: 0.3.4(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10))(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10)
+        version: 0.3.4(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10))(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10)
       '@opentui/solid':
         specifier: ^0.3.4
-        version: 0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10)
+        version: 0.3.4(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10)
       solid-js:
         specifier: ^1.9.0
         version: 1.9.13
     devDependencies:
       '@commitlint/cli':
         specifier: ^19
-        version: 19.8.1(@types/node@22.19.21)(typescript@6.0.3)
+        version: 19.8.1(@types/node@22.19.21)(typescript@5.8.3)
       '@commitlint/config-conventional':
         specifier: ^19
         version: 19.8.1
@@ -56,10 +56,13 @@ importers:
         version: 3.8.4
       tsup:
         specifier: ^8.5.0
-        version: 8.5.1(jiti@2.6.1)(tsx@4.22.4)(typescript@6.0.3)(yaml@2.9.0)
+        version: 8.5.1(jiti@2.6.1)(tsx@4.22.4)(typescript@5.8.3)(yaml@2.9.0)
       tsx:
         specifier: ^4
         version: 4.22.4
+      typescript:
+        specifier: ~5.8.3
+        version: 5.8.3
 
 packages:
 
@@ -1702,8 +1705,8 @@ packages:
     engines: {node: '>=18.0.0'}
     hasBin: true
 
-  typescript@6.0.3:
-    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
+  typescript@5.8.3:
+    resolution: {integrity: sha512-p1diW6TqL9L07nNxvRMM7hMMw4c5XOo/1ibL4aAIGmSAt9slTE1Xgw5KWuof2uTOvCg9BY7ZRi+GaF+7sfgPeQ==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -1979,11 +1982,11 @@ snapshots:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
 
-  '@commitlint/cli@19.8.1(@types/node@22.19.21)(typescript@6.0.3)':
+  '@commitlint/cli@19.8.1(@types/node@22.19.21)(typescript@5.8.3)':
     dependencies:
       '@commitlint/format': 19.8.1
       '@commitlint/lint': 19.8.1
-      '@commitlint/load': 19.8.1(@types/node@22.19.21)(typescript@6.0.3)
+      '@commitlint/load': 19.8.1(@types/node@22.19.21)(typescript@5.8.3)
       '@commitlint/read': 19.8.1
       '@commitlint/types': 19.8.1
       tinyexec: 1.2.4
@@ -2030,15 +2033,15 @@ snapshots:
       '@commitlint/rules': 19.8.1
       '@commitlint/types': 19.8.1
 
-  '@commitlint/load@19.8.1(@types/node@22.19.21)(typescript@6.0.3)':
+  '@commitlint/load@19.8.1(@types/node@22.19.21)(typescript@5.8.3)':
     dependencies:
       '@commitlint/config-validator': 19.8.1
       '@commitlint/execute-rule': 19.8.1
       '@commitlint/resolve-extends': 19.8.1
       '@commitlint/types': 19.8.1
       chalk: 5.6.2
-      cosmiconfig: 9.0.2(typescript@6.0.3)
-      cosmiconfig-typescript-loader: 6.3.0(@types/node@22.19.21)(cosmiconfig@9.0.2(typescript@6.0.3))(typescript@6.0.3)
+      cosmiconfig: 9.0.2(typescript@5.8.3)
+      cosmiconfig-typescript-loader: 6.3.0(@types/node@22.19.21)(cosmiconfig@9.0.2(typescript@5.8.3))(typescript@5.8.3)
       lodash.isplainobject: 4.0.6
       lodash.merge: 4.6.2
       lodash.uniq: 4.5.0
@@ -2277,15 +2280,15 @@ snapshots:
   '@msgpackr-extract/msgpackr-extract-win32-x64@3.0.4':
     optional: true
 
-  '@opencode-ai/plugin@1.17.7(@opentui/core@0.3.4(typescript@6.0.3)(web-tree-sitter@0.25.10))(@opentui/keymap@0.3.4(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10))(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10))(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10))':
+  '@opencode-ai/plugin@1.17.7(@opentui/core@0.3.4(typescript@5.8.3)(web-tree-sitter@0.25.10))(@opentui/keymap@0.3.4(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10))(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10))(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10))':
     dependencies:
       '@opencode-ai/sdk': 1.17.7
       effect: 4.0.0-beta.74
       zod: 4.1.8
     optionalDependencies:
-      '@opentui/core': 0.3.4(typescript@6.0.3)(web-tree-sitter@0.25.10)
-      '@opentui/keymap': 0.3.4(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10))(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10)
-      '@opentui/solid': 0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10)
+      '@opentui/core': 0.3.4(typescript@5.8.3)(web-tree-sitter@0.25.10)
+      '@opentui/keymap': 0.3.4(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10))(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10)
+      '@opentui/solid': 0.3.4(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10)
 
   '@opencode-ai/sdk@1.17.7':
     dependencies:
@@ -2315,9 +2318,9 @@ snapshots:
   '@opentui/core-win32-x64@0.3.4':
     optional: true
 
-  '@opentui/core@0.3.4(typescript@6.0.3)(web-tree-sitter@0.25.10)':
+  '@opentui/core@0.3.4(typescript@5.8.3)(web-tree-sitter@0.25.10)':
     dependencies:
-      bun-ffi-structs: 0.2.2(typescript@6.0.3)
+      bun-ffi-structs: 0.2.2(typescript@5.8.3)
       diff: 9.0.0
       marked: 17.0.1
       string-width: 7.2.0
@@ -2336,21 +2339,21 @@ snapshots:
     transitivePeerDependencies:
       - typescript
 
-  '@opentui/keymap@0.3.4(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10))(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10)':
+  '@opentui/keymap@0.3.4(@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10))(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10)':
     dependencies:
-      '@opentui/core': 0.3.4(typescript@6.0.3)(web-tree-sitter@0.25.10)
+      '@opentui/core': 0.3.4(typescript@5.8.3)(web-tree-sitter@0.25.10)
     optionalDependencies:
-      '@opentui/solid': 0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10)
+      '@opentui/solid': 0.3.4(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10)
       solid-js: 1.9.13
     transitivePeerDependencies:
       - typescript
       - web-tree-sitter
 
-  '@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@6.0.3)(web-tree-sitter@0.25.10)':
+  '@opentui/solid@0.3.4(solid-js@1.9.13)(typescript@5.8.3)(web-tree-sitter@0.25.10)':
     dependencies:
       '@babel/core': 7.28.0
       '@babel/preset-typescript': 7.27.1(@babel/core@7.28.0)
-      '@opentui/core': 0.3.4(typescript@6.0.3)(web-tree-sitter@0.25.10)
+      '@opentui/core': 0.3.4(typescript@5.8.3)(web-tree-sitter@0.25.10)
       babel-plugin-module-resolver: 5.0.2
       babel-preset-solid: 1.9.12(@babel/core@7.28.0)(solid-js@1.9.13)
       entities: 7.0.1
@@ -2524,9 +2527,9 @@ snapshots:
       node-releases: 2.0.47
       update-browserslist-db: 1.2.3(browserslist@4.28.2)
 
-  bun-ffi-structs@0.2.2(typescript@6.0.3):
+  bun-ffi-structs@0.2.2(typescript@5.8.3):
     dependencies:
-      typescript: 6.0.3
+      typescript: 5.8.3
 
   bundle-require@5.1.0(esbuild@0.27.7):
     dependencies:
@@ -2594,21 +2597,21 @@ snapshots:
 
   convert-source-map@2.0.0: {}
 
-  cosmiconfig-typescript-loader@6.3.0(@types/node@22.19.21)(cosmiconfig@9.0.2(typescript@6.0.3))(typescript@6.0.3):
+  cosmiconfig-typescript-loader@6.3.0(@types/node@22.19.21)(cosmiconfig@9.0.2(typescript@5.8.3))(typescript@5.8.3):
     dependencies:
       '@types/node': 22.19.21
-      cosmiconfig: 9.0.2(typescript@6.0.3)
+      cosmiconfig: 9.0.2(typescript@5.8.3)
       jiti: 2.6.1
-      typescript: 6.0.3
+      typescript: 5.8.3
 
-  cosmiconfig@9.0.2(typescript@6.0.3):
+  cosmiconfig@9.0.2(typescript@5.8.3):
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.1
       js-yaml: 4.2.0
       parse-json: 5.2.0
     optionalDependencies:
-      typescript: 6.0.3
+      typescript: 5.8.3
 
   cross-spawn@7.0.6:
     dependencies:
@@ -3232,7 +3235,7 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  tsup@8.5.1(jiti@2.6.1)(tsx@4.22.4)(typescript@6.0.3)(yaml@2.9.0):
+  tsup@8.5.1(jiti@2.6.1)(tsx@4.22.4)(typescript@5.8.3)(yaml@2.9.0):
     dependencies:
       bundle-require: 5.1.0(esbuild@0.27.7)
       cac: 6.7.14
@@ -3252,7 +3255,7 @@ snapshots:
       tinyglobby: 0.2.17
       tree-kill: 1.2.2
     optionalDependencies:
-      typescript: 6.0.3
+      typescript: 5.8.3
     transitivePeerDependencies:
       - jiti
       - supports-color
@@ -3265,7 +3268,7 @@ snapshots:
     optionalDependencies:
       fsevents: 2.3.3
 
-  typescript@6.0.3: {}
+  typescript@5.8.3: {}
 
   ufo@1.6.4: {}
 

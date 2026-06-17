@@ -9,47 +9,49 @@ import {
 // formatPanelHeader — title-row content for the panel header
 // ---------------------------------------------------------------------------
 //
-// Per the spec, the panel header shows three pieces of information:
+// Per the spec, the panel header shows:
 //   - a collapse indicator ("▾" expanded, "▸" collapsed)
 //   - a fixed title string ("Agents Monitor")
 //   - the formatted total cost, echoed verbatim
+//   - an agent count badge (e.g. "(3)") when > 0, empty string otherwise
 //
 // The helper is a pure function: no I/O, no side effects, no string mutation
 // of the cost input. These tests pin the contract for the implementer.
 
 describe("formatPanelHeader", () => {
   it("expanded: returns '▾' indicator, 'Agents Monitor' title, echoed totalCost", () => {
-    // The canonical example from the spec:
-    //   formatPanelHeader(false, "$0.0234")
-    //     === { indicator: "▾", title: "Agents Monitor", totalCost: "$0.0234" }
-    const header = formatPanelHeader(false, "$0.0234");
+    const header = formatPanelHeader(false, "$0.0234", 3);
 
     assert.deepEqual(
       header,
-      { indicator: "▾", title: "Agents Monitor", totalCost: "$0.0234" },
+      {
+        indicator: "▾",
+        title: "Agents Monitor",
+        totalCost: "$0.0234",
+        agentCount: "(3)",
+      },
       "expanded header must use the down-pointing indicator and the fixed title",
     );
   });
 
   it("collapsed: returns '▸' indicator, 'Agents Monitor' title, echoed totalCost", () => {
-    // The canonical example from the spec:
-    //   formatPanelHeader(true, "$0.0234")
-    //     === { indicator: "▸", title: "Agents Monitor", totalCost: "$0.0234" }
-    const header = formatPanelHeader(true, "$0.0234");
+    const header = formatPanelHeader(true, "$0.0234", 3);
 
     assert.deepEqual(
       header,
-      { indicator: "▸", title: "Agents Monitor", totalCost: "$0.0234" },
+      {
+        indicator: "▸",
+        title: "Agents Monitor",
+        totalCost: "$0.0234",
+        agentCount: "(3)",
+      },
       "collapsed header must use the right-pointing indicator and the fixed title",
     );
   });
 
   it("title is always 'Agents Monitor' regardless of collapsed", () => {
-    // Acceptance criterion 8: header text must remain 'Agents Monitor' in
-    // both states. We check both states explicitly so a future refactor that
-    // accidentally couples the title to the indicator cannot pass.
-    const expanded = formatPanelHeader(false, "$1.0000");
-    const collapsed = formatPanelHeader(true, "$1.0000");
+    const expanded = formatPanelHeader(false, "$1.0000", 0);
+    const collapsed = formatPanelHeader(true, "$1.0000", 0);
 
     assert.equal(
       expanded.title,
@@ -64,24 +66,11 @@ describe("formatPanelHeader", () => {
   });
 
   it("totalCost is echoed exactly as provided (verifies no formatting mutation)", () => {
-    // The spec is explicit: `totalCost` in the returned object is the
-    // formatted cost string passed in, NOT re-formatted by the helper. We
-    // feed it a few representative inputs and assert exact equality.
-    const inputs = [
-      "$0.0000",
-      "$0.0234",
-      "$12.3456",
-      "$1,234.5678",
-      // Edge case: a string that is NOT a valid cost format. The helper
-      // must still pass it through verbatim — it is the caller's job to
-      // pre-format.
-      "n/a",
-      "",
-    ];
+    const inputs = ["$0.0000", "$0.0234", "$12.3456", "$1,234.5678", "n/a", ""];
 
     for (const cost of inputs) {
-      const expanded = formatPanelHeader(false, cost);
-      const collapsed = formatPanelHeader(true, cost);
+      const expanded = formatPanelHeader(false, cost, 0);
+      const collapsed = formatPanelHeader(true, cost, 0);
 
       assert.equal(
         expanded.totalCost,
@@ -96,12 +85,26 @@ describe("formatPanelHeader", () => {
     }
   });
 
-  it("returns an object with exactly the three documented keys", () => {
-    // Pin the return-shape contract. The keys are `indicator`, `title`,
-    // `totalCost`; nothing more, nothing less. This guards against a
-    // well-meaning future PR that adds (e.g.) a `key` field for v-for
-    // purposes and accidentally couples it to the indicator.
-    const header = formatPanelHeader(false, "$0.0234");
+  it("agentCount is empty string when count is 0", () => {
+    const header = formatPanelHeader(false, "$0.0000", 0);
+    assert.equal(
+      header.agentCount,
+      "",
+      "agentCount must be empty when 0 agents",
+    );
+  });
+
+  it("agentCount shows badge when count > 0", () => {
+    const header = formatPanelHeader(false, "$0.0000", 5);
+    assert.equal(
+      header.agentCount,
+      "(5)",
+      "agentCount must show (count) when agents > 0",
+    );
+  });
+
+  it("returns an object with exactly the four documented keys", () => {
+    const header = formatPanelHeader(false, "$0.0234", 0);
 
     assert.equal(
       typeof header,
@@ -112,8 +115,8 @@ describe("formatPanelHeader", () => {
     const keys = Object.keys(header).sort();
     assert.deepEqual(
       keys,
-      ["indicator", "title", "totalCost"],
-      "returned object must have exactly the three documented keys",
+      ["agentCount", "indicator", "title", "totalCost"],
+      "returned object must have exactly the four documented keys",
     );
   });
 });
