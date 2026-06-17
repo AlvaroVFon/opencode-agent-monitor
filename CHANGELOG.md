@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/opencode-agent-monitor-v1.1.0...opencode-agent-monitor-v1.1.1) (2026-06-17)
+
+
+### Bug Fixes
+
+* enable trusted publishing with provenance for npm publish ([#25](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/25)) ([bcb6e13](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/bcb6e13a0c05415cf1a6ba29744e55ab2a2d2313))
+
 ## [1.1.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/opencode-agent-monitor-v1.0.1...opencode-agent-monitor-v1.1.0) (2026-06-17)
 
 
