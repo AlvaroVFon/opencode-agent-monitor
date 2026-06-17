@@ -1,6 +1,6 @@
 {
   "name": "@alvarovfon/opencode-agent-monitor",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "OpenCode plugin for tracing LLM calls, agent delegations, tool calls and session events to JSONL files",
   "type": "commonjs",
   "main": "dist/agent-monitor.js",
