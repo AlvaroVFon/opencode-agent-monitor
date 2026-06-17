@@ -2,6 +2,7 @@
 
 [![npm version](https://img.shields.io/npm/v/@alvarovfon/opencode-agent-monitor)](https://www.npmjs.com/package/@alvarovfon/opencode-agent-monitor)
 [![License](https://img.shields.io/npm/l/@alvarovfon/opencode-agent-monitor)](LICENSE)
+[![CI](https://github.com/AlvaroVFon/opencode-agent-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/AlvaroVFon/opencode-agent-monitor/actions/workflows/ci.yml)
 
 Real-time TUI monitor and JSONL tracing plugin for OpenCode. Track LLM calls, agent delegations, tool calls, and session events with live cost breakdowns per agent and model.
 
@@ -13,13 +14,13 @@ Install the plugin via OpenCode (recommended):
 opencode plugin @alvarovfon/opencode-agent-monitor
 ```
 
-Or add it to your project:
+This will automatically add the server plugin to your `opencode.json` and the TUI plugin to your `tui.json`.
+
+Or add it to your project manually:
 
 ```bash
 npm install @alvarovfon/opencode-agent-monitor
 ```
-
-For the TUI monitor, also add the TUI plugin to your `tui.json` (see [Live TUI Monitor](#live-tui-monitor)).
 
 ## Live TUI Monitor
 
@@ -29,7 +30,7 @@ Real-time sidebar panel that shows per-agent cost, context tokens, call stats, a
 
 ### Setup
 
-Add to `tui.json` (`~/.config/opencode/tui.json` or project-local):
+Add to `~/.config/opencode/tui.json`:
 
 ```json
 {
@@ -37,6 +38,8 @@ Add to `tui.json` (`~/.config/opencode/tui.json` or project-local):
   "plugin": ["@alvarovfon/opencode-agent-monitor/tui"]
 }
 ```
+
+Restart OpenCode after editing the file.
 
 ### Features
 
@@ -52,7 +55,7 @@ The server-side plugin traces OpenCode events to newline-delimited JSON files fo
 
 ### Configuration
 
-Add the plugin to `opencode.json` (or `opencode.jsonc`):
+Add the plugin to your `~/.config/opencode/opencode.json`:
 
 ```json
 {
@@ -170,10 +173,32 @@ This reads `trace.jsonl` and `trace.errors.jsonl` from the trace directory and o
 
 If writing to `trace.jsonl` fails (e.g., disk full, permission denied), the error is logged to `trace.errors.jsonl`. If writing to `trace.errors.jsonl` also fails, the error is silently swallowed to avoid disrupting the OpenCode session.
 
-## Limitations
+## Local Development
 
-- The TUI components (Solid JSX) are implementation-only and lack DOM-based tests — all logic is extracted into pure format functions with full test coverage.
-- The standalone CLI (`bin/agent-monitor`) is not yet implemented. The `metrics` script covers offline extraction.
+```bash
+git clone https://github.com/AlvaroVFon/opencode-agent-monitor.git
+cd opencode-agent-monitor
+pnpm install --ignore-scripts
+pnpm build
+```
+
+Point your `~/.config/opencode/tui.json` to the local build:
+
+```json
+{
+  "$schema": "https://opencode.ai/tui.json",
+  "plugin": ["/path/to/opencode-agent-monitor/dist/tui.js"]
+}
+```
+
+And your `~/.config/opencode/opencode.json` to the local server plugin:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["/path/to/opencode-agent-monitor/dist/agent-monitor.js"]
+}
+```
 
 ## License
 
