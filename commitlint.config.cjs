@@ -20,5 +20,7 @@ module.exports = {
       ],
     ],
     "subject-case": [2, "always", "lower-case"],
+    "body-max-line-length": [0],
+    "footer-max-line-length": [0],
   },
 };
