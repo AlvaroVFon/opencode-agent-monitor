@@ -1,238 +1,242 @@
 # ROADMAP.md — `@alvarovfon/opencode-agent-monitor`
 
-> Documento vivo. Define fases, criterios de aceptación y alcance. Se actualiza al cerrar cada fase.
+> Living document. Defines phases, acceptance criteria, and scope. Updated upon closing each phase.
 
-## Visión
+## Vision
 
-Plugin OpenCode que **traza** eventos a JSONL y, en su segunda fase, **agrega y expone métricas** vía tool (consumible por el LLM) y CLI (consumible por humanos), con foco en **cost, tokens, latencia y error rate** por `agent` / `model` / `tool`.
+OpenCode plugin that **traces** events to JSONL and, in its second phase, **aggregates and exposes metrics** via tool (consumable by the LLM) and CLI (consumable by humans), focusing on **cost, tokens, latency, and error rate** per `agent` / `model` / `tool`.
 
-## Estado actual (snapshot al 2026-06-16)
+## Current state (snapshot as of 2026-06-17)
 
-- ✅ Trazado de eventos: `session_created`, `session_error`, `llm_call`, `llm_error`, `agent_delegation`, `tool_call`, `write_trace_error`
-- ✅ Doble salida (`trace.jsonl` + `trace.errors.jsonl`) con manejo defensivo de I/O
-- ✅ Tipos del SDK (`@opencode-ai/sdk`) integrados
-- ✅ Publicado en npm: `@alvarovfon/opencode-agent-monitor@0.1.1`
-- ✅ LICENSE (MIT), CHANGELOG gestionado por release-please
-- ✅ `ToolCallHandler` con test (6 casos)
+- ✅ Event tracing: `session_created`, `session_error`, `llm_call`, `llm_error`, `agent_delegation`, `tool_call`, `write_trace_error`
+- ✅ Dual output (`trace.jsonl` + `trace.errors.jsonl`) with defensive I/O handling
+- ✅ SDK types (`@opencode-ai/sdk`) integrated
+- ✅ Published on npm: `@alvarovfon/opencode-agent-monitor@1.0.1`
+- ✅ LICENSE (MIT), CHANGELOG managed by release-please
+- ✅ `ToolCallHandler` with test (6 cases)
 - ✅ Conventional commits + commitlint + husky
-- ✅ release-please + GitHub Actions (release + publish con OIDC)
-- ✅ Prettier + CI workflow (lint, format:check, test) en PRs a `main`/`develop`
-- ✅ Git Flow con `develop` como default branch
-- ✅ `MetricsAggregator` completo (Fase 2): `bySession` / `byAgent` / `byModel` / `byAgentModel` — 8 tests
-- ✅ TUI plugin real-time (Fase 3.5): sidebar panel + fullscreen dialog + `byAgentModel` + métricas derivadas (30 tests)
-- ✅ `scripts/metrics.mts` — script batch para métricas JSON/markdown
-- ✅ Fases 0 y 1 completas (release-please + primera publicación)
-- ❌ `MetricsAggregator` no tiene `byTool`, `errors[]`, ni `snapshot({ filters })` (Fase 2.5 pendiente)
-- ❌ Sin `schemaVersion` en eventos JSONL (5.a pendiente)
-- ❌ Tool `agent_monitor_stats` eliminada (no aporta al estudio de datos; TUI ya cubre display; PR en curso)
-- ⏸ CLI diferido post-persistencia (script `metrics.mts` cubre extracción humana actual)
-- ⏸ Persistencia formal (SQL) pendiente de estudio de tradeoffs
+- ✅ release-please + GitHub Actions (release + publish consolidated in a single workflow)
+- ✅ Prettier + CI workflow (lint, format:check, test) on PRs and push to `main`/`develop`
+- ✅ Git Flow with `develop` as default branch
+- ✅ CI/CD consolidation: publish.yml removed, release-please.yml as single workflow with validations via prepublishOnly
+- ✅ `MetricsAggregator` complete (Phase 2): `bySession` / `byAgent` / `byModel` / `byAgentModel` — 8 tests
+- ✅ TUI plugin real-time (Phase 3.5): sidebar panel + fullscreen dialog + `byAgentModel` + derived metrics (30 tests)
+- ✅ `scripts/metrics.mts` — batch script for JSON/markdown metrics
+- ✅ Phases 0 and 1 complete (release-please + first publication)
+- ✅ README restructured: TUI as main feature, prominent installation docs
+- ❌ `MetricsAggregator` lacks `byTool`, `errors[]`, and `snapshot({ filters })` (Phase 2.5 pending)
+- ❌ No `schemaVersion` on JSONL events (5.a pending)
+- ❌ Tool `agent_monitor_stats` removed (does not contribute to data study; TUI already covers display)
+- ⏸ CLI deferred post-persistence (script `metrics.mts` covers current human extraction)
+- ⏸ Formal persistence (SQL) pending tradeoff study
 
 ---
 
-## Fase 0 — Automation (release-please + commitlint + husky)
+## Phase 0 — Automation (release-please + commitlint + husky)
 
-**Objetivo:** versionado y changelog automáticos desde el primer `feat:`. Cero intervención manual para releases.
+**Goal:** automatic versioning and changelog from the first `feat:`. Zero manual intervention for releases.
 
 ### 0.1 Conventional commits enforcement
 
-- [ ] `commitlint.config.cjs` con `@commitlint/config-conventional` + tipos permitidos
-- [ ] Hook `commit-msg` en `.husky/` que valida cada commit
-- [ ] Script `prepare: "husky"` en `package.json`
+- [ ] `commitlint.config.cjs` with `@commitlint/config-conventional` + allowed types
+- [ ] Hook `commit-msg` in `.husky/` validating each commit
+- [ ] Script `prepare: "husky"` in `package.json`
 
 ### 0.2 release-please config
 
-- [ ] `release-please-config.json` con `releaseType: "node"` y secciones por tipo de commit
-- [ ] `.release-please-manifest.json` con versión actual (`"0.1.1"`)
-- [ ] `bumpMinorPreMajor: true` para que `feat:` bumpee minor incluso antes de 1.0
-- [ ] `bumpPatchForMinorPreMajor: false` para no bumpear patch por feat pre-1.0 (mantiene semver estricto)
+- [ ] `release-please-config.json` with `releaseType: "node"` and sections by commit type
+- [ ] `.release-please-manifest.json` with current version (`"0.1.1"`)
+- [ ] `bumpMinorPreMajor: true` so `feat:` bumps minor even before 1.0
+- [ ] `bumpPatchForMinorPreMajor: false` to not bump patch for pre-1.0 feat (keeps strict semver)
 
 ### 0.3 GitHub workflows
 
-- [ ] `.github/workflows/release-please.yml` — abre/actualiza Release PR en cada push a `main`
-- [ ] `.github/workflows/publish.yml` — disparado por `release: published`, ejecuta `npm ci && npm run lint && npm test && npm publish --provenance`
-- [ ] Ambos con `id-token: write` para OIDC trusted publishing
+- [ ] `.github/workflows/release-please.yml` — opens/updates Release PR on each push to `main` and publishes to npm with validations via `prepublishOnly`
+- [ ] `.github/workflows/publish.yml` — **removed** (redundant; release-please.yml covers the full cycle)
+- [ ] Both with `id-token: write` for OIDC trusted publishing
 
-### 0.4 CHANGELOG gestionado
+### 0.4 CHANGELOG managed
 
-- [ ] `CHANGELOG.md` queda como skeleton; release-please lo regenera en cada Release PR
-- [ ] Eliminado del versionado manual de versiones
+- [ ] `CHANGELOG.md` kept as skeleton; release-please regenerates it on each Release PR
+- [ ] Removed from manual version management
 
-### 0.5 Trusted publishing (npm)
+### 0.5 Publishing with npm token
 
-- [ ] `publishConfig.provenance: true` en `package.json`
-- [ ] Configurar Trusted Publisher en https://www.npmjs.com/package/@alvarovfon/opencode-agent-monitor → Settings → Trusted Publishers (workflow `publish.yml`)
+- [ ] `publishConfig.access: public` in `package.json`
+- [ ] `NODE_AUTH_TOKEN` configured as GitHub secret
+- [ ] `provenance` removed from `publishConfig` (not used in CI)
+- [ ] `publish.yml` removed — `release-please.yml` is the single publication workflow
 
-**Criterio de cierre:** push a `main` con commit `feat:` abre un Release PR; al mergearlo, se crea el tag, el GitHub Release, y se publica a npm con provenance.
+**Closure criteria:** push to `main` with a `feat:` commit opens a Release PR; merging it creates the tag, the GitHub Release, and publishes to npm with npm token.
 
 ---
 
-## Fase 1 — Estabilización y primer publish (v0.1.1)
+## Phase 1 — Stabilization and first publish (v0.1.1)
 
-**Objetivo:** paquete publicable, código limpio, trazabilidad mínima garantizada.
+**Goal:** publishable package, clean code, minimal guaranteed traceability.
 
-### 1.1 Commit trabajo pendiente
+### 1.1 Commit pending work
 
-- [ ] `git add` cambios en working tree
-- [ ] Commit con mensaje: `feat: track tool calls and harden llm_call completion check`
+- [ ] `git add` changes in working tree
+- [ ] Commit with message: `feat: track tool calls and harden llm_call completion check`
 
-### 1.2 Test para `ToolCallHandler`
+### 1.2 Test for `ToolCallHandler`
 
-- [ ] Crear `src/test/handlers/tool-call.handler.test.ts`
-- [ ] Casos:
-  - escribe trace cuando `state.status === "completed"` con `durationMs` correcto
-  - escribe trace cuando `state.status === "error"` e incluye `error`
-  - ignora estados `pending` y `running`
-  - `durationMs = null` si falta `state.time.end`
-  - `agent` se lee del map; fallback a `unknown`
+- [ ] Create `src/test/handlers/tool-call.handler.test.ts`
+- [ ] Cases:
+  - writes trace when `state.status === "completed"` with correct `durationMs`
+  - writes trace when `state.status === "error"` and includes `error`
+  - ignores `pending` and `running` states
+  - `durationMs = null` if `state.time.end` is missing
+  - `agent` is read from map; fallback to `unknown`
 
-### 1.3 Documentación mínima
+### 1.3 Minimal documentation
 
-- [ ] Crear `LICENSE` (MIT) — texto completo
-- [ ] Crear `CHANGELOG.md` siguiendo Keep a Changelog
+- [ ] Create `LICENSE` (MIT) — full text
+- [ ] Create `CHANGELOG.md` following Keep a Changelog
   - `## [0.1.1] - YYYY-MM-DD`
   - `### Added`: tool call tracking
-  - `### Fixed`: discard `llm_call` events sin `time.completed`
-- [ ] `README.md`: añadir sección **Limitations** (lo que aún NO hace: métricas agregadas, tool/CLI)
+  - `### Fixed`: discard `llm_call` events without `time.completed`
+- [ ] `README.md`: add **Limitations** section (what it does NOT do yet: aggregated metrics, tool/CLI)
 
-### 1.4 Scripts de package.json
+### 1.4 package.json scripts
 
-- [ ] Añadir `format` (`prettier --write .`)
-- [ ] Añadir `lint` (`tsc --noEmit` como mínimo — sin ESLint por ahora)
-- [ ] Añadir `prepublishOnly`: `npm run lint && npm test`
-- [ ] `version` en `package.json` → `0.1.1`
+- [ ] Add `format` (`prettier --write .`)
+- [ ] Add `lint` (`tsc --noEmit` minimum — no ESLint for now)
+- [ ] Add `prepublishOnly`: `npm run lint && npm test`
+- [ ] `version` in `package.json` → `0.1.1`
 
-### 1.5 `files` y exports
+### 1.5 `files` and exports
 
-- [ ] Confirmar `files: ["src/", "package.json", "tsconfig.json", "LICENSE", "CHANGELOG.md", "README.md"]`
-- [ ] Eliminar export `./trace-helper` (innecesario para usuarios externos; rompe encapsulación)
+- [ ] Confirm `files: ["src/", "package.json", "tsconfig.json", "LICENSE", "CHANGELOG.md", "README.md"]`
+- [ ] Remove export `./trace-helper` (unnecessary for external users; breaks encapsulation)
 
-### 1.6 Limpieza
+### 1.6 Cleanup
 
-- [ ] Quitar `UNHANDLED_EVENT` de `enums.ts` (sin uso)
-- [ ] Revisar `MessagePartUpdatedProps` y `LaxAssistantMessage`: documentar en código por qué son laxos (mensajes de error llegan sin `tokens`)
+- [ ] Remove `UNHANDLED_EVENT` from `enums.ts` (unused)
+- [ ] Review `MessagePartUpdatedProps` and `LaxAssistantMessage`: document in code why they are lax (error messages arrive without `tokens`)
 
-### 1.7 Publicación
+### 1.7 Publication
 
-- [ ] `npm login` (manual del usuario)
-- [ ] `npm run prepublishOnly` (verificación local)
-- [ ] `npm publish --access public` (manual, tag git `v0.1.1` antes)
+- [ ] `npm login` (manual user step)
+- [ ] `npm run prepublishOnly` (local verification)
+- [ ] `npm publish --access public` (manual, tag git `v0.1.1` first)
 
-**Criterio de cierre:** `npm view @alvarovfon/opencode-agent-monitor` muestra `0.1.1`.
+**Closure criteria:** `npm view @alvarovfon/opencode-agent-monitor` shows `0.1.1`.
 
 ---
 
-## Fase 2 — Capa de agregación de métricas (v0.2.0) — ✅ **completado (2026-06-16)**
+## Phase 2 — Metrics aggregation layer (v0.2.0) — ✅ **completed (2026-06-16)**
 
-**Objetivo:** tener un `MetricsAggregator` que consume los mismos eventos que `EventHandler` y mantiene un snapshot en memoria, sin tocar el flujo de tracing actual.
+**Goal:** have a `MetricsAggregator` that consumes the same events as `EventHandler` and keeps an in-memory snapshot without touching the current tracing flow.
 
-### 2.1 Diseño
+### 2.1 Design
 
-- ✅ Nueva clase `MetricsAggregator` en `src/server/metrics/metrics.aggregator.ts` (tipos compartidos en `src/shared/metrics.types.ts`)
-- ✅ Recibe los mismos eventos OpenCode (`message.updated`, `message.part.updated`, `session.created`) en paralelo a `EventHandler`
-- ✅ Estado interno con totals, bySession, byAgent, byModel + window
-- ✅ Métodos `ingest()`, `snapshot()`, `reset()`
+- ✅ New class `MetricsAggregator` in `src/server/metrics/metrics.aggregator.ts` (shared types in `src/shared/metrics.types.ts`)
+- ✅ Receives the same OpenCode events (`message.updated`, `message.part.updated`, `session.created`) in parallel to `EventHandler`
+- ✅ Internal state with totals, bySession, byAgent, byModel + window
+- ✅ Methods `ingest()`, `snapshot()`, `reset()`
 
-### 2.2 Percentiles — pospuesto a fase futura
+### 2.2 Percentiles — deferred to a future phase
 
-- Diferido: primero queremos saber qué consultas harás realmente sobre los datos (top N sesiones más caras, hotspot agent×model, etc.) y luego decidir si p50/p95 son la métrica correcta o necesitamos otra cosa.
-- Cuando se añada: ring buffer capped a N=1000, función pura `percentile(arr, p)`.
+- Deferred: first we want to know what queries you will actually run on the data (top N most expensive sessions, agent×model hotspot, etc.) and then decide whether p50/p95 are the right metric or we need something else.
+- When added: ring buffer capped at N=1000, pure function `percentile(arr, p)`.
 
 ### 2.3 Tests
 
-- ✅ `src/test/server/metrics/metrics.aggregator.test.ts` (8 casos)
+- ✅ `src/test/server/metrics/metrics.aggregator.test.ts` (8 cases)
 
-### 2.4 Integración con el plugin
+### 2.4 Plugin integration
 
-- ✅ `src/server/agent-monitor.ts`: `MetricsAggregator` instanciado y cada evento se pasa a `metricsAggregator.ingest(event)` en paralelo al `EventHandler`
-- ✅ Sin cambios en handlers ni en `TraceHelper` — aditivo
+- ✅ `src/server/agent-monitor.ts`: `MetricsAggregator` instantiated and each event passed to `metricsAggregator.ingest(event)` in parallel to `EventHandler`
+- ✅ No changes to handlers or `TraceHelper` — additive
 
-**Criterio de cierre:** ✅ 8 tests verdes + suite completa (89 tests) sigue verde; el plugin sigue escribiendo JSONL igual que antes; `MetricsAggregator.snapshot()` disponible para consumidores internos (próximo uso previsto: `scripts/metrics.mts` en Fase 2.5).
+**Closure criteria:** ✅ 8 tests green + full suite (89 tests) still green; plugin keeps writing JSONL as before; `MetricsAggregator.snapshot()` available for internal consumers (next planned use: `scripts/metrics.mts` in Phase 2.5).
 
 ---
 
-## Fase 2.5 — Extender `MetricsAggregator` con filtros, `byTool`, errores y formatters (v0.3.0)
+## Phase 2.5 — Extend `MetricsAggregator` with filters, `byTool`, errors, and formatters (v0.3.0)
 
-**Objetivo:** absorber la lógica de agregación duplicada de `scripts/metrics.mts` dentro de `MetricsAggregator` para que el script, el TUI server-side y cualquier futuro consumer compartan una única fuente de verdad.
+**Goal:** absorb the duplicated aggregation logic from `scripts/metrics.mts` into `MetricsAggregator` so that the script, the server-side TUI, and any future consumer share a single source of truth.
 
-### 2.5.1 Gap actual
+### 2.5.1 Current gap
 
-| Funcionalidad                                            | `MetricsAggregator` (clase) | `scripts/metrics.mts`       |
-| -------------------------------------------------------- | --------------------------- | --------------------------- |
-| `byAgent` / `bySession` / `byModel`                      | ✅                          | ❌ (solo byAgent/bySession) |
-| `byAgentModel`                                           | ✅                          | ❌                          |
-| `byTool: Map<string, ToolAggregate>`                     | ❌                          | ✅                          |
-| `errors: ErrorEntry[]` con detalle                       | ❌ (solo contadores)        | ✅                          |
-| `snapshot({ filters })` — since, groupBy, sessionID, top | ❌ (snapshot sin params)    | ❌ (script recibe --dir)    |
-| formatters (markdown, json, csv)                         | ❌                          | ✅ (inline en script)       |
+| Functionality                                            | `MetricsAggregator` (class)  | `scripts/metrics.mts`       |
+| -------------------------------------------------------- | ---------------------------- | --------------------------- |
+| `byAgent` / `bySession` / `byModel`                      | ✅                           | ❌ (only byAgent/bySession) |
+| `byAgentModel`                                           | ✅                           | ❌                          |
+| `byTool: Map<string, ToolAggregate>`                     | ❌                           | ✅                          |
+| `errors: ErrorEntry[]` with detail                       | ❌ (counters only)           | ✅                          |
+| `snapshot({ filters })` — since, groupBy, sessionID, top | ❌ (snapshot without params) | ❌ (script receives --dir)  |
+| formatters (markdown, json, csv)                         | ❌                           | ✅ (inline in script)       |
 
-### 2.5.2 Añadidos a la clase
+### 2.5.2 Additions to the class
 
-- Estado nuevo:
+- New state:
   ```ts
   byTool: Map<string, ToolAggregate>      // tool → calls, errors, duration
   errors: ErrorEntry[]                     // capped N=1000, { sessionID, type, message, timestamp }
   ```
-- `snapshot({ since?, groupBy?, sessionID?, top?, format? })` con backward-compat (sin args = comportamiento actual)
-- Formatters en `src/server/metrics/formatters/{markdown,json,csv}.ts` (funciones puras: `MetricsSnapshot → string`)
-- `getErrors(sessionID?)` helper — acceso a la lista de errores
+- `snapshot({ since?, groupBy?, sessionID?, top?, format? })` with backward-compat (no args = current behavior)
+- Formatters in `src/server/metrics/formatters/{markdown,json,csv}.ts` (pure functions: `MetricsSnapshot → string`)
+- `getErrors(sessionID?)` helper — access to error list
 
-### 2.5.3 Refactor de scripts/metrics.mts
+### 2.5.3 Refactor of scripts/metrics.mts
 
-- Eliminar lógica de agregación duplicada (líneas 53-320)
-- Script pasa a ser: replay JSONL → `agg.ingest(event)` → `console.log(formatSnapshot(snap, opts))`
-- ≤ 30 líneas total
+- Remove duplicated aggregation logic (lines 53-320)
+- Script becomes: replay JSONL → `agg.ingest(event)` → `console.log(formatSnapshot(snap, opts))`
+- ≤ 30 lines total
 
 ### 2.5.4 Tests
 
-- `byTool`: ingest `tool_call` completed/error → `byTool` keys y agregados
-- `errors[]`: `session_error` / `llm_error` / `tool_call` error → entries con detalle
-- `errors[]` cap: más de 1000 entries → solo las últimas 1000
-- `snapshot({ since })`: filtra eventos fuera de ventana
-- `snapshot({ groupBy })`: agrupa por agent/model/tool/session
-- `snapshot({ sessionID })`: filtra por sesión
-- `snapshot({ top })`: ranking top-N (por cost/tokens/calls)
-- `snapshot()` sin args → comportamiento actual (backward-compat)
-- Formatters: markdown con tabla, json con estructura, csv con headers
-- Formatters: snapshot vacío → output adecuado
-- Suite completa (incluyendo 30 tests TUI) verde
+- `byTool`: ingest `tool_call` completed/error → `byTool` keys and aggregates
+- `errors[]`: `session_error` / `llm_error` / `tool_call` error → entries with detail
+- `errors[]` cap: more than 1000 entries → only the last 1000
+- `snapshot({ since })`: filters events outside window
+- `snapshot({ groupBy })`: groups by agent/model/tool/session
+- `snapshot({ sessionID })`: filters by session
+- `snapshot({ top })`: top-N ranking (by cost/tokens/calls)
+- `snapshot()` without args → current behavior (backward-compat)
+- Formatters: markdown with table, json with structure, csv with headers
+- Formatters: empty snapshot → appropriate output
+- Full suite (including 30 TUI tests) green
 
-**Criterio de cierre:** script reducido a ≤30 líneas; cero duplicación de lógica entre clase y script; mismos tests TUI verdes; `snapshot()` existente sin breaking change.
-
----
-
-## Fase 3 — Tool para OpenCode ❌ ELIMINADA (2026-06-16)
-
-**Motivo:** el objetivo del proyecto es generar métricas de **estudio**, no que el LLM las muestre. El TUI plugin (Fase 3.5) ya da display en tiempo real y `scripts/metrics.mts` da extracción offline. El tool duplicaba ambas funciones para un consumidor (LLM) que no aporta valor de estudio. Su existencia añadió además una dependencia de `zod` y un hook `tool` que ya no se justifican.
-
-Acción: eliminados `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src/test/tools/agent-monitor-stats.test.ts`, y la dependencia `zod`. `agent-monitor.ts` ya no expone `Hooks.tool`. `MetricsAggregator` se mantiene intacto para la Fase 2.5.
+**Closure criteria:** script reduced to ≤30 lines; zero logic duplication between class and script; same TUI tests green; existing `snapshot()` without breaking change.
 
 ---
 
-## Fase 3.5 — TUI live widget (v0.2.0)
+## Phase 3 — Tool for OpenCode ❌ REMOVED (2026-06-16)
 
-**Objetivo:** inyectar un panel reactivo en el TUI de opencode que muestra costes, tokens y contexto por agente **en tiempo real**, sin abrir ventanas externas.
+**Reason:** the project's goal is to generate metrics for **study**, not for the LLM to display them. The TUI plugin (Phase 3.5) already provides real-time display and `scripts/metrics.mts` provides offline extraction. The tool duplicated both functions for a consumer (LLM) that does not add study value. Its existence also added a `zod` dependency and a `tool` hook that are no longer justified.
 
-### 3.5.1 Arquitectura
+Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src/test/tools/agent-monitor-stats.test.ts`, and the `zod` dependency. `agent-monitor.ts` no longer exposes `Hooks.tool`. `MetricsAggregator` remains intact for Phase 2.5.
 
-- Mismo paquete, nuevo export `./tui` con un `TuiPluginModule`.
-- La fuente de verdad es el `trace.jsonl` que ya escribe la parte server del plugin.
-- `JsonlTailer` lee el JSONL incrementalmente (fs.watch + polling) y emite líneas nuevas.
-- `AggregatorStore` ingiere cada evento y mantiene un snapshot agregado (totals, byAgent, bySession, byModel).
-- Componentes Solid renderizan el snapshot en `sidebar_content` (vista compacta) y en un diálogo fullscreen (`Ctrl+A`).
-- KV (`api.kv`) persiste el cursor de lectura entre reinicios del TUI.
+---
 
-### 3.5.2 Componentes
+## Phase 3.5 — TUI live widget (v0.2.0)
 
-- `src/tui/jsonl-tailer.ts` — lector incremental de JSONL con manejo de truncado y errores
-- `src/tui/aggregator-store.ts` — ingesta de eventos y snapshot agregado
-- `src/tui/formatters/format-agent-row.ts` — formato de fila (cost $0.0000, tokens con locale)
-- `src/tui/formatters/format-fullscreen-table.ts` — tabla multilínea con totales
-- `src/tui/components/agent-cost-panel.tsx` — Solid component sidebar
-- `src/tui/components/fullscreen-stats-dialog.tsx` — Solid component diálogo
-- `src/tui/agent-monitor-tui.tsx` — entry point: wires cola, store, slots, keymap, kv
+**Goal:** inject a reactive panel into the opencode TUI that shows costs, tokens, and context per agent **in real time**, without opening external windows.
 
-### 3.5.3 Instalación
+### 3.5.1 Architecture
+
+- Same package, new export `./tui` with a `TuiPluginModule`.
+- The source of truth is the `trace.jsonl` already written by the server side of the plugin.
+- `JsonlTailer` reads the JSONL incrementally (fs.watch + polling) and emits new lines.
+- `AggregatorStore` ingests each event and maintains an aggregated snapshot (totals, byAgent, bySession, byModel).
+- Solid components render the snapshot in `sidebar_content` (compact view) and in a fullscreen dialog (`Ctrl+A`).
+- KV (`api.kv`) persists the read cursor between TUI restarts.
+
+### 3.5.2 Components
+
+- `src/tui/jsonl-tailer.ts` — incremental JSONL reader with truncation and error handling
+- `src/tui/aggregator-store.ts` — event ingestion and aggregated snapshot
+- `src/tui/formatters/format-agent-row.ts` — row formatting (cost $0.0000, tokens with locale)
+- `src/tui/formatters/format-fullscreen-table.ts` — multiline table with totals
+- `src/tui/components/agent-cost-panel.tsx` — Solid sidebar component
+- `src/tui/components/fullscreen-stats-dialog.tsx` — Solid dialog component
+- `src/tui/agent-monitor-tui.tsx` — entry point: wires tailer, store, slots, keymap, kv
+
+### 3.5.3 Installation
 
 ```jsonc
 // ~/.config/opencode/tui.json
@@ -244,111 +248,111 @@ Acción: eliminados `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, 
 
 ### 3.5.4 Tests
 
-- [x] `jsonl-tailer.test.ts` — 5 casos (backfill, append, truncate, fs error, partial lines)
-- [x] `format-agent-row.test.ts` — 9 casos (0 agents, 1 agent, N agents sorted, locale formatting)
-- [x] `format-fullscreen-table.test.ts` — 12 casos (basic view, total row, error indicators)
-- [x] `aggregator-store.test.ts` — 4 casos (ingest LLM, replay vs script, stream vs batch, empty)
+- [x] `jsonl-tailer.test.ts` — 5 cases (backfill, append, truncate, fs error, partial lines)
+- [x] `format-agent-row.test.ts` — 9 cases (0 agents, 1 agent, N agents sorted, locale formatting)
+- [x] `format-fullscreen-table.test.ts` — 12 cases (basic view, total row, error indicators)
+- [x] `aggregator-store.test.ts` — 4 cases (ingest LLM, replay vs script, stream vs batch, empty)
 
-**Criterio de cierre:** panel renderiza en sidebar_content; `Ctrl+A` abre diálogo fullscreen; cursor persiste entre reinicios del TUI; 30 tests nuevos verdes; `tsc --noEmit` limpio.
+**Closure criteria:** panel renders in sidebar_content; `Ctrl+A` opens fullscreen dialog; cursor persists between TUI restarts; 30 new tests green; `tsc --noEmit` clean.
 
-### 3.5.5 Modelo por agente + métricas derivadas (v0.2.0)
+### 3.5.5 Per-agent model breakdown + derived metrics (v0.2.0)
 
-**Objetivo:** enriquecer cada fila de agente con (a) los modelos que ha usado con su coste individual, y (b) métricas derivadas útiles para evaluar eficiencia.
+**Goal:** enrich each agent row with (a) the models it has used with their individual cost, and (b) derived metrics useful for evaluating efficiency.
 
-**Decisión de datos:**
+**Data decision:**
 
-- Añadir `byAgentModel: Record<string, Record<string, Aggregate>>` a `MetricsSnapshot`.
-- Trackear en ambos agregadores (`MetricsAggregator` server + `AggregatorStore` TUI) durante `recordLlmCall` / `recordLlmError` con un helper `ensureNestedAggregate`.
-- El helper `MetricsAggregatorHelper.mapToNestedRecord` clona la estructura anidada para snapshots inmutables.
+- Add `byAgentModel: Record<string, Record<string, Aggregate>>` to `MetricsSnapshot`.
+- Track in both aggregators (`MetricsAggregator` server + `AggregatorStore` TUI) during `recordLlmCall` / `recordLlmError` with a helper `ensureNestedAggregate`.
+- The helper `MetricsAggregatorHelper.mapToNestedRecord` clones the nested structure for immutable snapshots.
 
-**Métricas derivadas (calculadas en el panel, sin nueva data):**
+**Derived metrics (computed in the panel, no new data):**
 
-- `avg $/call` = `cost / llmCalls` — eficiencia por agente
-- `cache hit rate` = `cacheRead / (input + cacheRead)` — uso del cache
+- `avg $/call` = `cost / llmCalls` — agent efficiency
+- `cache hit rate` = `cacheRead / (input + cacheRead)` — cache usage
 
-**Render del panel (orden vertical por agente, top-down):**
+**Panel rendering (vertical order by agent, top-down):**
 
-1. Nombre del agente (color `text`)
-2. Coste total (color `accent`, indentado)
-3. Sub-lista de modelos (color `secondary` para el nombre, `textMuted` para separador, `text` para coste) — cada línea `model · N calls · $cost`
-4. Sub-separador (color `borderSubtle`)
-5. Grid 2×2 de métricas crudas: `ctx`/`in` a la izquierda, `out`/`call` a la derecha
-6. Fila de métricas derivadas: `avg $X.XXXX/call` + `cache X%`
-7. Indicador de errores (color `error`) solo si `errors > 0`
+1. Agent name (color `text`)
+2. Total cost (color `accent`, indented)
+3. Model sub-list (color `secondary` for name, `textMuted` for separator, `text` for cost) — each line `model · N calls · $cost`
+4. Sub-separator (color `borderSubtle`)
+5. 2×2 grid of raw metrics: `ctx`/`in` on the left, `out`/`call` on the right
+6. Derived metrics row: `avg $X.XXXX/call` + `cache X%`
+7. Error indicator (color `error`) only if `errors > 0`
 
 **Tests:**
 
-- [x] Server: `MetricsAggregator` cubre `byAgentModel` en `llm_call`, `llm_error`, split entre agentes, split entre modelos del mismo agente
-- [x] Server: snapshot vacío incluye `byAgentModel: {}`
-- [x] Server: `reset()` limpia `byAgentModel`
-- [x] TUI: `AggregatorStore` cubre split entre modelos, `reset()` limpia el campo
-- [x] TUI: snapshot vacío y `reset()` incluyen `byAgentModel`
+- [x] Server: `MetricsAggregator` covers `byAgentModel` in `llm_call`, `llm_error`, split across agents, split across models of the same agent
+- [x] Server: empty snapshot includes `byAgentModel: {}`
+- [x] Server: `reset()` clears `byAgentModel`
+- [x] TUI: `AggregatorStore` covers split across models, `reset()` clears the field
+- [x] TUI: empty snapshot and `reset()` include `byAgentModel`
 
-**Criterio de cierre:** el campo `byAgentModel` aparece en el snapshot, los modelos se listan ordenados por coste descendente, las métricas derivadas se computan correctamente incluso con 0 calls (no division by zero), tests verdes.
+**Closure criteria:** the `byAgentModel` field appears in the snapshot, models are listed sorted by descending cost, derived metrics are computed correctly even with 0 calls (no division by zero), tests green.
 
-### 3.5.6 Última actividad por agente (pospuesto)
+### 3.5.6 Last activity per agent (postponed)
 
-**Objetivo:** añadir `lastSeenAt: number` por agente en `byAgent` y mostrarlo en el panel como `last: 2m ago`.
+**Goal:** add `lastSeenAt: number` per agent in `byAgent` and display it in the panel as `last: 2m ago`.
 
-**Cambios previstos:**
+**Planned changes:**
 
-- `Aggregate` → `AgentAggregate = Aggregate & { lastSeenAt: number }` o añadir `lastSeenAt` directamente al `byAgent` map
-- `MetricsAggregator` y `AggregatorStore` actualizan `lastSeenAt` en cada `llm_call`/`llm_error` con el `timestamp` del evento
-- El formateador del panel renderiza un delta relativo ("5s ago", "2m ago", "1h ago") con el color degradando de `text` → `textMuted` según la edad
-- Test: dos eventos separados por N ms → `lastSeenAt === segundo timestamp`
-- Edge case: el primer evento fija `firstSeenAt === lastSeenAt`
+- `Aggregate` → `AgentAggregate = Aggregate & { lastSeenAt: number }` or add `lastSeenAt` directly to the `byAgent` map
+- `MetricsAggregator` and `AggregatorStore` update `lastSeenAt` on each `llm_call`/`llm_error` with the event's `timestamp`
+- The panel formatter renders a relative delta ("5s ago", "2m ago", "1h ago") with color fading from `text` → `textMuted` depending on age
+- Test: two events separated by N ms → `lastSeenAt === second timestamp`
+- Edge case: first event sets `firstSeenAt === lastSeenAt`
 
-### 3.5.7 Secciones colapsables por agente (pospuesto)
+### 3.5.7 Collapsible agent sections (postponed)
 
-**Objetivo:** permitir plegar cada bloque de agente para ahorrar espacio vertical cuando hay muchos agentes activos. Patrón ya en uso por el plugin MCP de OpenCode.
+**Goal:** allow collapsing each agent block to save vertical space when many agents are active. Pattern already used by the OpenCode MCP plugin.
 
-**Cambios previstos:**
+**Planned changes:**
 
-- `createSignal<Set<string>>(new Set())` de agentes colapsados en el componente `AgentCostPanel`
-- Al hacer click en el nombre del agente (o presionar una tecla específica) se togglea
-- Cuando está colapsado: solo se renderiza el nombre + un dot indicator con coste total en `accent`
-- Persistir el estado de colapso en `api.kv` para mantener preferencia entre reinicios
-- Considerar accesibilidad: ¿cómo se navega con teclado?
+- `createSignal<Set<string>>(new Set())` of collapsed agents in the `AgentCostPanel` component
+- Clicking the agent name (or pressing a specific key) toggles collapse
+- When collapsed: only render the name + a dot indicator with total cost in `accent`
+- Persist collapse state in `api.kv` to keep preference between restarts
+- Consider accessibility: how to navigate with keyboard?
 
-### 3.5.8 Barrita de progreso de coste relativo (pospuesto)
+### 3.5.8 Relative cost progress bar (postponed)
 
-**Objetivo:** visualización rápida de qué agente es el "más caro" sin leer números.
+**Goal:** quick visualization of which agent is the "most expensive" without reading numbers.
 
-**Cambios previstos:**
+**Planned changes:**
 
-- Calcular `maxCost = max(byAgent[*].cost)` en el panel
-- Por cada agente, renderizar una barrita `█`/`░` de N=10 caracteres con la proporción `cost / maxCost`
-- Color: `textMuted` para la parte vacía, gradiente `success` → `warning` → `error` según la proporción
-- Útil para detectar visualmente outliers en una sesión con muchos agentes
+- Calculate `maxCost = max(byAgent[*].cost)` in the panel
+- For each agent, render a bar `█`/`░` of N=10 characters with the proportion `cost / maxCost`
+- Color: `textMuted` for the empty part, gradient `success` → `warning` → `error` based on proportion
+- Useful for visually spotting outliers in a session with many agents
 
 ---
 
-## Fase 4 — CLI `bin/agent-monitor` ⏸ DIFERIDA (post-persistencia)
+## Phase 4 — CLI `bin/agent-monitor` ⏸ DEFERRED (post-persistence)
 
-**Estado:** diferida hasta que se decida el modelo de persistencia (Fase 6). El script `npm run metrics` cubre extracción humana actual. Un CLI sobre JSONL tendría más valor sobre DuckDB/SQLite una vez implementado.
+**Status:** deferred until the persistence model is decided (Phase 6). The `npm run metrics` script covers current human extraction. A CLI over JSONL would have more value over DuckDB/SQLite once implemented.
 
 <details>
-<summary>Spec original (2026-06-15)</summary>
+<summary>Original spec (2026-06-15)</summary>
 
-### 4.1 Estructura
+### 4.1 Structure
 
 - `bin/agent-monitor` (shebang `#!/usr/bin/env node`)
 - `src/cli/cli.ts` — entry point
-- Subcomandos:
+- Subcommands:
   - `stats [--since 1d|24h|7d|all] [--group-by agent|model|tool] [--session <id>] [--json] [--no-color]`
   - `errors [--since 1d] [--limit N]`
   - `tail [--follow] [--filter type=llm_call]`
   - `export --format csv|json --out <file>`
 
-### 4.2 Source de datos
+### 4.2 Data source
 
-- Por defecto: lee `trace.jsonl` desde `traceDir` (configurable por `--dir` o env `AGENT_MONITOR_DIR`)
-- Alternativa `--live`: se conecta al aggregator del plugin en memoria (no viable cross-process, sólo en modo dev) → **descartado en v1, el CLI es read-only sobre JSONL**
+- Default: reads `trace.jsonl` from `traceDir` (configurable via `--dir` or env `AGENT_MONITOR_DIR`)
+- Alternative `--live`: connects to the in-memory plugin aggregator (not viable cross-process, dev only) → **discarded in v1, the CLI is read-only over JSONL**
 
-### 4.3 Implementación
+### 4.3 Implementation
 
-- Sin dependencias: `node:readline` para `tail --follow`, parser manual para args (evitar commander/yargs para mantener bundle pequeño)
-- Tablas: `console.table` con fallback a ASCII si `--no-color`
+- No dependencies: `node:readline` for `tail --follow`, manual arg parser (avoid commander/yargs to keep bundle small)
+- Tables: `console.table` with ASCII fallback if `--no-color`
 
 ### 4.4 package.json
 
@@ -359,129 +363,132 @@ Acción: eliminados `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, 
 ### 4.5 Tests
 
 - `src/test/cli/stats.test.ts`, `errors.test.ts`, `tail.test.ts`, `export.test.ts`
-- Usar `node:test` con spawn del binario + fixture JSONL
+- Use `node:test` with binary spawn + JSONL fixture
 
-**Criterio de cierre:** `npx @alvarovfon/opencode-agent-monitor stats` muestra tabla; tests verdes.
+**Closure criteria:** `npx @alvarovfon/opencode-agent-monitor stats` shows table; tests green.
 
 </details>
 
 ---
 
-## Fase 5 — Polish (v0.3.0)
+## Phase 5 — Polish (v0.3.0)
 
-**Prioridad por impacto (revisada 2026-06-16):**
+**Priority by impact (reviewed 2026-06-16):**
 
-| Orden | Item                                                                          | Estado                 | Release  |
-| ----- | ----------------------------------------------------------------------------- | ---------------------- | -------- |
-| 1     | `schemaVersion: 1` en cada evento JSONL                                       | **Incluido en 0.3.0**  | v0.3.0   |
-| 2     | Crecimiento de disco: rotación/sampling/compactación                          | **Estudio post-0.3.0** | v0.4.0+  |
-| 3     | `dispose()` del plugin: snapshot final a `metrics.summary.json`               | **Post-estabilidad**   | v0.4.0+  |
-| 4     | Detección de anomalías: spike de cost, latencia p95 > umbral, error rate > N% | **Post-persistencia**  | v0.5.0+  |
-| 5     | `report --out report.html`: dashboard estático                                | **Post-persistencia**  | v0.5.0+  |
-| 6     | Documentación: página de docs                                                 | **En paralelo**        | continuo |
+| Order | Item                                                                    | Status                | Release |
+| ----- | ----------------------------------------------------------------------- | --------------------- | ------- |
+| 1     | `schemaVersion: 1` on each JSONL event                                  | **Included in 0.3.0** | v0.3.0  |
+| 2     | Disk growth: rotation/sampling/compaction                               | **Study post-0.3.0**  | v0.4.0+ |
+| 3     | `dispose()` of the plugin: final snapshot to `metrics.summary.json`     | **Post-stability**    | v0.4.0+ |
+| 4     | Anomaly detection: cost spike, p95 latency > threshold, error rate > N% | **Post-persistence**  | v0.5.0+ |
+| 5     | `report --out report.html`: static dashboard                            | **Post-persistence**  | v0.5.0+ |
+| 6     | Documentation: docs page                                                | **In parallel**       | ongoing |
 
 ### 5.a `schemaVersion: 1` (v0.3.0)
 
-- [ ] Añadir campo `schemaVersion: 1` en cada `writeEvent` del `TraceHelper`
-- [ ] Documentar política de migración en `README.md` (sección **Schema evolution**): minor bump = aditivo, major bump = breaking
-- [ ] Test: assert presencia del campo en cada tipo de evento
-- [ ] Backfill no necesario (campo opcional en consumers)
+- [ ] Add `schemaVersion: 1` field to each `writeEvent` in `TraceHelper`
+- [ ] Document migration policy in `README.md` (**Schema evolution** section): minor bump = additive, major bump = breaking
+- [ ] Test: assert presence of the field on every event type
+- [ ] Backfill not needed (optional field in consumers)
 
-### 5.b Crecimiento de disco (v0.4.0+, a diseñar post-estabilidad)
+### 5.b Disk growth (v0.4.0+, to be designed post-stability)
 
-**Problema:** JSONL append-only crece sin límite bajo uso intensivo.
+**Problem:** JSONL append-only grows without limit under heavy usage.
 
-**Opciones a estudiar:**
+**Options to study:**
 
-- Rotación por tamaño: `trace-YYYY-MM-DD.jsonl` o `trace-NNN.jsonl` al alcanzar N MB
-- Compaction: summarizar eventos antiguos a `trace.summary.jsonl`
-- Sampling configurable por `eventType` (activable por usuario)
-- Compresión gzip de ficheros rotados
+- Rotation by size: `trace-YYYY-MM-DD.jsonl` or `trace-NNN.jsonl` when reaching N MB
+- Compaction: summarize old events to `trace.summary.jsonl`
+- Configurable sampling by `eventType` (user-activatable)
+- Gzip compression of rotated files
 
-**Tradeoffs:** sampling pierde fidelidad; compaction pierde detalle raw; rotación añade complejidad de consumer.
+**Tradeoffs:** sampling loses fidelity; compaction loses raw detail; rotation adds consumer complexity.
 
 ### 5.c `dispose()` + summary (v0.4.0+)
 
-- [ ] `dispose()`: flush pendientes + snapshot final a `metrics.summary.json`
-- [ ] Útil como checkpoint entre sesiones
+- [ ] `dispose()`: flush pending + final snapshot to `metrics.summary.json`
+- [ ] Useful as a checkpoint between sessions
 
-### 5.d–5.f Anomalías, report HTML, docs
+### 5.d–5.f Anomalies, HTML report, docs
 
-- Diferidos hasta tener modelo de persistencia decidido (Fase 6)
-- Docs: mantener en paralelo con cada release
-
----
-
-## Fase 6 — Persistencia formal (SQL) ⏸ a estudiar (post-estabilidad v0.3.0)
-
-**Objetivo:** evaluar migración de JSONL a un formato consultable para estudio de datos.
-
-### 6.1 Candidatos
-
-| Candidato   | Bundle size | Write perf           | Query power                          | ETL necesario          | Madurez |
-| ----------- | ----------- | -------------------- | ------------------------------------ | ---------------------- | ------- |
-| **SQLite**  | ~3MB        | Buena (serial)       | SQL estándar                         | Sí (JSONL→tablas)      | ★★★★★   |
-| **DuckDB**  | ~30MB       | Muy buena (columnar) | SQL analítico + window + percentiles | No (lee JSONL directo) | ★★★     |
-| **Parquet** | 0 (formato) | Muy buena            | Nulo (necesita reader)               | N/A es destino         | ★★★★    |
-
-### 6.2 Hipótesis a validar en el estudio
-
-- ¿El patrón de lectura es queries agregadas (GROUP BY, percentiles) o acceso a eventos individuales?
-- ¿Volumen esperado? (afecta si columnar gana)
-- ¿Setup complexity tolerable para el usuario?
-- ¿Convivencia con JSONL o reemplazo total?
-
-### 6.3 Estudio (spike, sin implementar)
-
-- Documento de tradeoffs en `docs/persistence-tradeoffs.md`
-- Prototipo de cada opción con fixture de 10k eventos
-- Métricas: write throughput, query latency (3 queries típicas), bundle size, complejidad de setup
-- Decisión documentada antes de escribir código de producción
+- Deferred until persistence model is decided (Phase 6)
+- Docs: maintain in parallel with each release
 
 ---
 
-## No-objetivos (explícitos)
+## Phase 6 — Formal persistence (SQL) ⏸ under study (post-stability v0.3.0)
 
-- **No** es un APM completo (no reemplaza Datadog/NewRelic)
-- **No** envía telemetría a servicios externos
-- **No** muta el comportamiento de OpenCode — sólo observa
-- **No** soporta multi-tenant / multi-project routing en v0.x
-- **No** incluye tool LLM-callable (el TUI cubre display; el script cubre extracción)
+**Goal:** evaluate migration from JSONL to a queryable format for data study.
 
----
+### 6.1 Candidates
 
-## Métricas de éxito del proyecto
+| Candidate   | Bundle size | Write perf           | Query power                           | ETL needed                | Maturity |
+| ----------- | ----------- | -------------------- | ------------------------------------- | ------------------------- | -------- |
+| **SQLite**  | ~3MB        | Good (serial)        | Standard SQL                          | Yes (JSONL→tables)        | ★★★★★    |
+| **DuckDB**  | ~30MB       | Very good (columnar) | Analytical SQL + window + percentiles | No (reads JSONL directly) | ★★★      |
+| **Parquet** | 0 (format)  | Very good            | None (needs reader)                   | N/A is destination        | ★★★★     |
 
-- Downloads npm (proxy de adopción)
-- Issues abiertos / tiempo medio de cierre (proxy de calidad)
-- Coverage de tests (objetivo >80% en handlers y metrics)
-- Tiempo desde `llm_call` start hasta trace en disco (objetivo <10ms p95)
+### 6.2 Hypotheses to validate in the study
 
----
+- Is the read pattern aggregated queries (GROUP BY, percentiles) or individual event access?
+- Expected volume? (affects whether columnar wins)
+- Tolerable setup complexity for the user?
+- Coexistence with JSONL or full replacement?
 
-## Orden de ejecución (revisado 2026-06-16)
+### 6.3 Study (spike, no implementation)
 
-1. ✅ **Fase 0** (automation) → release-please, commitlint, husky operativos
-2. ✅ **Fase 1** (publicación) → `0.1.1` en npm
-3. ✅ **Fase 2** (aggregator) → tests verdes, sin API pública
-4. ✅ **Fase 3.5** (TUI widget) → 30 tests, panel sidebar + diálogo fullscreen + byAgentModel
-5. ❌ **Fase 3** (tool LLM) → **eliminada** en este PR (no aporta al estudio; TUI cubre display)
-6. ❌ **Fase 4** (CLI) → diferida post-persistencia
-7. 🔜 **Fase 2.5** (extender aggregator) → `byTool`, `errors[]`, `snapshot({ filters })`, formatters, refactor `scripts/metrics.mts`
-8. 🔜 **Fase 5.a** (`schemaVersion: 1`) → campo aditivo en cada evento
-9. 🔜 **Release 0.3.0** → aggregator extendido + schema, bajo riesgo (auto via release-please)
-10. ⏸ **Observar estabilidad** → sin nuevas features
-11. ⏸ **Re-evaluar**: Fase 5.b (crecimiento disco), Fase 6 (persistencia), Fase 4 (CLI)
-12. ⏸ **Release 0.4.0** → según decisiones post-estabilidad
+- Tradeoff document in `docs/persistence-tradeoffs.md`
+- Prototype of each option with a 10k event fixture
+- Metrics: write throughput, query latency (3 typical queries), bundle size, setup complexity
+- Decision documented before writing production code
 
 ---
 
-## Open questions / decisiones pendientes (revisado 2026-06-16)
+## Non-goals (explicit)
 
-- ✅ ¿Publicar con provenance? Sí (configurado con OIDC + GitHub Actions)
-- ✅ ¿Internal-only events (`write_trace_error`) deben contarse en métricas? No
-- ❌ Fase 3 (tool LLM): **eliminada** — no aporta valor de estudio, TUI cubre display
-- ⏸ Fase 4 (CLI): **diferida** post-persistencia — script `metrics.mts` cubre extracción actual
-- ⏸ Fase 6 (persistencia): ¿SQLite, DuckDB, Parquet, o híbrido? → estudio pendiente
-- ⏸ Crecimiento de disco: ¿rotación, compaction, sampling? → diseño post-estabilidad 0.3.0
-- ⏸ ¿Añadir `bin/` como entry point? → reevaluar con Fase 4 post-persistencia
+- **Not** a full APM (does not replace Datadog/NewRelic)
+- **Not** sending telemetry to external services
+- **Not** mutating OpenCode behavior — only observes
+- **Not** supporting multi-tenant / multi-project routing in v0.x
+- **Not** including an LLM-callable tool (TUI covers display; script covers extraction)
+
+---
+
+## Project success metrics
+
+- npm downloads (proxy for adoption)
+- Open issues / mean time to close (proxy for quality)
+- Test coverage (target >80% in handlers and metrics)
+- Time from `llm_call` start to trace on disk (target <10ms p95)
+
+---
+
+## Execution order (reviewed 2026-06-17)
+
+1. ✅ **Phase 0** (automation) → release-please, commitlint, husky operational
+2. ✅ **Phase 1** (publication) → `1.0.1` on npm
+3. ✅ **Phase 2** (aggregator) → tests green, no public API
+4. ✅ **Phase 3.5** (TUI widget) → 30 tests, sidebar panel + fullscreen dialog + byAgentModel
+5. ✅ **CI/CD consolidation** → consolidated workflows, CI on push to develop, prepublishOnly
+6. ✅ **README restructure** → TUI as main feature, reorganized documentation
+7. ❌ **Phase 3** (tool LLM) → **removed** (no study value; TUI covers display)
+8. ❌ **Phase 4** (CLI) → deferred post-persistence
+9. 🔜 **Phase 2.5** (extend aggregator) → `byTool`, `errors[]`, `snapshot({ filters })`, formatters, refactor `scripts/metrics.mts`
+10. 🔜 **Phase 5.a** (`schemaVersion: 1`) → additive field on each event
+11. 🔜 **Release 1.1.0** → README overhaul + CI/CD, via release-please
+12. 🔜 **Release 1.2.0** → extended aggregator + schema, low risk (auto via release-please)
+13. ⏸ **Observe stability** → no new features
+14. ⏸ **Re-evaluate**: Phase 5.b (disk growth), Phase 6 (persistence), Phase 4 (CLI)
+15. ⏸ **Release 1.3.0** → based on post-stability decisions
+
+---
+
+## Open questions / pending decisions (reviewed 2026-06-16)
+
+- ✅ Publish with provenance? Yes (configured with OIDC + GitHub Actions)
+- ✅ Should internal-only events (`write_trace_error`) be counted in metrics? No
+- ❌ Phase 3 (tool LLM): **removed** — no study value, TUI covers display
+- ⏸ Phase 4 (CLI): **deferred** post-persistence — script `metrics.mts` covers current extraction
+- ⏸ Phase 6 (persistence): SQLite, DuckDB, Parquet, or hybrid? → study pending
+- ⏸ Disk growth: rotation, compaction, sampling? → design post-stability 0.3.0
+- ⏸ Add `bin/` as entry point? → re-evaluate with Phase 4 post-persistence

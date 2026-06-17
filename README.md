@@ -3,25 +3,56 @@
 [![npm version](https://img.shields.io/npm/v/@alvarovfon/opencode-agent-monitor)](https://www.npmjs.com/package/@alvarovfon/opencode-agent-monitor)
 [![License](https://img.shields.io/npm/l/@alvarovfon/opencode-agent-monitor)](LICENSE)
 
-OpenCode plugin that traces LLM calls, agent delegations, tool calls, and session events to JSONL files for monitoring and analysis. Includes a real-time TUI sidebar panel and a batch metrics script.
-
-## Prerequisites
-
-- **Node.js** >= 24
-- **OpenCode** installed and configured
-- **pnpm** (only needed if running the batch metrics script manually)
+Real-time TUI monitor and JSONL tracing plugin for OpenCode. Track LLM calls, agent delegations, tool calls, and session events with live cost breakdowns per agent and model.
 
 ## Installation
+
+Install the plugin via OpenCode (recommended):
 
 ```bash
 opencode plugin @alvarovfon/opencode-agent-monitor
 ```
 
-This installs the npm package and adds it to your `opencode.json` automatically.
+Or add it to your project:
 
-## Configuration
+```bash
+npm install @alvarovfon/opencode-agent-monitor
+```
 
-Add the plugin to `opencode.json` (or `opencode.jsonc`) under the `plugin` key:
+For the TUI monitor, also add the TUI plugin to your `tui.json` (see [Live TUI Monitor](#live-tui-monitor)).
+
+## Live TUI Monitor
+
+![TUI Monitor](assets/tui-screenshot.png)
+
+Real-time sidebar panel that shows per-agent cost, context tokens, call stats, and errors — updated live as OpenCode runs.
+
+### Setup
+
+Add to `tui.json` (`~/.config/opencode/tui.json` or project-local):
+
+```json
+{
+  "$schema": "https://opencode.ai/tui.json",
+  "plugin": ["@alvarovfon/opencode-agent-monitor/tui"]
+}
+```
+
+### Features
+
+- **Sidebar panel** — agents sorted by cost descending. Each row shows cost, per-model breakdown, context tokens (input/output), call count, cache hit rate, average cost per call, and error count. The currently active agent is marked with a dot.
+- **Fullscreen dialog** — press `Ctrl+A` to toggle an expanded table with totals and per-model breakdown.
+- **Persistent cursor** — the trace file cursor survives TUI restarts, so you never miss events between sessions.
+
+The trace directory is read from the same `traceDir` option used in the server plugin config (default: `~/.config/opencode/.tracing`).
+
+## Tracing Plugin
+
+The server-side plugin traces OpenCode events to newline-delimited JSON files for monitoring, analysis, and the TUI monitor.
+
+### Configuration
+
+Add the plugin to `opencode.json` (or `opencode.jsonc`):
 
 ```json
 {
@@ -48,7 +79,7 @@ To set a custom trace directory:
 | ---------- | ----------------------------- | ---------------------------------------- |
 | `traceDir` | `~/.config/opencode/.tracing` | Directory where trace files are written. |
 
-## Traced Events
+### Traced Events
 
 | OpenCode Event         | Trace Event        | Captured Data                                                                                                   |
 | ---------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------- |
@@ -60,7 +91,7 @@ To set a custom trace directory:
 | `message.part.updated` | `agent_delegation` | `sessionID`, `childAgent`, `description` (subtasks)                                                             |
 | `session.error`        | `session_error`    | `sessionID`, `errorType`, `errorMessage`                                                                        |
 
-## Output Format
+### Output Format
 
 Events are written as newline-delimited JSON to two files inside the trace directory:
 
@@ -78,27 +109,13 @@ Each line has a `type` field identifying the event kind and a `timestamp` field 
 {"type":"session_error","sessionID":"sess-abc","errorType":"timeout","errorMessage":"Session timed out after 5 minutes","timestamp":1718000007000}
 ```
 
-## Live TUI Monitor
+### Trace File Location
 
-The plugin includes a real-time TUI sidebar panel that displays per-agent cost, context tokens, and call stats.
-
-### Installation
-
-Add to your `tui.json` (`~/.config/opencode/tui.json` or project-local):
-
-```json
-{
-  "$schema": "https://opencode.ai/tui.json",
-  "plugin": ["@alvarovfon/opencode-agent-monitor/tui"]
-}
-```
-
-### Usage
-
-- **Sidebar panel** — shows agents sorted by cost descending. Each row includes cost, per-model breakdown, context tokens (input/output), call count, cache hit rate, average cost per call, and error count. The currently active agent is marked with a dot.
-- **Fullscreen dialog** — press `Ctrl+A` to toggle an expanded table with totals and per-model breakdown.
-
-The trace directory is read from the same `traceDir` option used in the server plugin config (default: `~/.config/opencode/.tracing`).
+| Source               | Default trace directory                           |
+| -------------------- | ------------------------------------------------- |
+| Server plugin        | `~/.config/opencode/.tracing` (or `traceDir` opt) |
+| TUI monitor          | Same as server plugin (reads `traceDir` config)   |
+| Batch metrics script | Same as server plugin (overridable via `--dir`)   |
 
 ## Batch Metrics Script
 
@@ -155,8 +172,8 @@ If writing to `trace.jsonl` fails (e.g., disk full, permission denied), the erro
 
 ## Limitations
 
-- The LLM-callable metrics tool was removed. Metrics are available via the TUI widget (real-time) and the `metrics` script (batch).
 - The TUI components (Solid JSX) are implementation-only and lack DOM-based tests — all logic is extracted into pure format functions with full test coverage.
+- The standalone CLI (`bin/agent-monitor`) is not yet implemented. The `metrics` script covers offline extraction.
 
 ## License
 
