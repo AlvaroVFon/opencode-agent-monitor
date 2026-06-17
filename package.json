@@ -2,21 +2,17 @@
   "name": "@alvarovfon/opencode-agent-monitor",
   "version": "1.1.2-test.0",
   "description": "OpenCode plugin for tracing LLM calls, agent delegations, tool calls and session events to JSONL files",
-  "type": "commonjs",
+  "type": "module",
   "main": "dist/agent-monitor.js",
   "types": "dist/agent-monitor.d.ts",
   "exports": {
     ".": {
       "types": "./dist/agent-monitor.d.ts",
-      "default": "./dist/agent-monitor.js"
+      "import": "./dist/agent-monitor.js"
     },
     "./tui": {
-      "types": "./dist/tui-detect.d.ts",
-      "default": "./dist/tui-detect.js"
-    },
-    "./tui/real": {
-      "types": "./dist/agent-monitor-tui.d.ts",
-      "default": "./dist/agent-monitor-tui.js"
+      "types": "./dist/tui.d.ts",
+      "import": "./dist/tui.js"
     }
   },
   "scripts": {
@@ -25,6 +21,7 @@
     "lint": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test:prod": "tsx scripts/test-prod.mts",
     "commitlint": "commitlint --edit",
     "metrics": "tsx scripts/metrics.mts",
     "prepare": "husky",

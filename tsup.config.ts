@@ -4,16 +4,19 @@ import { solidPlugin } from "esbuild-plugin-solid";
 export default defineConfig({
   entry: {
     "agent-monitor": "src/server/agent-monitor.ts",
-    "tui-detect": "src/tui/tui-detect.ts",
-    "agent-monitor-tui": "src/tui/agent-monitor-tui.tsx",
+    tui: "src/tui/agent-monitor-tui.tsx",
   },
-  format: ["cjs"],
-  target: "node20",
+  format: ["esm"],
+  target: "node22",
   splitting: false,
   dts: true,
   clean: true,
   sourcemap: true,
-  esbuildPlugins: [solidPlugin()],
+  esbuildPlugins: [
+    solidPlugin({
+      solid: { generate: "universal", moduleName: "@opentui/solid" },
+    }),
+  ],
   external: [
     "@opencode-ai/plugin",
     "@opencode-ai/plugin/tui",

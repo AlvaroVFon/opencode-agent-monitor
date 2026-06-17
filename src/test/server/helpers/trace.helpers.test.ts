@@ -1,9 +1,12 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import * as path from "path";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 
 const MOD_PATH = path.resolve(
-  __dirname,
+  import.meta.dirname,
   "../../../server/helpers/trace.helpers.ts",
 );
 

@@ -30,7 +30,7 @@ import * as path from "node:path";
 // ---------------------------------------------------------------------------
 
 const TUI_SOURCE_PATH = path.join(
-  __dirname,
+  import.meta.dirname,
   "..",
   "..",
   "tui",

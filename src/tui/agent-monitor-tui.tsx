@@ -6,7 +6,6 @@ import type {
   TuiPlugin,
   TuiPluginApi,
   TuiPluginMeta,
-  TuiPluginModule,
   TuiThemeCurrent,
 } from "@opencode-ai/plugin/tui";
 import type { TuiSlotPlugin } from "@opencode-ai/plugin/tui";
@@ -41,7 +40,7 @@ function emptySnapshot(): MetricsSnapshot {
   };
 }
 
-export const tui: TuiPlugin = async (
+const tui: TuiPlugin = async (
   api: TuiPluginApi,
   options?: PluginOptions,
   _meta?: TuiPluginMeta,
@@ -184,4 +183,4 @@ export const tui: TuiPlugin = async (
   });
 };
 
-export default { id, tui } satisfies TuiPluginModule;
+export default { id, tui };
