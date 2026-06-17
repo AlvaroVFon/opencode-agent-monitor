@@ -8,21 +8,15 @@
   "exports": {
     ".": {
       "types": "./dist/agent-monitor.d.ts",
-      "import": "./dist/agent-monitor.js",
-      "require": "./dist/agent-monitor.js",
-      "default": "./dist/agent-monitor.js"
+      "import": "./dist/agent-monitor.js"
     },
     "./tui": {
       "types": "./dist/tui-detect.d.ts",
-      "import": "./dist/tui-detect.js",
-      "require": "./dist/tui-detect.js",
-      "default": "./dist/tui-detect.js"
+      "import": "./dist/tui-detect.js"
     },
     "./tui/real": {
       "types": "./dist/agent-monitor-tui.d.ts",
-      "import": "./dist/agent-monitor-tui.js",
-      "require": "./dist/agent-monitor-tui.js",
-      "default": "./dist/agent-monitor-tui.js"
+      "import": "./dist/agent-monitor-tui.js"
     }
   },
   "scripts": {
