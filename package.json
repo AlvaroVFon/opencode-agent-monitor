@@ -23,7 +23,10 @@
     "format:check": "prettier --check .",
     "test:prod": "tsx scripts/test-prod.mts",
     "commitlint": "commitlint --edit",
-    "metrics": "tsx scripts/metrics.mts",
+    "metrics": "tsx src/cli/main.ts stats",
+    "metrics:stats": "tsx src/cli/main.ts stats",
+    "metrics:errors": "tsx src/cli/main.ts errors",
+    "metrics:export": "tsx src/cli/main.ts export",
     "prepare-release": "tsx scripts/release.mts",
     "prepare": "husky",
     "prepack": "pnpm run build",
@@ -36,6 +39,7 @@
   "dependencies": {
     "@opencode-ai/plugin": "^1.14.50",
     "@opencode-ai/sdk": "^1.x",
+    "commander": "^15.0.0",
     "solid-js": "^1.9.0"
   },
   "peerDependencies": {
