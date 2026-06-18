@@ -4,70 +4,17 @@ import type {
   MetricsSnapshot,
   ToolStats,
 } from "../shared/metrics.types";
+import type {
+  LlmCallEvent,
+  ToolCallEvent,
+  TraceEvent,
+} from "../shared/trace-events.types";
 import {
   aggregateHelper,
   type SessionAggregate,
 } from "./helpers/aggregate.helper.js";
 
-// ---------------------------------------------------------------------------
-// TraceEvent — the shape produced by the JSONL tailer from trace.jsonl files.
-// These are distinct from the OpenCode SDK events consumed by
-// MetricsAggregator.
-// ---------------------------------------------------------------------------
-
-type LlmCallEvent = {
-  type: "llm_call";
-  sessionID: string;
-  agent: string;
-  model: string;
-  finish: string;
-  inputTokens: number;
-  outputTokens: number;
-  reasoningTokens: number;
-  cacheRead: number;
-  cost: number;
-  durationMs: number;
-  timestamp: number;
-};
-
-type ToolCallEvent = {
-  type: "tool_call";
-  sessionID: string;
-  tool: string;
-  callID: string;
-  status: "completed" | "error";
-  durationMs: number;
-  error?: string;
-  timestamp: number;
-};
-
-type SessionCreatedEvent = {
-  type: "session_created";
-  sessionID: string;
-  parentID: string | null;
-  timestamp: number;
-};
-
-type SessionErrorEvent = {
-  type: "session_error";
-  sessionID: string;
-  errorType?: string;
-  errorMessage?: string;
-  timestamp: number;
-};
-
-type AgentDelegationEvent = {
-  type: "agent_delegation";
-  timestamp: number;
-  [key: string]: unknown;
-};
-
-export type TraceEvent =
-  | LlmCallEvent
-  | ToolCallEvent
-  | SessionCreatedEvent
-  | SessionErrorEvent
-  | AgentDelegationEvent;
+export type { TraceEvent };
 
 // ---------------------------------------------------------------------------
 // AggregatorStore
