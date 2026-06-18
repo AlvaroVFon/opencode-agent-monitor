@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { EventType, PartStatus, PartType, Role } from "../../../server/enums";
 import { MetricsAggregator } from "../../../server/metrics/metrics.aggregator";
-import { MetricsAggregatorHelper } from "../../../server/helpers/metrics-aggregator.helper";
+import { AggregateHelper } from "../../../shared/aggregate.helpers";
 
 const makeLlmCallEvent = (overrides: Record<string, unknown> = {}) => ({
   type: EventType.MESSAGE_UPDATED,
@@ -72,7 +72,7 @@ const makeSessionErrorEvent = (overrides: Record<string, unknown> = {}) => ({
 
 function createTestAggregator(
   currentAgent: Map<string, string>,
-  helper = new MetricsAggregatorHelper(),
+  helper = new AggregateHelper(),
 ): MetricsAggregator {
   return new MetricsAggregator(currentAgent, helper);
 }

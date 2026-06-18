@@ -10,12 +10,7 @@ import type {
   SessionErrorEvent,
   TraceEvent,
 } from "../../shared/trace-events.types";
-import {
-  emptyAggregate,
-  emptyToolStats,
-  getOrCreateMapEntry,
-  addToAggregate,
-} from "../../shared/aggregate.helpers";
+import { aggregateHelper } from "../../shared/aggregate.helpers";
 import { TraceEventType } from "../../shared/enums";
 
 type AggregationState = {
@@ -29,7 +24,11 @@ type AggregationState = {
 export class EventAggregatorHelper {
   emptyState(): AggregationState {
     return {
-      totals: { ...emptyAggregate(), sessionsCreated: 0, sessionErrors: 0 },
+      totals: {
+        ...aggregateHelper.empty(),
+        sessionsCreated: 0,
+        sessionErrors: 0,
+      },
       byAgent: new Map(),
       byTool: new Map(),
       bySession: new Map(),
@@ -56,13 +55,17 @@ export class EventAggregatorHelper {
 
   applyLlmCall(state: AggregationState, event: LlmCallEvent): void {
     const inc = this.buildLlmIncrement(event);
-    addToAggregate(state.totals, inc);
-    addToAggregate(
-      getOrCreateMapEntry(state.byAgent, event.agent, emptyAggregate),
+    aggregateHelper.addToAggregate(state.totals, inc);
+    aggregateHelper.addToAggregate(
+      aggregateHelper.getOrCreate(state.byAgent, event.agent, () =>
+        aggregateHelper.empty(),
+      ),
       inc,
     );
-    addToAggregate(
-      getOrCreateMapEntry(state.bySession, event.sessionID, emptyAggregate),
+    aggregateHelper.addToAggregate(
+      aggregateHelper.getOrCreate(state.bySession, event.sessionID, () =>
+        aggregateHelper.empty(),
+      ),
       inc,
     );
   }
@@ -70,12 +73,15 @@ export class EventAggregatorHelper {
   applyToolCall(state: AggregationState, event: ToolCallEvent): void {
     state.totals.toolCalls++;
     if (event.status === "error") state.totals.toolErrors++;
-    const t = getOrCreateMapEntry(state.byTool, event.tool, emptyToolStats);
+    const t = aggregateHelper.getOrCreate(state.byTool, event.tool, () =>
+      aggregateHelper.emptyToolStats(),
+    );
     t.calls++;
     if (event.status === "error") t.errors++;
     t.durationMs += event.durationMs;
-    getOrCreateMapEntry(state.bySession, event.sessionID, emptyAggregate)
-      .toolCalls++;
+    aggregateHelper.getOrCreate(state.bySession, event.sessionID, () =>
+      aggregateHelper.empty(),
+    ).toolCalls++;
   }
 
   applySessionCreated(
@@ -83,7 +89,9 @@ export class EventAggregatorHelper {
     event: SessionCreatedEvent,
   ): void {
     state.totals.sessionsCreated++;
-    getOrCreateMapEntry(state.bySession, event.sessionID, emptyAggregate);
+    aggregateHelper.getOrCreate(state.bySession, event.sessionID, () =>
+      aggregateHelper.empty(),
+    );
   }
 
   applySessionError(state: AggregationState, event: SessionErrorEvent): void {

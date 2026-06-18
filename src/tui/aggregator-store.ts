@@ -13,7 +13,7 @@ import { TraceEventType } from "../shared/enums";
 import {
   aggregateHelper,
   type SessionAggregate,
-} from "./helpers/aggregate.helper.js";
+} from "../shared/aggregate.helpers";
 
 export type { TraceEvent };
 
