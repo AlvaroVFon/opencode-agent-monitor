@@ -1,3 +1,3 @@
-export interface Handler {
-  handle(properties: unknown): void;
+export interface Handler<T = unknown> {
+  handle(properties: T): void;
 }

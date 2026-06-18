@@ -3,11 +3,11 @@ import { TraceEventType, PartType } from "../enums";
 import { Handler } from "../handler.interface";
 import type { MessagePartUpdatedProps } from "../types";
 
-export class SubtaskDelegationHandler implements Handler {
+export class SubtaskDelegationHandler implements Handler<MessagePartUpdatedProps> {
   constructor(private readonly traceHelper: TraceHelper) {}
 
-  handle(properties: unknown): void {
-    const part = (properties as MessagePartUpdatedProps).part;
+  handle(properties: MessagePartUpdatedProps): void {
+    const part = properties.part;
 
     if (part.type !== PartType.SUBTASK) return;
 

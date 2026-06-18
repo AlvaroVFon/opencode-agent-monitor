@@ -3,11 +3,11 @@ import { PartStatus, PartType, TraceEventType } from "../enums";
 import { Handler } from "../handler.interface";
 import type { MessagePartUpdatedProps } from "../types";
 
-export class ToolCallHandler implements Handler {
+export class ToolCallHandler implements Handler<MessagePartUpdatedProps> {
   constructor(private readonly traceHelper: TraceHelper) {}
 
-  handle(properties: unknown): void {
-    const part = (properties as MessagePartUpdatedProps).part;
+  handle(properties: MessagePartUpdatedProps): void {
+    const part = properties.part;
 
     if (part.type !== PartType.TOOL) return;
     if (
