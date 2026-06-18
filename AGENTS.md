@@ -18,6 +18,10 @@ pnpm test:prod      # tsx scripts/test-prod.mts
 - **Dual-plugin**, file-communicating: server plugin (`src/server/agent-monitor.ts`, `export .`) writes `trace.jsonl`; TUI plugin (`src/tui/agent-monitor-tui.tsx`, `export ./tui`) reads it incrementally via `JsonlTailer`. No in-memory sharing. Cross-product contracts in `src/shared/metrics.types.ts`.
 - **Dual aggregation**: `MetricsAggregator` (server, ingests SDK events) and `AggregatorStore` (TUI, ingests JSONL events) produce compatible `MetricsSnapshot` / `Aggregate` shapes but handle different input formats.
 
+## Conventions
+
+- **All code follows object-oriented programming (OOP) principles.** Classes and objects are the primary building blocks; pure functions are used only for stateless formatting and data transformation.
+
 ## Key conventions
 
 | Rule                                                          | Source                                       |
