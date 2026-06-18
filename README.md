@@ -8,19 +8,45 @@ Real-time TUI monitor and JSONL tracing plugin for OpenCode. Track LLM calls, ag
 
 ## Installation
 
-Install the plugin via OpenCode (recommended):
+### Via OpenCode (recommended)
 
 ```bash
 opencode plugin @alvarovfon/opencode-agent-monitor
 ```
 
-This will automatically add the server plugin to your `opencode.json` and the TUI plugin to your `tui.json`.
+This adds the server plugin to `~/.config/opencode/opencode.json` and the TUI plugin to `~/.config/opencode/tui.json`:
 
-Or add it to your project manually:
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@alvarovfon/opencode-agent-monitor"]
+}
+```
+
+```json
+{
+  "$schema": "https://opencode.ai/tui.json",
+  "plugin": ["@alvarovfon/opencode-agent-monitor"]
+}
+```
+
+### Manual install
 
 ```bash
 npm install @alvarovfon/opencode-agent-monitor
 ```
+
+### Peer dependencies
+
+If installing in a project that uses the TUI, ensure these peer deps are available:
+
+```
+@opentui/core ^0.3.4
+@opentui/keymap ^0.3.4
+@opentui/solid ^0.3.4
+```
+
+Set `.npmrc` `auto-install-peers=true` or install them manually.
 
 ## Live TUI Monitor
 
