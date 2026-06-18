@@ -88,10 +88,9 @@ Tests live in `../test/tui/`. Same `node:test` + `node:assert/strict` setup as t
 
 ### Aggregator store tests (`aggregator-store.test.ts`)
 
-- **Temp directory cleanup via `afterEach`** — required for tests that write real files.
 - Fixture factories: `makeLlmCallEvent`, `makeToolCallEvent`, `makeSessionCreatedEvent`, `makeSessionErrorEvent`, `makeAgentDelegationEvent`, all with `overrides`.
-- One integration-style test spawns `scripts/metrics.mts` as a subprocess via `spawnSync(..., { encoding: "utf8" })` and compares the JSON output against the store's `snapshot()`. This is the cross-validation test that keeps the TUI aggregator in lockstep with the canonical script.
 - `lastActiveAgent` has its own `describe` block with 12 cases — out-of-order timestamp safety, non-regression on other event types, reset behavior, snapshot clone immutability.
+- Cross-validation test against `scripts/metrics.mts` was removed together with the script (superseded by CLI).
 
 ### Static source analysis test (`sidebar-order.test.ts`)
 

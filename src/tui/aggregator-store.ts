@@ -9,6 +9,7 @@ import type {
   ToolCallEvent,
   TraceEvent,
 } from "../shared/trace-events.types";
+import { TraceEventType } from "../shared/enums";
 import {
   aggregateHelper,
   type SessionAggregate,
@@ -58,7 +59,7 @@ export class AggregatorStore {
     this.touch(event.timestamp);
 
     switch (event.type) {
-      case "llm_call": {
+      case TraceEventType.LLM_CALL: {
         this.addLlm(this.totals, event);
         this.addLlm(this.getAgent(event.agent), event);
         this.addLlm(this.getSession(event.sessionID), event);
@@ -83,7 +84,7 @@ export class AggregatorStore {
         break;
       }
 
-      case "tool_call": {
+      case TraceEventType.TOOL_CALL: {
         this.addTool(this.totals, event);
         this.addTool(this.getSession(event.sessionID), event);
         this.addToolStats(this.getTool(event.tool), event);
@@ -98,13 +99,13 @@ export class AggregatorStore {
         break;
       }
 
-      case "session_created": {
+      case TraceEventType.SESSION_CREATED: {
         this.totals.sessionsCreated += 1;
         this.getSession(event.sessionID);
         break;
       }
 
-      case "session_error": {
+      case TraceEventType.SESSION_ERROR: {
         this.totals.sessionErrors += 1;
         this.getSession(event.sessionID).sessionErrors += 1;
         this.pushError({
@@ -116,7 +117,7 @@ export class AggregatorStore {
         break;
       }
 
-      case "agent_delegation":
+      case TraceEventType.AGENT_DELEGATION:
       default: {
         // No aggregation required for delegation events.
         break;

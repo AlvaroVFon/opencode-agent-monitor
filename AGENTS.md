@@ -9,7 +9,7 @@ pnpm lint           # tsc --noEmit (does NOT check src/test/)
 pnpm format:check   # prettier --check .
 pnpm test           # node --import tsx --experimental-test-module-mocks --test 'src/test/**/*.test.ts'
 pnpm format         # prettier --write .
-pnpm metrics        # tsx scripts/metrics.mts (aggregate trace.jsonl → markdown/json)
+pnpm metrics        # tsx src/cli/main.ts stats (aggregate trace.jsonl → markdown/json)
 pnpm test:prod      # tsx scripts/test-prod.mts
 ```
 

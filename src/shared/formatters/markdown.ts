@@ -1,4 +1,4 @@
-import type { MetricsSnapshot } from "../../../shared/metrics.types";
+import type { MetricsSnapshot } from "../metrics.types";
 
 function fmt(n: number): string {
   return n.toLocaleString("en-US");

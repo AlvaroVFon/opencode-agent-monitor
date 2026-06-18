@@ -21,13 +21,13 @@ OpenCode plugin that **traces** events to JSONL and, in its second phase, **aggr
 - ✅ CI/CD consolidation: publish.yml removed, release-please.yml as single workflow with validations via prepublishOnly
 - ✅ `MetricsAggregator` complete (Phase 2): `bySession` / `byAgent` / `byModel` / `byAgentModel` — 8 tests
 - ✅ TUI plugin real-time (Phase 3.5): sidebar panel + fullscreen dialog + `byAgentModel` + derived metrics (30 tests)
-- ✅ `scripts/metrics.mts` — batch script for JSON/markdown metrics (refactored Phase 2.5)
+- ✅ `scripts/metrics.mts` — removed in favour of CLI stats/export
 - ✅ Phases 0 and 1 complete (release-please + first publication)
 - ✅ README restructured: TUI as main feature, prominent installation docs
 - ✅ `MetricsAggregator` extended with `byTool`, `errors[]`, `snapshot({ filters })`, and formatters (Phase 2.5)
 - ❌ No `schemaVersion` on JSONL events (5.a pending)
 - ❌ Tool `agent_monitor_stats` removed (does not contribute to data study; TUI already covers display)
-- ⏸ CLI deferred post-persistence (script `metrics.mts` covers current human extraction)
+- ✅ CLI implemented (replaces `metrics.mts`)
 - ⏸ Formal persistence (SQL) pending tradeoff study
 
 ---
@@ -47,6 +47,7 @@ All metrics the project can generate, classified by implementation status:
 | **Coste medio por call**           | ✅ Derivado | `cost / llmCalls`                 | TUI panel     |
 | **Tasa de error por agente**       | ✅          | `Aggregate.errors`                | TUI indicator |
 | **Llamadas por tool**              | ✅          | `byTool`                          | Script, TUI   |
+| **Skills más usados**              | 🔜 **2.7**  | `TraceEventType.SKILL_CALL`       | bySkill       |
 | **Errores detallados**             | ✅          | `errors[]`                        | Script, TUI   |
 | **Percentiles p50/p95 latencia**   | 🔜 **2.6**  | Ring buffer + `percentile()`      | Snapshot      |
 | **Ratio coste/utilidad**           | 🔜 **2.6**  | `cost / completedTasks`           | Snapshot      |
@@ -54,7 +55,7 @@ All metrics the project can generate, classified by implementation status:
 | **Latencia por tool**              | ❌          | Pendiente de diseño               | —             |
 | **Coste por sesión exitosa**       | ❌          | Pendiente de diseño               | —             |
 
-**Prioridad inmediata (Phase 2.6):** percentiles, cost/utility ratio, anomaly detection.
+**Prioridad inmediata (Phase 2.7):** skill usage tracking.
 
 ---
 
@@ -139,26 +140,26 @@ All metrics the project can generate, classified by implementation status:
 - ✅ `src/server/agent-monitor.ts`: `MetricsAggregator` instantiated and each event passed to `metricsAggregator.ingest(event)` in parallel to `EventHandler`
 - ✅ No changes to handlers or `TraceHelper` — additive
 
-**Closure criteria:** ✅ 8 tests green + full suite (89 tests) still green; plugin keeps writing JSONL as before; `MetricsAggregator.snapshot()` available for internal consumers (next planned use: `scripts/metrics.mts` in Phase 2.5).
+**Closure criteria:** ✅ 8 tests green + full suite (89 tests) still green; plugin keeps writing JSONL as before; `MetricsAggregator.snapshot()` available for internal consumers (later used by CLI and TUI).
 
 ---
 
 ## Phase 2.5 — Extend `MetricsAggregator` with filters, `byTool`, errors, and formatters (v0.3.0) — ✅ **completed (2026-06-17)**
 
-**Goal:** absorb the duplicated aggregation logic from `scripts/metrics.mts` into `MetricsAggregator` so that the script, the server-side TUI, and any future consumer share a single source of truth.
+**Goal:** absorb the duplicated aggregation logic from the old `scripts/metrics.mts` into `MetricsAggregator` so that the script, the server-side TUI, and any future consumer share a single source of truth.
 
 ### 2.5.1 Changes
 
-| Change                                           | Status |
-| ------------------------------------------------ | ------ |
-| `byTool: Map<string, ToolStats>` in aggregator   | ✅     |
-| `errors: ErrorEntry[]` capped at 1000            | ✅     |
-| `sessionErrors` tracking in totals               | ✅     |
-| `snapshot({ since, groupBy, sessionID, top })`   | ✅     |
-| Formatters (markdown, json, csv)                 | ✅     |
-| `scripts/metrics.mts` refactored (561→217 lines) | ✅     |
-| TUI `AggregatorStore` parallel byTool + errors   | ✅     |
-| 169 tests (27 new + 142 existing) green          | ✅     |
+| Change                                                      | Status |
+| ----------------------------------------------------------- | ------ |
+| `byTool: Map<string, ToolStats>` in aggregator              | ✅     |
+| `errors: ErrorEntry[]` capped at 1000                       | ✅     |
+| `sessionErrors` tracking in totals                          | ✅     |
+| `snapshot({ since, groupBy, sessionID, top })`              | ✅     |
+| Formatters (markdown, json, csv)                            | ✅     |
+| `scripts/metrics.mts` refactored (removed in favour of CLI) | ✅     |
+| TUI `AggregatorStore` parallel byTool + errors              | ✅     |
+| 169 tests (27 new + 142 existing) green                     | ✅     |
 
 ### 2.5.2 New types (shared/metrics.types.ts)
 
@@ -220,9 +221,51 @@ ErrorEntry = { sessionID: string; type: string; message: string; timestamp: numb
 
 ---
 
+## Phase 2.7 — Skill usage tracking (alta prioridad)
+
+**Goal:** track which skills are used, how often, and their cost/error rate.
+
+### 2.7.1 Nuevos tipos de evento
+
+- `SKILL_CALL` / `SKILL_RESULT` en `TraceEventType` (`src/shared/enums.ts`)
+- `SkillCallEvent` / `SkillResultEvent` en la unión `TraceEvent` (`trace-events.types.ts`)
+- Nuevo campo `skillCalls: number` y `skillErrors: number` en `Aggregate` (`metrics.types.ts`)
+
+### 2.7.2 Handler
+
+- `src/server/handlers/skill-call.handler.ts` — detecta part type `"skill"` y escribe evento al trace
+- Registrarlo en `agent-monitor.ts`
+
+### 2.7.3 Agregación (3 pipelines)
+
+- `MetricsAggregator` (server): ingest `skill_call`/`skill_result`
+- `EventAggregatorHelper` (CLI): dispatch en `apply()`
+- `AggregatorStore` (TUI): dispatch en switch
+
+### 2.7.4 bySkill en snapshot
+
+- `bySkill: Record<string, SkillAggregate>` en `MetricsSnapshot`
+- `SkillAggregate = { calls: number; errors: number; avgDurationMs: number }`
+
+### 2.7.5 Formateadores
+
+- Markdown: sección "## By Skill" con tabla
+- CSV: columnas skill, calls, errors, avgDurationMs
+- JSON: `bySkill` en snapshot
+
+### 2.7.6 Tests
+
+- Handler: escribe trace para skill, ignora no-skill (2+ tests)
+- Agregadores: contadores, errores, bySkill (4+ tests)
+- Formateadores: secciones, CSV header, JSON round-trip (3 tests)
+
+**Closure criteria:** 9+ new tests green; skill events written to `trace.jsonl`; `bySkill` appears in CLI, export, and TUI outputs; full suite green.
+
+---
+
 ## Phase 3 — Tool for OpenCode ❌ REMOVED (2026-06-16)
 
-**Reason:** the project's goal is to generate metrics for **study**, not for the LLM to display them. The TUI plugin (Phase 3.5) already provides real-time display and `scripts/metrics.mts` provides offline extraction. The tool duplicated both functions for a consumer (LLM) that does not add study value. Its existence also added a `zod` dependency and a `tool` hook that are no longer justified.
+**Reason:** the project's goal is to generate metrics for **study**, not for the LLM to display them. The TUI plugin (Phase 3.5) already provides real-time display and the CLI provides offline extraction. The tool duplicated both functions for a consumer (LLM) that does not add study value. Its existence also added a `zod` dependency and a `tool` hook that are no longer justified.
 
 Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src/test/tools/agent-monitor-stats.test.ts`, and the `zod` dependency. `agent-monitor.ts` no longer exposes `Hooks.tool`. `MetricsAggregator` remains intact for Phase 2.5.
 
@@ -344,7 +387,7 @@ Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src
 
 ## Phase 4 — CLI `bin/agent-monitor` ⏸ DEFERRED (post-persistence)
 
-**Status:** deferred until the persistence model is decided (Phase 6). The `npm run metrics` script covers current human extraction. A CLI over JSONL would have more value over DuckDB/SQLite once implemented.
+**Status:** ✅ CLI implemented (stats, errors, export subcommands). Deferred CLI bin packaging for post-persistence.
 
 <details>
 <summary>Original spec (2026-06-15)</summary>
@@ -488,14 +531,15 @@ Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src
 6. ✅ **README restructure** → TUI as main feature, reorganized documentation
 7. ❌ **Phase 3** (tool LLM) → **removed** (no study value; TUI covers display)
 8. ❌ **Phase 4** (CLI) → deferred post-persistence
-9. ✅ **Phase 2.5** (extend aggregator) → `byTool`, `errors[]`, `snapshot({ filters })`, formatters, refactor `scripts/metrics.mts`
-10. 🔜 **Phase 2.6** (advanced metrics) → percentiles, cost/utility, anomalies
-11. 🔜 **Phase 5.a** (`schemaVersion: 1`) → additive field on each event
-12. 🔜 **Release 1.1.0** → README overhaul + CI/CD
-13. 🔜 **Release 1.2.0** → extended aggregator + advanced metrics + schema
-14. ⏸ **Observe stability** → no new features
-15. ⏸ **Re-evaluate**: Phase 5.b (disk growth), Phase 6 (persistence), Phase 4 (CLI)
-16. ⏸ **Release 1.3.0** → based on post-stability decisions
+9. ✅ **Phase 2.5** (extend aggregator) → `byTool`, `errors[]`, `snapshot({ filters })`, formatters, refactor/remove `scripts/metrics.mts`
+10. 🔜 **Phase 2.7** (skill tracking) → new event types, handler, bySkill
+11. 🔜 **Phase 2.6** (advanced metrics) → percentiles, cost/utility, anomalies
+12. 🔜 **Phase 5.a** (`schemaVersion: 1`) → additive field on each event
+13. 🔜 **Release 1.1.0** → README overhaul + CI/CD
+14. 🔜 **Release 1.2.0** → extended aggregator + advanced metrics + schema
+15. ⏸ **Observe stability** → no new features
+16. ⏸ **Re-evaluate**: Phase 5.b (disk growth), Phase 6 (persistence), Phase 4 (CLI)
+17. ⏸ **Release 1.3.0** → based on post-stability decisions
 
 ---
 
@@ -504,7 +548,7 @@ Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src
 - ✅ Publish with provenance? Yes (configured with OIDC + GitHub Actions)
 - ✅ Should internal-only events (`write_trace_error`) be counted in metrics? No
 - ❌ Phase 3 (tool LLM): **removed** — no study value, TUI covers display
-- ⏸ Phase 4 (CLI): **deferred** post-persistence — script `metrics.mts` covers current extraction
+- ✅ Phase 4 (CLI): **implemented** — stats, errors, export subcommands (replaces `metrics.mts`). CLI bin packaging deferred post-persistence.
 - ⏸ Phase 6 (persistence): SQLite, DuckDB, Parquet, or hybrid? → study pending
 - ⏸ Disk growth: rotation, compaction, sampling? → design post-stability 0.3.0
 - ⏸ Add `bin/` as entry point? → re-evaluate with Phase 4 post-persistence
