@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { traceReader } from "../reader";
 import { cliAggregator } from "../aggregate";
 import type { TraceEvent } from "../../shared/trace-events.types";
+import { TraceEventType } from "../../shared/enums";
 
 export class ErrorsCommand {
   private defaultDir = join(homedir(), ".config", "opencode", ".tracing");
@@ -53,7 +54,7 @@ export class ErrorsCommand {
   ): ErrorsRow[] {
     const rows: ErrorsRow[] = [];
     for (const ev of events) {
-      if (ev.type === "session_error") {
+      if (ev.type === TraceEventType.SESSION_ERROR) {
         if (typeFilter && ev.errorType !== typeFilter) continue;
         rows.push({
           timestamp: ev.timestamp,

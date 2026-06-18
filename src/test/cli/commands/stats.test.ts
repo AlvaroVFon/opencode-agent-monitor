@@ -209,4 +209,65 @@ describe("stats command", () => {
     assert.equal(status, 1);
     assert.ok(stderr.includes("No events match"));
   });
+
+  it("filters by --top scopes totals and byAgent to top N agents", () => {
+    const dir = makeTempDir();
+    writeTrace(dir, [
+      {
+        type: "llm_call",
+        sessionID: "s1",
+        agent: "expensive",
+        model: "gpt-4",
+        finish: "stop",
+        inputTokens: 100,
+        outputTokens: 200,
+        reasoningTokens: 0,
+        cacheRead: 0,
+        cost: 0.01,
+        durationMs: 800,
+        timestamp: 1000,
+      },
+      {
+        type: "llm_call",
+        sessionID: "s2",
+        agent: "medium",
+        model: "gpt-4",
+        finish: "stop",
+        inputTokens: 50,
+        outputTokens: 100,
+        reasoningTokens: 0,
+        cacheRead: 0,
+        cost: 0.005,
+        durationMs: 500,
+        timestamp: 2000,
+      },
+      {
+        type: "llm_call",
+        sessionID: "s3",
+        agent: "cheap",
+        model: "gpt-4",
+        finish: "stop",
+        inputTokens: 10,
+        outputTokens: 20,
+        reasoningTokens: 0,
+        cacheRead: 0,
+        cost: 0.001,
+        durationMs: 200,
+        timestamp: 3000,
+      },
+    ]);
+    const { stdout, stderr, status } = runCli(
+      ["stats", "--top", "2", "--json"],
+      dir,
+    );
+    assert.equal(status, 0, `stderr: ${stderr}`);
+    const parsed = JSON.parse(stdout);
+    const agents = Object.keys(parsed.byAgent);
+    assert.equal(agents.length, 2);
+    assert.ok(agents.includes("expensive"));
+    assert.ok(agents.includes("medium"));
+    assert.ok(!agents.includes("cheap"));
+    assert.equal(parsed.totals.llmCalls, 2);
+    assert.equal(parsed.totals.cost, 0.015);
+  });
 });

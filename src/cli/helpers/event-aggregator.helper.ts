@@ -16,8 +16,9 @@ import {
   getOrCreateMapEntry,
   addToAggregate,
 } from "../../shared/aggregate.helpers";
+import { TraceEventType } from "../../shared/enums";
 
-export type AggregationState = {
+type AggregationState = {
   totals: Aggregate & { sessionsCreated: number; sessionErrors: number };
   byAgent: Map<string, Aggregate>;
   byTool: Map<string, ToolStats>;
@@ -96,13 +97,13 @@ export class EventAggregatorHelper {
   }
 
   apply(state: AggregationState, event: TraceEvent): void {
-    if (event.type === "llm_call") {
+    if (event.type === TraceEventType.LLM_CALL) {
       this.applyLlmCall(state, event);
-    } else if (event.type === "tool_call") {
+    } else if (event.type === TraceEventType.TOOL_CALL) {
       this.applyToolCall(state, event);
-    } else if (event.type === "session_created") {
+    } else if (event.type === TraceEventType.SESSION_CREATED) {
       this.applySessionCreated(state, event);
-    } else if (event.type === "session_error") {
+    } else if (event.type === TraceEventType.SESSION_ERROR) {
       this.applySessionError(state, event);
     }
   }
