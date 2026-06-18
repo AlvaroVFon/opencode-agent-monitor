@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatFullscreenTable } from "../../tui/formatters/format-fullscreen-table";
+import { fullscreenTableFormatter } from "../../tui/formatters/fullscreen-table.formatter";
 import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types";
 
 // ---------------------------------------------------------------------------
@@ -80,7 +80,7 @@ describe("formatFullscreenTable — basic_view", () => {
       reviewer: makeAggregate({ llmCalls: 1, cost: 0.002 }),
     });
 
-    const out = formatFullscreenTable(snap);
+    const out = fullscreenTableFormatter.format(snap);
 
     assert.equal(
       typeof out,
@@ -112,7 +112,7 @@ describe("formatFullscreenTable — basic_view", () => {
       }),
     });
 
-    const out = formatFullscreenTable(snap);
+    const out = fullscreenTableFormatter.format(snap);
 
     // -- per-agent costs (formatted as $X.XXXX per the spec) --
     assert.ok(
@@ -168,7 +168,7 @@ describe("formatFullscreenTable — basic_view", () => {
       reviewer: makeAggregate({ llmCalls: 1, cost: 0.002 }),
     });
 
-    const out = formatFullscreenTable(snap);
+    const out = fullscreenTableFormatter.format(snap);
     const lines = out.split("\n").filter((l) => l.length > 0);
 
     assert.ok(
@@ -192,7 +192,7 @@ describe("formatFullscreenTable — output_includes_total_row", () => {
       reviewer: makeAggregate({ llmCalls: 1, cost: 0.02 }),
     });
 
-    const out = formatFullscreenTable(snap);
+    const out = fullscreenTableFormatter.format(snap);
 
     // Case-insensitive check: the spec is "TOTAL" but the formatter is free
     // to choose casing, so we accept either. The important thing is the row
@@ -210,7 +210,7 @@ describe("formatFullscreenTable — output_includes_total_row", () => {
       scout: makeAggregate({ cost: 0.005 }),
     });
 
-    const out = formatFullscreenTable(snap);
+    const out = fullscreenTableFormatter.format(snap);
 
     // 0.01 + 0.025 + 0.005 = 0.04
     assert.ok(
@@ -233,7 +233,7 @@ describe("formatFullscreenTable — output_includes_total_row", () => {
       }),
     });
 
-    const out = formatFullscreenTable(snap);
+    const out = fullscreenTableFormatter.format(snap);
 
     // input:   1000 + 2500 = 3,500
     // output:  500  + 750  = 1,250
@@ -260,7 +260,7 @@ describe("formatFullscreenTable — output_includes_total_row", () => {
       scout: makeAggregate({ llmCalls: 2, cost: 0.003 }),
     });
 
-    const out = formatFullscreenTable(snap);
+    const out = fullscreenTableFormatter.format(snap);
 
     // 5 + 3 + 2 = 10
     assert.ok(
@@ -277,7 +277,7 @@ describe("formatFullscreenTable — output_includes_total_row", () => {
       bravo: makeAggregate({ llmCalls: 1, cost: 0.02 }),
     });
 
-    const out = formatFullscreenTable(snap);
+    const out = fullscreenTableFormatter.format(snap);
 
     const totalIdx = out.search(/total/i);
     const alphaIdx = out.indexOf("alpha");
@@ -307,7 +307,7 @@ describe("formatFullscreenTable — output_includes_total_row", () => {
       }),
     });
 
-    const out = formatFullscreenTable(snap);
+    const out = fullscreenTableFormatter.format(snap);
 
     assert.ok(
       out.includes("$0.1234"),
@@ -335,7 +335,7 @@ describe("formatFullscreenTable — agent_with_errors_shows_error_indicator", ()
       unlucky: makeAggregate({ llmCalls: 5, llmErrors: 2, cost: 0.001 }),
     });
 
-    const out = formatFullscreenTable(snap);
+    const out = fullscreenTableFormatter.format(snap);
 
     // The exact wording ("err: 2", "errors: 2", etc.) is implementation
     // defined, but the indicator MUST include the non-zero count "2" and
@@ -379,7 +379,7 @@ describe("formatFullscreenTable — agent_with_errors_shows_error_indicator", ()
       }),
     });
 
-    const out = formatFullscreenTable(snap);
+    const out = fullscreenTableFormatter.format(snap);
 
     const lines = out.split("\n");
     const glitchyLine = lines.find((l) => l.includes("glitchy"));
@@ -413,7 +413,7 @@ describe("formatFullscreenTable — agent_with_errors_shows_error_indicator", ()
       }),
     });
 
-    const out = formatFullscreenTable(snap);
+    const out = fullscreenTableFormatter.format(snap);
 
     const lines = out.split("\n");
     const cleanLine = lines.find((l) => l.includes("clean"));
@@ -448,7 +448,7 @@ describe("formatFullscreenTable — agent_with_errors_shows_error_indicator", ()
       c: makeAggregate({ llmCalls: 1, llmErrors: 1, cost: 0.001 }),
     });
 
-    const out = formatFullscreenTable(snap);
+    const out = fullscreenTableFormatter.format(snap);
 
     // Locate the TOTAL line (the one that contains the total label).
     const lines = out.split("\n");

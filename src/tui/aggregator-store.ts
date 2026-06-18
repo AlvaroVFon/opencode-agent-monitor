@@ -4,6 +4,10 @@ import type {
   MetricsSnapshot,
   ToolStats,
 } from "../shared/metrics.types";
+import {
+  aggregateHelper,
+  type SessionAggregate,
+} from "./helpers/aggregate.helper.js";
 
 // ---------------------------------------------------------------------------
 // TraceEvent — the shape produced by the JSONL tailer from trace.jsonl files.
@@ -66,66 +70,6 @@ export type TraceEvent =
   | AgentDelegationEvent;
 
 // ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
-function emptyAggregate(): Aggregate {
-  return {
-    llmCalls: 0,
-    llmErrors: 0,
-    toolCalls: 0,
-    toolErrors: 0,
-    tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0 },
-    cost: 0,
-    workDurationMs: 0,
-  };
-}
-
-function getOrCreate<K, V>(map: Map<K, V>, key: K, factory: () => V): V {
-  let value = map.get(key);
-  if (!value) {
-    value = factory();
-    map.set(key, value);
-  }
-  return value;
-}
-
-function cloneTokens(tokens: Aggregate["tokens"]): Aggregate["tokens"] {
-  return {
-    input: tokens.input,
-    output: tokens.output,
-    reasoning: tokens.reasoning,
-    cacheRead: tokens.cacheRead,
-  };
-}
-
-function cloneAggregate(aggregate: Aggregate): Aggregate {
-  return {
-    llmCalls: aggregate.llmCalls,
-    llmErrors: aggregate.llmErrors,
-    toolCalls: aggregate.toolCalls,
-    toolErrors: aggregate.toolErrors,
-    tokens: cloneTokens(aggregate.tokens),
-    cost: aggregate.cost,
-    workDurationMs: aggregate.workDurationMs,
-  };
-}
-
-// Aggregate plus session-scoped error tracking (mirrors scripts/metrics.mts).
-type SessionAggregate = Aggregate & { sessionErrors: number };
-
-function emptySessionAggregate(): SessionAggregate {
-  return { ...emptyAggregate(), sessionErrors: 0 };
-}
-
-function cloneSessionAggregate(aggregate: SessionAggregate): SessionAggregate {
-  return {
-    ...cloneAggregate(aggregate),
-    sessionErrors: aggregate.sessionErrors,
-  };
-}
-
-// ---------------------------------------------------------------------------
 // AggregatorStore
 // ---------------------------------------------------------------------------
 
@@ -136,6 +80,8 @@ export class AggregatorStore {
   };
   private byAgent: Map<string, Aggregate>;
   private bySession: Map<string, SessionAggregate>;
+  private bySessionAgent: Map<string, Map<string, Aggregate>>;
+  private bySessionAgentModel: Map<string, Map<string, Map<string, Aggregate>>>;
   private byModel: Map<string, Aggregate>;
   private byAgentModel: Map<string, Map<string, Aggregate>>;
   private byTool: Map<string, ToolStats>;
@@ -147,9 +93,11 @@ export class AggregatorStore {
 
   constructor(opts?: { onSnapshot?: (snap: MetricsSnapshot) => void }) {
     this.onSnapshot = opts?.onSnapshot;
-    this.totals = { ...emptyAggregate(), sessionsCreated: 0, sessionErrors: 0 };
+    this.totals = this.zeroedTotals();
     this.byAgent = new Map();
     this.bySession = new Map();
+    this.bySessionAgent = new Map();
+    this.bySessionAgentModel = new Map();
     this.byModel = new Map();
     this.byAgentModel = new Map();
     this.byTool = new Map();
@@ -169,6 +117,11 @@ export class AggregatorStore {
         this.addLlm(this.getSession(event.sessionID), event);
         this.addLlm(this.getModel(event.model), event);
         this.addLlm(this.getAgentModel(event.agent, event.model), event);
+        this.addLlm(this.getSessionAgent(event.sessionID, event.agent), event);
+        this.addLlm(
+          this.getSessionAgentModel(event.sessionID, event.agent, event.model),
+          event,
+        );
 
         // Track the most recent active agent (out-of-order safe).
         if (
@@ -226,60 +179,87 @@ export class AggregatorStore {
     this.emitSnapshot();
   }
 
-  snapshot(): MetricsSnapshot {
+  snapshot(opts?: { sessionID?: string }): MetricsSnapshot {
+    if (opts?.sessionID) {
+      return this.filteredSnapshot(opts.sessionID);
+    }
+    return this.fullSnapshot();
+  }
+
+  private fullSnapshot(): MetricsSnapshot {
     return {
       totals: {
-        ...cloneAggregate(this.totals),
+        ...aggregateHelper.clone(this.totals),
         sessionsCreated: this.totals.sessionsCreated,
         sessionErrors: this.totals.sessionErrors,
       },
-      byAgent: Object.fromEntries(
-        Array.from(this.byAgent.entries()).map(([k, v]) => [
-          k,
-          cloneAggregate(v),
-        ]),
+      byAgent: this.mapToRecord(this.byAgent, (v) => aggregateHelper.clone(v)),
+      bySession: this.mapToRecord(this.bySession, (v) =>
+        aggregateHelper.cloneSession(v),
       ),
-      bySession: Object.fromEntries(
-        Array.from(this.bySession.entries()).map(([k, v]) => [
-          k,
-          cloneSessionAggregate(v),
-        ]),
-      ),
-      byModel: Object.fromEntries(
-        Array.from(this.byModel.entries()).map(([k, v]) => [
-          k,
-          cloneAggregate(v),
-        ]),
-      ),
-      byAgentModel: Object.fromEntries(
-        Array.from(this.byAgentModel.entries()).map(([agent, inner]) => [
-          agent,
-          Object.fromEntries(
-            Array.from(inner.entries()).map(([model, agg]) => [
-              model,
-              cloneAggregate(agg),
-            ]),
-          ),
-        ]),
-      ),
-      byTool: Object.fromEntries(
-        Array.from(this.byTool.entries()).map(([k, v]) => [k, { ...v }]),
-      ),
+      byModel: this.mapToRecord(this.byModel, (v) => aggregateHelper.clone(v)),
+      byAgentModel: this.cloneAgentModelRecord(),
+      byTool: this.mapToRecord(this.byTool, (v) => ({ ...v })),
       errors: this.errors.map((e) => ({ ...e })),
-      window: {
-        firstSeenAt: this.firstSeenAt,
-        lastSeenAt: this.lastSeenAt,
+      ...this.snapshotFooter(),
+    };
+  }
+
+  private filteredSnapshot(sessionID: string): MetricsSnapshot {
+    const sessionAgg = this.bySession.get(sessionID);
+    if (!sessionAgg) {
+      return {
+        totals: this.zeroedTotals(),
+        bySession: {},
+        byAgent: {},
+        byModel: {},
+        byAgentModel: {},
+        byTool: {},
+        errors: [],
+        ...this.snapshotFooter(),
+      };
+    }
+
+    const agentMap = this.bySessionAgent.get(sessionID);
+    const agentNames = agentMap ? new Set(agentMap.keys()) : new Set<string>();
+
+    const sessionModelMap = this.bySessionAgentModel.get(sessionID);
+    const filteredByAgentModel: Record<string, Record<string, Aggregate>> = {};
+    if (sessionModelMap) {
+      for (const [agent, modelMap] of sessionModelMap) {
+        if (!agentNames.has(agent)) continue;
+        filteredByAgentModel[agent] = this.mapToRecord(modelMap, (v) =>
+          aggregateHelper.clone(v),
+        );
+      }
+    }
+
+    return {
+      totals: {
+        ...aggregateHelper.clone(sessionAgg),
+        sessionsCreated: 1,
+        sessionErrors: sessionAgg.sessionErrors,
       },
-      lastActiveAgent: this.lastActiveAgent
-        ? { ...this.lastActiveAgent }
-        : null,
+      bySession: { [sessionID]: aggregateHelper.clone(sessionAgg) },
+      byAgent: this.mapToRecord(agentMap ?? new Map(), (v) =>
+        aggregateHelper.clone(v),
+      ),
+      byModel: {},
+      byAgentModel: filteredByAgentModel,
+      byTool: {},
+      errors: this.errors
+        .filter((e) => e.sessionID === sessionID)
+        .map((e) => ({ ...e })),
+      ...this.snapshotFooter(),
     };
   }
 
   reset(): void {
-    this.totals = { ...emptyAggregate(), sessionsCreated: 0, sessionErrors: 0 };
+    this.totals = this.zeroedTotals();
     this.byAgent = new Map();
     this.bySession = new Map();
+    this.bySessionAgent = new Map();
+    this.bySessionAgentModel = new Map();
     this.byModel = new Map();
     this.byAgentModel = new Map();
     this.byTool = new Map();
@@ -316,15 +296,52 @@ export class AggregatorStore {
   }
 
   private getAgent(agent: string): Aggregate {
-    return getOrCreate(this.byAgent, agent, emptyAggregate);
+    return aggregateHelper.getOrCreate(this.byAgent, agent, () =>
+      aggregateHelper.empty(),
+    );
   }
 
   private getSession(sessionID: string): SessionAggregate {
-    return getOrCreate(this.bySession, sessionID, emptySessionAggregate);
+    return aggregateHelper.getOrCreate(this.bySession, sessionID, () =>
+      aggregateHelper.emptySession(),
+    );
+  }
+
+  private getSessionAgent(sessionID: string, agent: string): Aggregate {
+    let agentMap = this.bySessionAgent.get(sessionID);
+    if (!agentMap) {
+      agentMap = new Map();
+      this.bySessionAgent.set(sessionID, agentMap);
+    }
+    return aggregateHelper.getOrCreate(agentMap, agent, () =>
+      aggregateHelper.empty(),
+    );
+  }
+
+  private getSessionAgentModel(
+    sessionID: string,
+    agent: string,
+    model: string,
+  ): Aggregate {
+    let agentMap = this.bySessionAgentModel.get(sessionID);
+    if (!agentMap) {
+      agentMap = new Map();
+      this.bySessionAgentModel.set(sessionID, agentMap);
+    }
+    let modelMap = agentMap.get(agent);
+    if (!modelMap) {
+      modelMap = new Map();
+      agentMap.set(agent, modelMap);
+    }
+    return aggregateHelper.getOrCreate(modelMap, model, () =>
+      aggregateHelper.empty(),
+    );
   }
 
   private getModel(model: string): Aggregate {
-    return getOrCreate(this.byModel, model, emptyAggregate);
+    return aggregateHelper.getOrCreate(this.byModel, model, () =>
+      aggregateHelper.empty(),
+    );
   }
 
   private getAgentModel(agent: string, model: string): Aggregate {
@@ -333,11 +350,13 @@ export class AggregatorStore {
       inner = new Map();
       this.byAgentModel.set(agent, inner);
     }
-    return getOrCreate(inner, model, emptyAggregate);
+    return aggregateHelper.getOrCreate(inner, model, () =>
+      aggregateHelper.empty(),
+    );
   }
 
   private getTool(tool: string): ToolStats {
-    return getOrCreate(this.byTool, tool, () => ({
+    return aggregateHelper.getOrCreate(this.byTool, tool, () => ({
       calls: 0,
       errors: 0,
       durationMs: 0,
@@ -359,7 +378,56 @@ export class AggregatorStore {
     this.errors.push(entry);
   }
 
+  private zeroedTotals(): Aggregate & {
+    sessionsCreated: number;
+    sessionErrors: number;
+  } {
+    return {
+      ...aggregateHelper.empty(),
+      sessionsCreated: 0,
+      sessionErrors: 0,
+    };
+  }
+
+  private snapshotFooter(): Pick<
+    MetricsSnapshot,
+    "window" | "lastActiveAgent"
+  > {
+    return {
+      window: {
+        firstSeenAt: this.firstSeenAt,
+        lastSeenAt: this.lastSeenAt,
+      },
+      lastActiveAgent: this.lastActiveAgent
+        ? { ...this.lastActiveAgent }
+        : null,
+    };
+  }
+
+  private mapToRecord<T>(
+    map: Map<string, T>,
+    clone: (item: T) => T,
+  ): Record<string, T> {
+    return Object.fromEntries(
+      Array.from(map.entries()).map(([k, v]) => [k, clone(v)]),
+    );
+  }
+
+  private cloneAgentModelRecord(): Record<string, Record<string, Aggregate>> {
+    return Object.fromEntries(
+      Array.from(this.byAgentModel.entries()).map(([agent, inner]) => [
+        agent,
+        Object.fromEntries(
+          Array.from(inner.entries()).map(([model, agg]) => [
+            model,
+            aggregateHelper.clone(agg),
+          ]),
+        ),
+      ]),
+    );
+  }
+
   private emitSnapshot(): void {
-    this.onSnapshot?.(this.snapshot());
+    this.onSnapshot?.(this.fullSnapshot());
   }
 }
