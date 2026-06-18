@@ -1,4 +1,4 @@
-import { PartStatus, PartType, Role, UNKNOWN } from "../enums";
+import { EventType, PartStatus, PartType, Role, UNKNOWN } from "../enums";
 import type {
   MessagePartUpdatedProps,
   MessageUpdatedProps,
@@ -8,7 +8,6 @@ import type {
 import { MetricsAggregatorHelper } from "../helpers/metrics-aggregator.helper";
 import { SnapshotFilterHelper } from "../helpers/snapshot-filter.helper";
 import { SnapshotTransformHelper } from "../helpers/snapshot-transform.helper";
-import type { MetricsHandlersRegistry } from "./metrics.aggregator.registry";
 import type { LlmAssistantMessage } from "./messages.types";
 import type {
   Aggregate,
@@ -31,7 +30,6 @@ export class MetricsAggregator {
   private readonly errors: ErrorEntry[] = [];
   private firstSeenAt = 0;
   private lastSeenAt = 0;
-  private registry!: MetricsHandlersRegistry;
 
   constructor(
     private readonly currentAgent: Map<string, string>,
@@ -47,14 +45,23 @@ export class MetricsAggregator {
     };
   }
 
-  /** Called by aggregator-wiring after construction. */
-  init(registry: MetricsHandlersRegistry): void {
-    this.registry = registry;
-  }
-
   ingest(event: { type: string; properties: unknown }): void {
     this.touchWindow(Date.now());
-    this.registry.dispatch(event);
+
+    switch (event.type) {
+      case EventType.MESSAGE_UPDATED:
+        this.ingestMessage(event.properties as MessageUpdatedProps);
+        break;
+      case EventType.MESSAGE_PART_UPDATED:
+        this.ingestPart(event.properties as MessagePartUpdatedProps);
+        break;
+      case EventType.SESSION_CREATED:
+        this.ingestSessionCreated(event.properties as SessionCreatedProps);
+        break;
+      case EventType.SESSION_ERROR:
+        this.ingestSessionError(event.properties as SessionErrorProps);
+        break;
+    }
   }
 
   snapshot(opts?: {
