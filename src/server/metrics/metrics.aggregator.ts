@@ -5,7 +5,7 @@ import type {
   SessionCreatedProps,
   SessionErrorProps,
 } from "../types";
-import { MetricsAggregatorHelper } from "../helpers/metrics-aggregator.helper";
+import { AggregateHelper } from "../../shared/aggregate.helpers";
 import { SnapshotFilterHelper } from "../helpers/snapshot-filter.helper";
 import { SnapshotTransformHelper } from "../helpers/snapshot-transform.helper";
 import type { LlmAssistantMessage } from "./messages.types";
@@ -33,13 +33,13 @@ export class MetricsAggregator {
 
   constructor(
     private readonly currentAgent: Map<string, string>,
-    private readonly helper: MetricsAggregatorHelper,
+    private readonly helper: AggregateHelper,
     private readonly filterHelper: SnapshotFilterHelper = new SnapshotFilterHelper(
-      new SnapshotTransformHelper(new MetricsAggregatorHelper()),
+      new SnapshotTransformHelper(new AggregateHelper()),
     ),
   ) {
     this.totals = {
-      ...this.helper.emptyAggregate(),
+      ...this.helper.empty(),
       sessionsCreated: 0,
       sessionErrors: 0,
     };
@@ -95,7 +95,8 @@ export class MetricsAggregator {
   private buildBaseSnapshot(): MetricsSnapshot {
     return {
       totals: {
-        ...this.helper.cloneAggregateWithSessions(this.totals),
+        ...this.helper.clone(this.totals),
+        sessionsCreated: this.totals.sessionsCreated,
         sessionErrors: this.totals.sessionErrors,
       },
       bySession: this.helper.mapToRecord(this.bySession),
@@ -265,7 +266,7 @@ export class MetricsAggregator {
     model: string,
   ): void {
     const inc: Aggregate = {
-      ...this.helper.emptyAggregate(),
+      ...this.helper.empty(),
       llmErrors: 1,
     };
 
@@ -297,7 +298,7 @@ export class MetricsAggregator {
     durationMs: number,
   ): void {
     const inc: Aggregate = {
-      ...this.helper.emptyAggregate(),
+      ...this.helper.empty(),
       toolCalls: 1,
       toolErrors: isError ? 1 : 0,
     };
@@ -323,7 +324,7 @@ export class MetricsAggregator {
   private ensureAggregate(map: Map<string, Aggregate>, key: string): Aggregate {
     let bucket = map.get(key);
     if (!bucket) {
-      bucket = this.helper.emptyAggregate();
+      bucket = this.helper.empty();
       map.set(key, bucket);
     }
     return bucket;
@@ -341,7 +342,7 @@ export class MetricsAggregator {
     }
     let bucket = inner.get(innerKey);
     if (!bucket) {
-      bucket = this.helper.emptyAggregate();
+      bucket = this.helper.empty();
       inner.set(innerKey, bucket);
     }
     return bucket;
