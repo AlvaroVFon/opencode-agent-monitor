@@ -1,94 +1,25 @@
-import type {
-  MetricsSnapshot,
-  Aggregate,
-  ToolStats,
-  ErrorEntry,
-} from "../shared/metrics.types";
+import type { MetricsSnapshot } from "../shared/metrics.types";
 import type { TraceEvent } from "../shared/trace-events.types";
-import {
-  emptyAggregate,
-  emptyToolStats,
-  getOrCreateMapEntry,
-  addToAggregate,
-} from "../shared/aggregate.helpers";
+import { windowHelper } from "./helpers/window.helper";
+import { eventAggregatorHelper } from "./helpers/event-aggregator.helper";
 
 export class CliAggregator {
   aggregate(events: TraceEvent[]): MetricsSnapshot {
-    const totals = {
-      ...emptyAggregate(),
-      sessionsCreated: 0,
-      sessionErrors: 0,
-    };
-    const byAgent = new Map<string, Aggregate>();
-    const byTool = new Map<string, ToolStats>();
-    const bySession = new Map<string, Aggregate>();
-    const errors: ErrorEntry[] = [];
-    let firstSeenAt = 0;
-    let lastSeenAt = 0;
+    const state = eventAggregatorHelper.emptyState();
+    let { firstSeenAt, lastSeenAt } = windowHelper.empty();
 
     for (const ev of events) {
-      if (!firstSeenAt || ev.timestamp < firstSeenAt)
-        firstSeenAt = ev.timestamp;
-      if (ev.timestamp > lastSeenAt) lastSeenAt = ev.timestamp;
-
-      if (ev.type === "llm_call") {
-        const inc: Aggregate = {
-          llmCalls: 1,
-          llmErrors: 0,
-          toolCalls: 0,
-          toolErrors: 0,
-          tokens: {
-            input: ev.inputTokens,
-            output: ev.outputTokens,
-            reasoning: ev.reasoningTokens,
-            cacheRead: ev.cacheRead,
-          },
-          cost: ev.cost,
-          workDurationMs: 0,
-        };
-        addToAggregate(totals, inc);
-        addToAggregate(
-          getOrCreateMapEntry(byAgent, ev.agent, emptyAggregate),
-          inc,
-        );
-        addToAggregate(
-          getOrCreateMapEntry(bySession, ev.sessionID, emptyAggregate),
-          inc,
-        );
-      } else if (ev.type === "tool_call") {
-        totals.toolCalls++;
-        if (ev.status === "error") totals.toolErrors++;
-        const t = getOrCreateMapEntry(byTool, ev.tool, emptyToolStats);
-        t.calls++;
-        if (ev.status === "error") t.errors++;
-        t.durationMs += ev.durationMs;
-        getOrCreateMapEntry(bySession, ev.sessionID, emptyAggregate)
-          .toolCalls++;
-      } else if (ev.type === "session_created") {
-        totals.sessionsCreated++;
-        getOrCreateMapEntry(bySession, ev.sessionID, emptyAggregate);
-      } else if (ev.type === "session_error") {
-        totals.sessionErrors++;
-        errors.push({
-          sessionID: ev.sessionID,
-          type: ev.errorType ?? "Unknown",
-          message: ev.errorMessage ?? ev.error ?? "",
-          timestamp: ev.timestamp,
-        });
-      }
+      const updated = windowHelper.update(
+        ev.timestamp,
+        firstSeenAt,
+        lastSeenAt,
+      );
+      firstSeenAt = updated.firstSeenAt;
+      lastSeenAt = updated.lastSeenAt;
+      eventAggregatorHelper.apply(state, ev);
     }
 
-    return {
-      totals,
-      byAgent: Object.fromEntries(byAgent),
-      byTool: Object.fromEntries(byTool),
-      bySession: Object.fromEntries(bySession),
-      byModel: {},
-      byAgentModel: {},
-      errors,
-      window: { firstSeenAt, lastSeenAt },
-      lastActiveAgent: null,
-    };
+    return eventAggregatorHelper.toSnapshot(state, firstSeenAt, lastSeenAt);
   }
 
   parseDuration(duration: string): number | null {

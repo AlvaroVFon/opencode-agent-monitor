@@ -187,6 +187,22 @@ describe("aggregate", () => {
     assert.equal(snap.errors[0].message, "raw error string");
   });
 
+  it("silently ignores agent_delegation events (fallthrough in event type dispatch)", () => {
+    const events: TraceEvent[] = [
+      {
+        type: "agent_delegation",
+        timestamp: 100,
+      },
+    ];
+    const snap = cliAggregator.aggregate(events);
+    assert.equal(snap.totals.llmCalls, 0);
+    assert.equal(snap.totals.toolCalls, 0);
+    assert.equal(snap.totals.sessionsCreated, 0);
+    assert.equal(snap.totals.sessionErrors, 0);
+    assert.equal(snap.window.firstSeenAt, 100);
+    assert.equal(snap.window.lastSeenAt, 100);
+  });
+
   it("aggregates with out-of-order timestamps covering both firstSeenAt conditions", () => {
     const events: TraceEvent[] = [
       {

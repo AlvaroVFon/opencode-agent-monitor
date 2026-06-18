@@ -18,6 +18,7 @@
   "scripts": {
     "build": "tsup",
     "test": "node --import tsx --experimental-test-module-mocks --test 'src/test/**/*.test.ts'",
+    "test:coverage": "node --import tsx --experimental-test-module-mocks --test 'src/test/**/*.test.ts' --coverage",
     "lint": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
