@@ -5,8 +5,14 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 
-const CLI_ENTRY = "src/cli/main.ts";
+const repoRoot = path.resolve(
+  path.dirname(new URL(import.meta.url).pathname),
+  "../../../..",
+);
+const CLI_ENTRY = path.join(repoRoot, "src/cli/main.ts");
+const TSX_PATH = path.join(repoRoot, "node_modules/tsx/dist/loader.mjs");
 const tempDirs: string[] = [];
+const cleanupFiles: string[] = [];
 
 function makeTempDir(): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cli-export-test-"));
@@ -22,11 +28,13 @@ function writeTrace(dir: string, events: unknown[]): void {
 function runCli(
   args: string[],
   dir: string,
+  cwd?: string,
 ): { stdout: string; stderr: string; status: number | null } {
   const result = spawnSync(
     "node",
-    ["--import", "tsx", CLI_ENTRY, ...args, "--dir", dir],
+    ["--import", TSX_PATH, CLI_ENTRY, ...args, "--dir", dir],
     {
+      cwd: cwd ?? process.cwd(),
       encoding: "utf8",
     },
   );
@@ -46,10 +54,18 @@ afterEach(() => {
       } catch {}
     }
   }
+  while (cleanupFiles.length > 0) {
+    const file = cleanupFiles.pop();
+    if (file) {
+      try {
+        fs.unlinkSync(file);
+      } catch {}
+    }
+  }
 });
 
 describe("export command", () => {
-  it("outputs CSV to stdout by default", () => {
+  it("writes CSV to default filename when --out is omitted", () => {
     const dir = makeTempDir();
     writeTrace(dir, [
       {
@@ -67,15 +83,19 @@ describe("export command", () => {
         timestamp: 1000,
       },
     ]);
-    const { stdout, stderr, status } = runCli(["export"], dir);
+    const outPath = path.join(dir, "metrics.csv");
+    const { stderr, status } = runCli(["export"], dir, dir);
     assert.equal(status, 0, `stderr: ${stderr}`);
-    assert.ok(stdout.includes("llmCalls"));
-    assert.ok(stdout.includes("totals"));
-    assert.ok(stdout.includes("1"));
+    assert.ok(fs.existsSync(outPath));
+    const content = fs.readFileSync(outPath, "utf8");
+    assert.ok(content.includes("llmCalls"));
+    assert.ok(content.includes("totals"));
+    assert.ok(content.includes("1"));
   });
 
   it("outputs JSON with --format json", () => {
     const dir = makeTempDir();
+    const outFile = path.join(dir, "metrics.json");
     writeTrace(dir, [
       {
         type: "llm_call",
@@ -92,12 +112,14 @@ describe("export command", () => {
         timestamp: 1000,
       },
     ]);
-    const { stdout, stderr, status } = runCli(
-      ["export", "--format", "json"],
+    const { stderr, status } = runCli(
+      ["export", "--format", "json", "--out", outFile],
       dir,
     );
     assert.equal(status, 0, `stderr: ${stderr}`);
-    const parsed = JSON.parse(stdout);
+    assert.ok(fs.existsSync(outFile));
+    const content = fs.readFileSync(outFile, "utf8");
+    const parsed = JSON.parse(content);
     assert.equal(parsed.totals.llmCalls, 1);
     assert.equal(parsed.byAgent.coder.cost, 0.002);
   });
@@ -146,6 +168,7 @@ describe("export command", () => {
 
   it("filters by --since and exports recent events as json", () => {
     const dir = makeTempDir();
+    const outFile = path.join(dir, "metrics.json");
     writeTrace(dir, [
       {
         type: "llm_call",
@@ -162,12 +185,14 @@ describe("export command", () => {
         timestamp: Date.now(),
       },
     ]);
-    const { stdout, stderr, status } = runCli(
-      ["export", "--since", "24h", "--format", "json"],
+    const { stderr, status } = runCli(
+      ["export", "--since", "24h", "--format", "json", "--out", outFile],
       dir,
     );
     assert.equal(status, 0, `stderr: ${stderr}`);
-    const parsed = JSON.parse(stdout);
+    assert.ok(fs.existsSync(outFile));
+    const content = fs.readFileSync(outFile, "utf8");
+    const parsed = JSON.parse(content);
     assert.equal(parsed.totals.llmCalls, 1);
   });
 });

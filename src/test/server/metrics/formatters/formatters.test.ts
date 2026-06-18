@@ -6,9 +6,9 @@ import type {
   MetricsSnapshot,
   ToolStats,
 } from "../../../../shared/metrics.types";
-import { formatJson } from "../../../../server/metrics/formatters/json";
-import { formatMarkdown } from "../../../../server/metrics/formatters/markdown";
-import { formatCsv } from "../../../../server/metrics/formatters/csv";
+import { formatJson } from "../../../../shared/formatters/json";
+import { formatMarkdown } from "../../../../shared/formatters/markdown";
+import { formatCsv } from "../../../../shared/formatters/csv";
 
 /**
  * Build a fully-populated-but-empty `MetricsSnapshot` that satisfies the

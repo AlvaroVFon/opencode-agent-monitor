@@ -4,8 +4,9 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { traceReader } from "../reader";
 import { cliAggregator } from "../aggregate";
-import { formatJson } from "../../server/metrics/formatters/json";
-import { formatCsv } from "../../server/metrics/formatters/csv";
+import { formatJson } from "../../shared/formatters/json";
+import { formatCsv } from "../../shared/formatters/csv";
+import { formatMarkdown } from "../../shared/formatters/markdown";
 
 export class ExportCommand {
   private defaultDir = join(homedir(), ".config", "opencode", ".tracing");
@@ -15,8 +16,8 @@ export class ExportCommand {
       .command("export")
       .description("export aggregated metrics to a file")
       .option("--dir <path>", "trace directory", this.defaultDir)
-      .option("--format <fmt>", "output format: csv, json", "csv")
-      .option("--out <file>", "output file path (default: stdout)")
+      .option("--format <fmt>", "output format: csv, json, markdown", "csv")
+      .option("--out <file>", "output file path (default: metrics.<format>)")
       .option("--since <duration>", "time filter: 1d, 24h, 7d, 30d, all", "all")
       .action((options) => this.execute(options));
   }
@@ -29,7 +30,7 @@ export class ExportCommand {
   }): void {
     const dir = options.dir;
     const format = options.format;
-    const out = options.out;
+    const out = options.out ?? `metrics.${format}`;
     const since = cliAggregator.parseDuration(options.since);
 
     const events = traceReader.readEvents(dir);
@@ -49,15 +50,13 @@ export class ExportCommand {
     let output: string;
     if (format === "json") {
       output = formatJson(snap) + "\n";
+    } else if (format === "markdown") {
+      output = formatMarkdown(snap) + "\n";
     } else {
       output = formatCsv(snap) + "\n";
     }
 
-    if (out) {
-      writeFileSync(out, output, "utf8");
-      process.stderr.write(`Written to ${out}\n`);
-    } else {
-      process.stdout.write(output);
-    }
+    writeFileSync(out, output, "utf8");
+    process.stderr.write(`Written to ${out}\n`);
   }
 }

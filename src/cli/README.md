@@ -54,21 +54,21 @@ pnpm metrics errors --since 7d --limit 10 --json
 pnpm metrics export [options]
 ```
 
-| Flag                 | Default                       | Description                  |
-| -------------------- | ----------------------------- | ---------------------------- |
-| `--dir <path>`       | `~/.config/opencode/.tracing` | Trace directory              |
-| `--format <fmt>`     | `csv`                         | Output format: `csv`, `json` |
-| `--out <file>`       | stdout                        | Output file path             |
-| `--since <duration>` | `all`                         | Time filter                  |
+| Flag                 | Default                       | Description                              |
+| -------------------- | ----------------------------- | ---------------------------------------- |
+| `--dir <path>`       | `~/.config/opencode/.tracing` | Trace directory                          |
+| `--format <fmt>`     | `csv`                         | Output format: `csv`, `json`, `markdown` |
+| `--out <file>`       | `metrics.<format>`            | Output file path                         |
+| `--since <duration>` | `all`                         | Time filter                              |
 
 Example:
 
 ```bash
-pnpm metrics export --format csv --out report.csv --since 30d
+pnpm metrics:export --since 30d
 ```
 
 ## Output Formats
 
-- **Markdown** (default for `stats`) — human-readable tables with summary, per-agent, per-tool, and errors sections.
+- **Markdown** (default for `stats`, available in `export`) — human-readable tables with summary, per-agent, per-tool, and errors sections.
 - **JSON** — structured output consumable by scripts and tools.
 - **CSV** (default for `export`) — flat table suitable for spreadsheets.

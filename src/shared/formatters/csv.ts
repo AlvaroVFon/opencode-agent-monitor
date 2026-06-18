@@ -1,4 +1,4 @@
-import type { MetricsSnapshot } from "../../../shared/metrics.types";
+import type { MetricsSnapshot } from "../metrics.types";
 
 function escapeCsv(value: string | number): string {
   const str = String(value);
