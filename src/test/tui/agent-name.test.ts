@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { capitalizeName, getAgentColor } from "../../tui/formatters/agent-name";
+import { agentNameFormatter } from "../../tui/formatters/agent-name.formatter";
 
 // ---------------------------------------------------------------------------
 // Reference data
@@ -41,7 +41,7 @@ const PALETTE_SET: ReadonlySet<PaletteKey> = new Set(PALETTE_KEYS);
 describe("capitalizeName", () => {
   it("empty string returns empty string: '' -> ''", () => {
     assert.equal(
-      capitalizeName(""),
+      agentNameFormatter.capitalize(""),
       "",
       "an empty input must return an empty string (no .at(0) crash)",
     );
@@ -49,7 +49,7 @@ describe("capitalizeName", () => {
 
   it("single lowercase letter is uppercased: 'a' -> 'A'", () => {
     assert.equal(
-      capitalizeName("a"),
+      agentNameFormatter.capitalize("a"),
       "A",
       "a single lowercase char must be uppercased",
     );
@@ -58,10 +58,10 @@ describe("capitalizeName", () => {
   it("single uppercase letter is unchanged: 'A' -> 'A' (idempotent)", () => {
     // Idempotence on a single uppercase char is a sanity check: if the
     // implementation is `s[0].toUpperCase() + s.slice(1)`, then
-    // capitalizeName("A") must return "A" without accidentally double-
+    // agentNameFormatter.capitalize("A") must return "A" without accidentally double-
     // uppercasing or appending a stray character.
     assert.equal(
-      capitalizeName("A"),
+      agentNameFormatter.capitalize("A"),
       "A",
       "an already-uppercase single char must be returned unchanged",
     );
@@ -70,7 +70,7 @@ describe("capitalizeName", () => {
   it("lowercase word is capitalized: 'coder' -> 'Coder'", () => {
     // The spec's canonical happy-path example.
     assert.equal(
-      capitalizeName("coder"),
+      agentNameFormatter.capitalize("coder"),
       "Coder",
       "lowercase first char must be uppercased; tail must be preserved",
     );
@@ -81,7 +81,7 @@ describe("capitalizeName", () => {
     // naive `toUpperCase()` of the whole word would turn "Coder" into
     // "CODER"; we explicitly forbid that.
     assert.equal(
-      capitalizeName("Coder"),
+      agentNameFormatter.capitalize("Coder"),
       "Coder",
       "an already-capitalized word must be returned unchanged",
     );
@@ -92,7 +92,7 @@ describe("capitalizeName", () => {
     // implementation that splits on "-" and uppercases each segment would
     // produce "Code-Reviewer" — explicitly wrong per the spec.
     assert.equal(
-      capitalizeName("code-reviewer"),
+      agentNameFormatter.capitalize("code-reviewer"),
       "Code-reviewer",
       "only the first character may change; the rest is preserved verbatim",
     );
@@ -105,7 +105,7 @@ describe("capitalizeName", () => {
     // a digit (which would either no-op or, in some locales, produce an
     // unrelated Unicode character).
     assert.equal(
-      capitalizeName("42bots"),
+      agentNameFormatter.capitalize("42bots"),
       "42bots",
       "a leading digit has no uppercase form; the string is unchanged",
     );
@@ -115,7 +115,7 @@ describe("capitalizeName", () => {
     // Verifies the implementation does NOT call .toUpperCase() on the
     // whole string. "abcDEF" must become "AbcDEF", not "ABCDEF".
     assert.equal(
-      capitalizeName("abcDEF"),
+      agentNameFormatter.capitalize("abcDEF"),
       "AbcDEF",
       "only s[0] may be uppercased; s[1..] is preserved verbatim",
     );
@@ -126,7 +126,7 @@ describe("capitalizeName", () => {
     // implementation must not modify the existing mixed case of the tail.
     // Note the 'O' in position 1 is preserved (it was already upper).
     assert.equal(
-      capitalizeName("cOdEr"),
+      agentNameFormatter.capitalize("cOdEr"),
       "COdEr",
       "the tail is preserved byte-for-byte; only s[0] is uppercased",
     );
@@ -138,7 +138,7 @@ describe("capitalizeName", () => {
     // become "The coder" — NOT "The Coder". A split-on-whitespace
     // implementation would over-capitalize here.
     assert.equal(
-      capitalizeName("the coder"),
+      agentNameFormatter.capitalize("the coder"),
       "The coder",
       "only the first character of the WHOLE string is changed",
     );
@@ -189,10 +189,10 @@ describe("getAgentColor", () => {
     ];
 
     for (const name of names) {
-      const color = getAgentColor(name);
+      const color = agentNameFormatter.color(name);
       assert.ok(
         PALETTE_SET.has(color as PaletteKey),
-        `getAgentColor(${JSON.stringify(name)}) must be one of ${JSON.stringify(
+        `agentNameFormatter.color(${JSON.stringify(name)}) must be one of ${JSON.stringify(
           PALETTE_KEYS,
         )}; got: ${JSON.stringify(color)}`,
       );
@@ -205,13 +205,13 @@ describe("getAgentColor", () => {
     // call, so the assertion is robust to any correct implementation
     // (we don't pin a specific color, only equality across calls).
     const name = "coder";
-    const expected = getAgentColor(name);
+    const expected = agentNameFormatter.color(name);
 
     for (let i = 0; i < 1000; i++) {
       assert.equal(
-        getAgentColor(name),
+        agentNameFormatter.color(name),
         expected,
-        `getAgentColor(${JSON.stringify(name)}) must be deterministic on call #${i + 1}`,
+        `agentNameFormatter.color(${JSON.stringify(name)}) must be deterministic on call #${i + 1}`,
       );
     }
   });
@@ -226,16 +226,16 @@ describe("getAgentColor", () => {
     // floor) and re-call. A correct implementation must produce the
     // exact same value.
     const name = "coder";
-    const before = getAgentColor(name);
+    const before = agentNameFormatter.color(name);
 
     await new Promise<void>((resolve) => setTimeout(resolve, 5));
 
-    const after = getAgentColor(name);
+    const after = agentNameFormatter.color(name);
 
     assert.equal(
       after,
       before,
-      `getAgentColor(${JSON.stringify(name)}) must not depend on wall-clock time; ` +
+      `agentNameFormatter.color(${JSON.stringify(name)}) must not depend on wall-clock time; ` +
         `before=${JSON.stringify(before)}, after=${JSON.stringify(after)}`,
     );
   });
@@ -248,7 +248,9 @@ describe("getAgentColor", () => {
     // explicitly forbid that.
     const names: string[] = Array.from({ length: 100 }, (_, i) => `agent-${i}`);
 
-    const uniqueColors = new Set<string>(names.map(getAgentColor));
+    const uniqueColors = new Set<string>(
+      names.map((n) => agentNameFormatter.color(n)),
+    );
 
     assert.ok(
       uniqueColors.size >= 4,
@@ -266,10 +268,10 @@ describe("getAgentColor", () => {
     const names: string[] = Array.from({ length: 100 }, (_, i) => `agent-${i}`);
 
     for (const name of names) {
-      const color = getAgentColor(name);
+      const color = agentNameFormatter.color(name);
       assert.ok(
         PALETTE_SET.has(color as PaletteKey),
-        `getAgentColor(${JSON.stringify(name)}) must be a documented palette key; ` +
+        `agentNameFormatter.color(${JSON.stringify(name)}) must be a documented palette key; ` +
           `got: ${JSON.stringify(color)}`,
       );
     }
@@ -281,12 +283,12 @@ describe("getAgentColor", () => {
     // contract: the return value must be a string AND must be one of the
     // five documented palette keys. This is a focused, single-input
     // sanity check that complements the table-driven test above.
-    const result = getAgentColor("coder");
+    const result = agentNameFormatter.color("coder");
 
     assert.equal(typeof result, "string", "getAgentColor must return a string");
     assert.ok(
       PALETTE_SET.has(result as PaletteKey),
-      `getAgentColor('coder') must be a documented palette key; got: ${JSON.stringify(result)}`,
+      `agentNameFormatter.color('coder') must be a documented palette key; got: ${JSON.stringify(result)}`,
     );
   });
 });

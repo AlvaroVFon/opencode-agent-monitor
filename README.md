@@ -8,19 +8,45 @@ Real-time TUI monitor and JSONL tracing plugin for OpenCode. Track LLM calls, ag
 
 ## Installation
 
-Install the plugin via OpenCode (recommended):
+### Via OpenCode (recommended)
 
 ```bash
 opencode plugin @alvarovfon/opencode-agent-monitor
 ```
 
-This will automatically add the server plugin to your `opencode.json` and the TUI plugin to your `tui.json`.
+This adds the server plugin to `~/.config/opencode/opencode.json` and the TUI plugin to `~/.config/opencode/tui.json`:
 
-Or add it to your project manually:
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": ["@alvarovfon/opencode-agent-monitor"]
+}
+```
+
+```json
+{
+  "$schema": "https://opencode.ai/tui.json",
+  "plugin": ["@alvarovfon/opencode-agent-monitor"]
+}
+```
+
+### Manual install
 
 ```bash
 npm install @alvarovfon/opencode-agent-monitor
 ```
+
+### Peer dependencies
+
+If installing in a project that uses the TUI, ensure these peer deps are available:
+
+```
+@opentui/core ^0.3.4
+@opentui/keymap ^0.3.4
+@opentui/solid ^0.3.4
+```
+
+Set `.npmrc` `auto-install-peers=true` or install them manually.
 
 ## Live TUI Monitor
 
@@ -120,6 +146,53 @@ Each line has a `type` field identifying the event kind and a `timestamp` field 
 | TUI monitor          | Same as server plugin (reads `traceDir` config)   |
 | Batch metrics script | Same as server plugin (overridable via `--dir`)   |
 
+## Metrics Aggregator (server-side)
+
+The server plugin includes a `MetricsAggregator` that ingests the same OpenCode SDK events as the trace pipeline and maintains an in-memory aggregation snapshot. This powers the batch script and is available as a shared data source for future consumers.
+
+### Aggregated dimensions
+
+| Dimension       | Key            | Description                                     |
+| --------------- | -------------- | ----------------------------------------------- |
+| Totals          | `totals`       | Cumulative counts, tokens, cost, session errors |
+| Per session     | `bySession`    | Aggregate per `sessionID`                       |
+| Per agent       | `byAgent`      | Aggregate per agent name                        |
+| Per model       | `byModel`      | Aggregate per `providerID/modelID`              |
+| Per agent+model | `byAgentModel` | Nested: agent → model → aggregate               |
+| Per tool        | `byTool`       | Calls, errors, and duration per tool name       |
+
+### Error tracking
+
+- `errors[]` — detailed error entries with `sessionID`, `type`, `message`, `timestamp`
+- `totals.sessionErrors` — count of `session.error` events
+- Errors captured from: `llm_error`, `tool_call` errors, `session_error`
+- Capped at 1000 entries (oldest evicted first)
+
+### Snapshot filters
+
+The `snapshot()` method supports optional filters for targeted queries:
+
+```ts
+snapshot(); // Full snapshot (backward-compat)
+snapshot({ since: Date.now() - 3600000 }); // Only events in the last hour
+snapshot({ sessionID: "sess-abc" }); // Single session
+snapshot({ groupBy: "agent" }); // Only per-agent aggregates
+snapshot({ groupBy: "tool" }); // Only per-tool stats
+snapshot({ top: 5 }); // Top 5 sessions/agents/models by cost
+```
+
+### Formatters
+
+Pure functions that convert a `MetricsSnapshot` to string output:
+
+| Formatter | Import path                              | Output           |
+| --------- | ---------------------------------------- | ---------------- |
+| Markdown  | `src/server/metrics/formatters/markdown` | Tables, sections |
+| JSON      | `src/server/metrics/formatters/json`     | Pretty-printed   |
+| CSV       | `src/server/metrics/formatters/csv`      | Flattened rows   |
+
+---
+
 ## Batch Metrics Script
 
 Aggregate all traced events from the command line into a Markdown or JSON report:
@@ -128,7 +201,7 @@ Aggregate all traced events from the command line into a Markdown or JSON report
 pnpm metrics
 ```
 
-This reads `trace.jsonl` and `trace.errors.jsonl` from the trace directory and outputs a formatted report.
+This reads `trace.jsonl` and `trace.errors.jsonl` from the trace directory and outputs a formatted report with summary, per-agent, per-tool, and error sections.
 
 ### Options
 
@@ -162,11 +235,27 @@ This reads `trace.jsonl` and `trace.errors.jsonl` from the trace directory and o
 
 ## By Agent
 
-| Agent        | Calls | Errors | Input Tokens | Output Tokens | Cost      | Avg Duration |
-|--------------|-------|--------|--------------|---------------|-----------|--------------|
-| implementer | 58    | 1      | 520,000      | 34,000        | $5.2000   | 4,200ms      |
-| planner     | 42    | 1      | 380,000      | 28,000        | $3.8000   | 3,100ms      |
-| test-writer | 32    | 0      | 280,000      | 22,000        | $2.8000   | 2,800ms      |
+| Agent        | Calls | Errors | Cost      |
+|--------------|-------|--------|-----------|
+| implementer | 58    | 1      | $5.2000   |
+| planner     | 42    | 1      | $3.8000   |
+| test-writer | 32    | 0      | $2.8000   |
+
+## By Tool
+
+| Tool   | Calls | Errors | Error Rate | Duration (ms) |
+|--------|-------|--------|------------|---------------|
+| bash   | 420   | 1      | 0.2%       | 1,234,567     |
+| read   | 150   | 0      | 0.0%       | 45,678        |
+| edit   | 19    | 0      | 0.0%       | 5,432         |
+
+## Errors (3)
+
+| Session | Type          | Message                                    |
+|---------|---------------|--------------------------------------------|
+| sess-1  | rate_limit    | Rate limit exceeded                        |
+| sess-2  | tool_error    | Command returned non-zero exit code        |
+| sess-3  | session_error | Session timed out after 5 minutes          |
 ```
 
 ## Error Handling

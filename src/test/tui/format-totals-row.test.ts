@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatTotalsRow } from "../../tui/formatters/format-totals-row";
+import { totalsRowFormatter } from "../../tui/formatters/totals-row.formatter";
 import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types";
 
 // ---------------------------------------------------------------------------
@@ -83,7 +83,7 @@ describe("formatTotalsRow", () => {
   it("empty_snapshot_returns_zero_cost_zero_calls_zero_errors", () => {
     // Acceptance criterion: with an empty snapshot (no events ingested,
     // all counters at 0) the row reads $0.0000 / 0 / 0.
-    const row = formatTotalsRow(makeSnapshot());
+    const row = totalsRowFormatter.format(makeSnapshot());
 
     assert.deepEqual(
       row,
@@ -98,7 +98,7 @@ describe("formatTotalsRow", () => {
     //   { avgCostPerCall: '$0.0037', calls: '12', errors: '3' }
     // where avgCostPerCall = cost / llmCalls = 0.045 / 12 → toFixed(4) → $0.0037
     // and errors = llmErrors (1) + toolErrors (2) + sessionErrors (0).
-    const row = formatTotalsRow(
+    const row = totalsRowFormatter.format(
       makeSnapshot({
         llmCalls: 12,
         llmErrors: 1,
@@ -121,7 +121,7 @@ describe("formatTotalsRow", () => {
   // ---------------------------------------------------------------------------
 
   it("thousands_separator_on_calls: 1234 calls renders as '1,234'", () => {
-    const row = formatTotalsRow(makeSnapshot({ llmCalls: 1234 }));
+    const row = totalsRowFormatter.format(makeSnapshot({ llmCalls: 1234 }));
 
     assert.equal(
       row.calls,
@@ -139,7 +139,7 @@ describe("formatTotalsRow", () => {
     // 1000 + 234 + 1 = 1,235. The spec is explicit that errors are
     // llmErrors + toolErrors + sessionErrors, formatted with thousands
     // separator.
-    const row = formatTotalsRow(
+    const row = totalsRowFormatter.format(
       makeSnapshot({
         llmErrors: 1000,
         toolErrors: 234,
@@ -164,7 +164,9 @@ describe("formatTotalsRow", () => {
   // ---------------------------------------------------------------------------
 
   it("avg_cost_formatting_4_decimals: integer 1 with 1 call renders as '$1.0000'", () => {
-    const row = formatTotalsRow(makeSnapshot({ cost: 1, llmCalls: 1 }));
+    const row = totalsRowFormatter.format(
+      makeSnapshot({ cost: 1, llmCalls: 1 }),
+    );
 
     assert.equal(
       row.avgCostPerCall,
@@ -174,7 +176,9 @@ describe("formatTotalsRow", () => {
   });
 
   it("avg_cost_formatting_4_decimals: 0.1 with 1 call renders as '$0.1000'", () => {
-    const row = formatTotalsRow(makeSnapshot({ cost: 0.1, llmCalls: 1 }));
+    const row = totalsRowFormatter.format(
+      makeSnapshot({ cost: 0.1, llmCalls: 1 }),
+    );
 
     assert.equal(
       row.avgCostPerCall,
@@ -188,7 +192,9 @@ describe("formatTotalsRow", () => {
     // truncate, the result must still be a $ prefix followed by exactly
     // 4 decimal digits. This deliberately uses a regex assertion so the
     // test does not lock in a particular rounding strategy.
-    const row = formatTotalsRow(makeSnapshot({ cost: 0.00005, llmCalls: 1 }));
+    const row = totalsRowFormatter.format(
+      makeSnapshot({ cost: 0.00005, llmCalls: 1 }),
+    );
 
     assert.match(
       row.avgCostPerCall,
@@ -219,7 +225,7 @@ describe("formatTotalsRow", () => {
       },
     );
 
-    const row = formatTotalsRow(snap);
+    const row = totalsRowFormatter.format(snap);
 
     assert.equal(
       row.avgCostPerCall,
@@ -244,7 +250,9 @@ describe("formatTotalsRow", () => {
   // ---------------------------------------------------------------------------
 
   it("shape: returns exactly { avgCostPerCall, calls, errors } with no extras", () => {
-    const row = formatTotalsRow(makeSnapshot({ cost: 1.2345, llmCalls: 42 }));
+    const row = totalsRowFormatter.format(
+      makeSnapshot({ cost: 1.2345, llmCalls: 42 }),
+    );
 
     assert.equal(
       typeof row,
