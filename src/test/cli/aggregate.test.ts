@@ -1,11 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { aggregate, parseDuration, filterEvents } from "../../cli/aggregate";
+import { cliAggregator } from "../../cli/aggregate";
 import type { TraceEvent } from "../../shared/trace-events.types";
 
 describe("aggregate", () => {
   it("returns zeroed snapshot for empty events", () => {
-    const snap = aggregate([]);
+    const snap = cliAggregator.aggregate([]);
     assert.equal(snap.totals.llmCalls, 0);
     assert.equal(snap.totals.cost, 0);
     assert.equal(snap.totals.sessionsCreated, 0);
@@ -35,7 +35,7 @@ describe("aggregate", () => {
         timestamp: 1000,
       },
     ];
-    const snap = aggregate(events);
+    const snap = cliAggregator.aggregate(events);
     assert.equal(snap.totals.llmCalls, 1);
     assert.equal(snap.totals.cost, 0.002);
     assert.equal(snap.totals.tokens.input, 10);
@@ -75,7 +75,7 @@ describe("aggregate", () => {
         timestamp: 2000,
       },
     ];
-    const snap = aggregate(events);
+    const snap = cliAggregator.aggregate(events);
     assert.equal(Object.keys(snap.byAgent).length, 2);
     assert.equal(snap.byAgent["coder"].cost, 0.001);
     assert.equal(snap.byAgent["reviewer"].cost, 0.0005);
@@ -105,7 +105,7 @@ describe("aggregate", () => {
         timestamp: 2000,
       },
     ];
-    const snap = aggregate(events);
+    const snap = cliAggregator.aggregate(events);
     assert.equal(snap.totals.toolCalls, 2);
     assert.equal(snap.totals.toolErrors, 1);
     assert.equal(snap.byTool["bash"].calls, 2);
@@ -129,7 +129,7 @@ describe("aggregate", () => {
         timestamp: 2000,
       },
     ];
-    const snap = aggregate(events);
+    const snap = cliAggregator.aggregate(events);
     assert.equal(snap.totals.sessionsCreated, 1);
     assert.equal(snap.totals.sessionErrors, 1);
     assert.equal(snap.errors.length, 1);
@@ -152,7 +152,7 @@ describe("aggregate", () => {
         timestamp: 500,
       },
     ];
-    const snap = aggregate(events);
+    const snap = cliAggregator.aggregate(events);
     assert.equal(snap.window.firstSeenAt, 100);
     assert.equal(snap.window.lastSeenAt, 500);
   });
@@ -166,7 +166,7 @@ describe("aggregate", () => {
         timestamp: 100,
       },
     ];
-    const snap = aggregate(events);
+    const snap = cliAggregator.aggregate(events);
     assert.deepEqual(snap.byModel, {});
     assert.deepEqual(snap.byAgentModel, {});
     assert.equal(snap.lastActiveAgent, null);
@@ -175,11 +175,11 @@ describe("aggregate", () => {
 
 describe("parseDuration", () => {
   it("returns null for 'all'", () => {
-    assert.equal(parseDuration("all"), null);
+    assert.equal(cliAggregator.parseDuration("all"), null);
   });
 
   it("parses hours", () => {
-    const result = parseDuration("24h");
+    const result = cliAggregator.parseDuration("24h");
     assert.notEqual(result, null);
     assert.ok(typeof result === "number");
     assert.ok(result > 0);
@@ -187,16 +187,16 @@ describe("parseDuration", () => {
   });
 
   it("parses days", () => {
-    const result = parseDuration("7d");
+    const result = cliAggregator.parseDuration("7d");
     assert.notEqual(result, null);
     assert.ok(typeof result === "number");
     assert.equal(result, Date.now() - 7 * 86_400_000);
   });
 
   it("returns null for invalid format", () => {
-    assert.equal(parseDuration("invalid"), null);
-    assert.equal(parseDuration("5x"), null);
-    assert.equal(parseDuration(""), null);
+    assert.equal(cliAggregator.parseDuration("invalid"), null);
+    assert.equal(cliAggregator.parseDuration("5x"), null);
+    assert.equal(cliAggregator.parseDuration(""), null);
   });
 });
 
@@ -239,18 +239,18 @@ describe("filterEvents", () => {
   ];
 
   it("returns all events when since is null", () => {
-    const result = filterEvents(events, null);
+    const result = cliAggregator.filterEvents(events, null);
     assert.equal(result.length, 3);
   });
 
   it("filters events after timestamp", () => {
-    const result = filterEvents(events, 150);
+    const result = cliAggregator.filterEvents(events, 150);
     assert.equal(result.length, 1);
     assert.equal(result[0].sessionID, "s2");
   });
 
   it("filters by sessionID", () => {
-    const result = filterEvents(events, null, "s1");
+    const result = cliAggregator.filterEvents(events, null, "s1");
     assert.equal(result.length, 2);
     for (const ev of result) {
       if ("sessionID" in ev) {
@@ -260,13 +260,13 @@ describe("filterEvents", () => {
   });
 
   it("combines since and sessionID", () => {
-    const result = filterEvents(events, 80, "s2");
+    const result = cliAggregator.filterEvents(events, 80, "s2");
     assert.equal(result.length, 1);
     assert.equal(result[0].sessionID, "s2");
   });
 
   it("returns empty when no events match", () => {
-    const result = filterEvents(events, 999);
+    const result = cliAggregator.filterEvents(events, 999);
     assert.equal(result.length, 0);
   });
 });

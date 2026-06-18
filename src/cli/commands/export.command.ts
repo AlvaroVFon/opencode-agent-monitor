@@ -2,53 +2,62 @@ import { Command } from "commander";
 import { writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { readEvents } from "../reader";
-import { aggregate, filterEvents, parseDuration } from "../aggregate";
+import { traceReader } from "../reader";
+import { cliAggregator } from "../aggregate";
 import { formatJson } from "../../server/metrics/formatters/json";
 import { formatCsv } from "../../server/metrics/formatters/csv";
 
-const defaultDir = join(homedir(), ".config", "opencode", ".tracing");
+export class ExportCommand {
+  private defaultDir = join(homedir(), ".config", "opencode", ".tracing");
 
-export function registerExportCommand(program: Command): void {
-  program
-    .command("export")
-    .description("export aggregated metrics to a file")
-    .option("--dir <path>", "trace directory", defaultDir)
-    .option("--format <fmt>", "output format: csv, json", "csv")
-    .option("--out <file>", "output file path (default: stdout)")
-    .option("--since <duration>", "time filter: 1d, 24h, 7d, 30d, all", "all")
-    .action((options) => {
-      const dir: string = options.dir;
-      const format: string = options.format;
-      const out: string | undefined = options.out;
-      const since = parseDuration(options.since);
+  register(program: Command): void {
+    program
+      .command("export")
+      .description("export aggregated metrics to a file")
+      .option("--dir <path>", "trace directory", this.defaultDir)
+      .option("--format <fmt>", "output format: csv, json", "csv")
+      .option("--out <file>", "output file path (default: stdout)")
+      .option("--since <duration>", "time filter: 1d, 24h, 7d, 30d, all", "all")
+      .action((options) => this.execute(options));
+  }
 
-      const events = readEvents(dir);
-      if (!events.length) {
-        process.stderr.write(`No events found in ${dir}\n`);
-        process.exit(1);
-      }
+  private execute(options: {
+    dir: string;
+    format: string;
+    out?: string;
+    since: string;
+  }): void {
+    const dir = options.dir;
+    const format = options.format;
+    const out = options.out;
+    const since = cliAggregator.parseDuration(options.since);
 
-      const filtered = filterEvents(events, since);
-      if (!filtered.length) {
-        process.stderr.write("No events match the given filters\n");
-        process.exit(1);
-      }
+    const events = traceReader.readEvents(dir);
+    if (!events.length) {
+      process.stderr.write(`No events found in ${dir}\n`);
+      process.exit(1);
+    }
 
-      const snap = aggregate(filtered);
+    const filtered = cliAggregator.filterEvents(events, since);
+    if (!filtered.length) {
+      process.stderr.write("No events match the given filters\n");
+      process.exit(1);
+    }
 
-      let output: string;
-      if (format === "json") {
-        output = formatJson(snap) + "\n";
-      } else {
-        output = formatCsv(snap) + "\n";
-      }
+    const snap = cliAggregator.aggregate(filtered);
 
-      if (out) {
-        writeFileSync(out, output, "utf8");
-        process.stderr.write(`Written to ${out}\n`);
-      } else {
-        process.stdout.write(output);
-      }
-    });
+    let output: string;
+    if (format === "json") {
+      output = formatJson(snap) + "\n";
+    } else {
+      output = formatCsv(snap) + "\n";
+    }
+
+    if (out) {
+      writeFileSync(out, output, "utf8");
+      process.stderr.write(`Written to ${out}\n`);
+    } else {
+      process.stdout.write(output);
+    }
+  }
 }

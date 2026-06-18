@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { readEvents } from "../../cli/reader";
+import { traceReader } from "../../cli/reader";
 
 const tempDirs: string[] = [];
 
@@ -32,7 +32,7 @@ afterEach(() => {
 describe("readEvents", () => {
   it("returns empty array for empty directory", () => {
     const dir = makeTempDir();
-    const events = readEvents(dir);
+    const events = traceReader.readEvents(dir);
     assert.deepEqual(events, []);
   });
 
@@ -41,7 +41,7 @@ describe("readEvents", () => {
     writeJsonl("trace.jsonl", dir, [
       { type: "llm_call", agent: "a", sessionID: "s1", timestamp: 1 },
     ]);
-    const events = readEvents(dir);
+    const events = traceReader.readEvents(dir);
     assert.equal(events.length, 1);
     assert.equal(events[0].type, "llm_call");
   });
@@ -54,7 +54,7 @@ describe("readEvents", () => {
     writeJsonl("trace.errors.jsonl", dir, [
       { type: "session_error", sessionID: "s1", timestamp: 2 },
     ]);
-    const events = readEvents(dir);
+    const events = traceReader.readEvents(dir);
     assert.equal(events.length, 2);
     assert.equal(events[0].type, "llm_call");
     assert.equal(events[1].type, "session_error");
@@ -67,7 +67,7 @@ describe("readEvents", () => {
       filePath,
       '{valid: "no"}\n{"type":"llm_call","agent":"a","sessionID":"s1","timestamp":1}\nnot-json\n',
     );
-    const events = readEvents(dir);
+    const events = traceReader.readEvents(dir);
     assert.equal(events.length, 1);
     assert.equal(events[0].type, "llm_call");
   });
@@ -76,7 +76,7 @@ describe("readEvents", () => {
     const dir = makeTempDir();
     fs.writeFileSync(path.join(dir, "trace.jsonl"), "");
     fs.writeFileSync(path.join(dir, "trace.errors.jsonl"), "");
-    const events = readEvents(dir);
+    const events = traceReader.readEvents(dir);
     assert.deepEqual(events, []);
   });
 });
