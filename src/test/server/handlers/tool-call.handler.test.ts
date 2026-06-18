@@ -1,17 +1,17 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import { ToolCallHandler } from "../../../server/handlers/tool-call.handler";
-import { TraceEventType } from "../../../server/enums";
+import { PartStatus, PartType, TraceEventType } from "../../../server/enums";
 
 function makePart(overrides: Record<string, unknown> = {}) {
   return {
     part: {
-      type: "tool",
+      type: PartType.TOOL,
       sessionID: "sess-1",
       callID: "call-1",
       tool: "bash",
       state: {
-        status: "completed",
+        status: PartStatus.COMPLETED,
         time: { start: 1000, end: 1300 },
         output: "ok",
         title: "Ran command",
@@ -53,7 +53,7 @@ describe("ToolCallHandler", () => {
     handler.handle(
       makePart({
         state: {
-          status: "error",
+          status: PartStatus.ERROR,
           time: { start: 1000, end: 1100 },
           error: "command failed",
         },
@@ -102,7 +102,7 @@ describe("ToolCallHandler", () => {
     const handler = makeHandler(writeTrace);
 
     handler.handle({
-      part: { type: "agent", sessionID: "sess-1", name: "planner" },
+      part: { type: PartType.AGENT, sessionID: "sess-1", name: "planner" },
     });
 
     assert.equal(writeTrace.mock.calls.length, 0);
@@ -114,7 +114,7 @@ describe("ToolCallHandler", () => {
 
     handler.handle(
       makePart({
-        state: { status: "completed", time: { start: 1000 } },
+        state: { status: PartStatus.COMPLETED, time: { start: 1000 } },
       }),
     );
 
