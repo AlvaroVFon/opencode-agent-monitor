@@ -1,4 +1,8 @@
-import type { Aggregate, TokenUsage } from "../../shared/metrics.types";
+import type {
+  Aggregate,
+  TokenUsage,
+  ToolStats,
+} from "../../shared/metrics.types";
 
 export class MetricsAggregatorHelper {
   emptyAggregate(): Aggregate {
@@ -11,6 +15,10 @@ export class MetricsAggregatorHelper {
       cost: 0,
       workDurationMs: 0,
     };
+  }
+
+  emptyToolStats(): ToolStats {
+    return { calls: 0, errors: 0, durationMs: 0 };
   }
 
   addTokens(target: TokenUsage, source: TokenUsage): void {
@@ -28,6 +36,12 @@ export class MetricsAggregatorHelper {
     target.cost += source.cost;
     target.workDurationMs += source.workDurationMs;
     this.addTokens(target.tokens, source.tokens);
+  }
+
+  addToToolStats(target: ToolStats, source: ToolStats): void {
+    target.calls += source.calls;
+    target.errors += source.errors;
+    target.durationMs += source.durationMs;
   }
 
   cloneAggregate(agg: Aggregate): Aggregate {
@@ -65,6 +79,14 @@ export class MetricsAggregatorHelper {
     const record: Record<string, Record<string, Aggregate>> = {};
     for (const [key, inner] of map) {
       record[key] = this.mapToRecord(inner);
+    }
+    return record;
+  }
+
+  mapToToolStatsRecord(map: Map<string, ToolStats>): Record<string, ToolStats> {
+    const record: Record<string, ToolStats> = {};
+    for (const [key, value] of map) {
+      record[key] = { ...value };
     }
     return record;
   }

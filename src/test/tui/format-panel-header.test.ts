@@ -1,9 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  formatPanelHeader,
-  toggleCollapsed,
-} from "../../tui/formatters/format-panel-header";
+import { panelHeaderFormatter } from "../../tui/formatters/panel-header.formatter";
 
 // ---------------------------------------------------------------------------
 // formatPanelHeader — title-row content for the panel header
@@ -20,7 +17,7 @@ import {
 
 describe("formatPanelHeader", () => {
   it("expanded: returns '▾' indicator, 'Agents Monitor' title, echoed totalCost", () => {
-    const header = formatPanelHeader(false, "$0.0234", 3);
+    const header = panelHeaderFormatter.format(false, "$0.0234", 3);
 
     assert.deepEqual(
       header,
@@ -35,7 +32,7 @@ describe("formatPanelHeader", () => {
   });
 
   it("collapsed: returns '▸' indicator, 'Agents Monitor' title, echoed totalCost", () => {
-    const header = formatPanelHeader(true, "$0.0234", 3);
+    const header = panelHeaderFormatter.format(true, "$0.0234", 3);
 
     assert.deepEqual(
       header,
@@ -50,8 +47,8 @@ describe("formatPanelHeader", () => {
   });
 
   it("title is always 'Agents Monitor' regardless of collapsed", () => {
-    const expanded = formatPanelHeader(false, "$1.0000", 0);
-    const collapsed = formatPanelHeader(true, "$1.0000", 0);
+    const expanded = panelHeaderFormatter.format(false, "$1.0000", 0);
+    const collapsed = panelHeaderFormatter.format(true, "$1.0000", 0);
 
     assert.equal(
       expanded.title,
@@ -69,8 +66,8 @@ describe("formatPanelHeader", () => {
     const inputs = ["$0.0000", "$0.0234", "$12.3456", "$1,234.5678", "n/a", ""];
 
     for (const cost of inputs) {
-      const expanded = formatPanelHeader(false, cost, 0);
-      const collapsed = formatPanelHeader(true, cost, 0);
+      const expanded = panelHeaderFormatter.format(false, cost, 0);
+      const collapsed = panelHeaderFormatter.format(true, cost, 0);
 
       assert.equal(
         expanded.totalCost,
@@ -86,7 +83,7 @@ describe("formatPanelHeader", () => {
   });
 
   it("agentCount is empty string when count is 0", () => {
-    const header = formatPanelHeader(false, "$0.0000", 0);
+    const header = panelHeaderFormatter.format(false, "$0.0000", 0);
     assert.equal(
       header.agentCount,
       "",
@@ -95,7 +92,7 @@ describe("formatPanelHeader", () => {
   });
 
   it("agentCount shows badge when count > 0", () => {
-    const header = formatPanelHeader(false, "$0.0000", 5);
+    const header = panelHeaderFormatter.format(false, "$0.0000", 5);
     assert.equal(
       header.agentCount,
       "(5)",
@@ -104,7 +101,7 @@ describe("formatPanelHeader", () => {
   });
 
   it("returns an object with exactly the four documented keys", () => {
-    const header = formatPanelHeader(false, "$0.0234", 0);
+    const header = panelHeaderFormatter.format(false, "$0.0234", 0);
 
     assert.equal(
       typeof header,
@@ -129,17 +126,17 @@ describe("formatPanelHeader", () => {
 // of Solid. It is the boolean complement of its input.
 
 describe("toggleCollapsed", () => {
-  it("toggleCollapsed(false) returns true", () => {
+  it("panelHeaderFormatter.toggleCollapsed(false) returns true", () => {
     assert.equal(
-      toggleCollapsed(false),
+      panelHeaderFormatter.toggleCollapsed(false),
       true,
       "toggling an expanded panel must yield a collapsed panel",
     );
   });
 
-  it("toggleCollapsed(true) returns false", () => {
+  it("panelHeaderFormatter.toggleCollapsed(true) returns false", () => {
     assert.equal(
-      toggleCollapsed(true),
+      panelHeaderFormatter.toggleCollapsed(true),
       false,
       "toggling a collapsed panel must yield an expanded panel",
     );
@@ -150,12 +147,16 @@ describe("toggleCollapsed", () => {
     // starting value, for both possible starting values. This is the
     // canonical property test for any involution-like helper.
     assert.equal(
-      toggleCollapsed(toggleCollapsed(false)),
+      panelHeaderFormatter.toggleCollapsed(
+        panelHeaderFormatter.toggleCollapsed(false),
+      ),
       false,
       "toggling expanded twice must return to expanded",
     );
     assert.equal(
-      toggleCollapsed(toggleCollapsed(true)),
+      panelHeaderFormatter.toggleCollapsed(
+        panelHeaderFormatter.toggleCollapsed(true),
+      ),
       true,
       "toggling collapsed twice must return to collapsed",
     );

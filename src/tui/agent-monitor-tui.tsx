@@ -30,11 +30,14 @@ function emptySnapshot(): MetricsSnapshot {
       cost: 0,
       workDurationMs: 0,
       sessionsCreated: 0,
+      sessionErrors: 0,
     },
     byAgent: {},
     bySession: {},
     byModel: {},
     byAgentModel: {},
+    byTool: {},
+    errors: [],
     window: { firstSeenAt: 0, lastSeenAt: 0 },
     lastActiveAgent: null,
   };
@@ -60,13 +63,13 @@ const tui: TuiPlugin = async (
   api.slots.register({
     order: SIDEBAR_ORDER,
     slots: {
-      sidebar_content: (_ctx, props) => (
-        <AgentCostPanel
-          snapshot={snapshot() ?? store.snapshot()}
-          sessionId={props.session_id}
-          theme={theme()}
-        />
-      ),
+      sidebar_content: (_ctx, props) => {
+        const fullSnap = snapshot() ?? store.snapshot();
+        const sessionSnap = props.session_id
+          ? store.snapshot({ sessionID: props.session_id })
+          : fullSnap;
+        return <AgentCostPanel snapshot={sessionSnap} theme={theme()} />;
+      },
     },
   } satisfies TuiSlotPlugin);
 

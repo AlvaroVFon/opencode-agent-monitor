@@ -2,13 +2,10 @@ import { createMemo, createSignal, For, Show } from "solid-js";
 import type { JSX } from "@opentui/solid";
 import type { TuiThemeCurrent } from "@opencode-ai/plugin/tui";
 import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types.js";
-import {
-  formatPanelHeader,
-  toggleCollapsed,
-} from "../formatters/format-panel-header";
-import { formatTotalsRow } from "../formatters/format-totals-row";
-import { capitalizeName, getAgentColor } from "../formatters/agent-name";
-import { formatDuration } from "../formatters/format-duration";
+import { panelHeaderFormatter } from "../formatters/panel-header.formatter";
+import { totalsRowFormatter } from "../formatters/totals-row.formatter";
+import { agentNameFormatter } from "../formatters/agent-name.formatter";
+import { durationFormatter } from "../formatters/duration.formatter";
 
 type ModelRow = {
   name: string;
@@ -116,7 +113,6 @@ function buildSeparator(width: number): string {
 
 export function AgentCostPanel(props: {
   snapshot: MetricsSnapshot;
-  sessionId?: string;
   theme: TuiThemeCurrent;
 }): JSX.Element {
   const [collapsed, setCollapsed] = createSignal(false);
@@ -137,9 +133,9 @@ export function AgentCostPanel(props: {
   const separator = createMemo(() => buildSeparator(28));
 
   const header = createMemo(() =>
-    formatPanelHeader(collapsed(), totalCost(), agentCount()),
+    panelHeaderFormatter.format(collapsed(), totalCost(), agentCount()),
   );
-  const totals = createMemo(() => formatTotalsRow(props.snapshot));
+  const totals = createMemo(() => totalsRowFormatter.format(props.snapshot));
   const activeAgent = createMemo(() => props.snapshot.lastActiveAgent);
   const hasTotalsErrors = createMemo(() => {
     const t = props.snapshot.totals;
@@ -151,7 +147,9 @@ export function AgentCostPanel(props: {
       {/* Title bar — clickable; toggles collapsed */}
       <box
         flexDirection="row"
-        onMouseUp={() => setCollapsed(toggleCollapsed(collapsed()))}
+        onMouseUp={() =>
+          setCollapsed(panelHeaderFormatter.toggleCollapsed(collapsed()))
+        }
       >
         <text>
           <span style={{ fg: props.theme.textMuted }}>
@@ -200,7 +198,7 @@ export function AgentCostPanel(props: {
           <For each={rows()}>
             {(row) => {
               const isActive = activeAgent()?.name === row.name;
-              const colorKey = getAgentColor(row.name);
+              const colorKey = agentNameFormatter.color(row.name);
               return (
                 <box flexDirection="column" paddingTop={1}>
                   {/* Agent subtitle */}
@@ -214,12 +212,12 @@ export function AgentCostPanel(props: {
                         ...(isActive ? {} : { dim: true }),
                       }}
                     >
-                      {capitalizeName(row.name)}
+                      {agentNameFormatter.capitalize(row.name)}
                     </span>
                     <Show when={row.workDurationMs > 0}>
                       <span style={{ fg: props.theme.textMuted }}>
                         {" "}
-                        {formatDuration(row.workDurationMs)}
+                        {durationFormatter.format(row.workDurationMs)}
                       </span>
                     </Show>
                     <span style={{ fg: props.theme.warning }}> {row.cost}</span>
