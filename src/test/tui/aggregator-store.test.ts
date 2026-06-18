@@ -6,69 +6,14 @@ import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 import { AggregatorStore } from "../../tui/aggregator-store";
 import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types";
-
-// ---------------------------------------------------------------------------
-// TraceEvent — the union type accepted by `store.ingest()`.
-// ---------------------------------------------------------------------------
-//
-// Inlined here so the test file is self-contained and remains the only source
-// of truth for the event shape during the TDD red phase. The shapes match
-// the TraceEvent union produced by the JSONL tailer and consumed by
-// `scripts/metrics.mts`.
-
-type LlmCallEvent = {
-  type: "llm_call";
-  sessionID: string;
-  agent: string;
-  model: string;
-  finish: string;
-  inputTokens: number;
-  outputTokens: number;
-  reasoningTokens: number;
-  cacheRead: number;
-  cost: number;
-  durationMs: number;
-  timestamp: number;
-};
-
-type ToolCallEvent = {
-  type: "tool_call";
-  sessionID: string;
-  tool: string;
-  callID: string;
-  status: "completed" | "error";
-  durationMs: number;
-  error?: string;
-  timestamp: number;
-};
-
-type SessionCreatedEvent = {
-  type: "session_created";
-  sessionID: string;
-  parentID: string | null;
-  timestamp: number;
-};
-
-type SessionErrorEvent = {
-  type: "session_error";
-  sessionID: string;
-  errorType?: string;
-  errorMessage?: string;
-  timestamp: number;
-};
-
-type AgentDelegationEvent = {
-  type: "agent_delegation";
-  timestamp: number;
-  [key: string]: unknown;
-};
-
-type TraceEvent =
-  | LlmCallEvent
-  | ToolCallEvent
-  | SessionCreatedEvent
-  | SessionErrorEvent
-  | AgentDelegationEvent;
+import type {
+  LlmCallEvent,
+  ToolCallEvent,
+  SessionCreatedEvent,
+  SessionErrorEvent,
+  AgentDelegationEvent,
+  TraceEvent,
+} from "../../shared/trace-events.types";
 
 // ---------------------------------------------------------------------------
 // Fixture builders — small helpers that produce events with sensible defaults
