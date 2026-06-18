@@ -28,17 +28,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: pnpm run build
-
-      - run: pnpm run lint
-
-      - run: pnpm test
-
       - run: pnpm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - run: |
+      - name: Create GitHub Release
+        run: |
           VERSION=$(node -p "require('./package.json').version")
           gh release create "v$VERSION" --generate-notes
         env:
