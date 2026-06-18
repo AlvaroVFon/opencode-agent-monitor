@@ -30,12 +30,27 @@ export type Aggregate = {
   workDurationMs: number;
 };
 
+export type ToolStats = {
+  calls: number;
+  errors: number;
+  durationMs: number;
+};
+
+export type ErrorEntry = {
+  sessionID: string;
+  type: string;
+  message: string;
+  timestamp: number;
+};
+
 export type MetricsSnapshot = {
-  totals: Aggregate & { sessionsCreated: number; sessionErrors?: number };
+  totals: Aggregate & { sessionsCreated: number; sessionErrors: number };
   bySession: Record<string, Aggregate>;
   byAgent: Record<string, Aggregate>;
   byModel: Record<string, Aggregate>;
   byAgentModel: Record<string, Record<string, Aggregate>>;
+  byTool: Record<string, ToolStats>;
+  errors: ErrorEntry[];
   window: { firstSeenAt: number; lastSeenAt: number };
   lastActiveAgent: { name: string; timestamp: number } | null;
 };

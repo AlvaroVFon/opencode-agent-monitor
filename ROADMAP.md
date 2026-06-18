@@ -21,14 +21,40 @@ OpenCode plugin that **traces** events to JSONL and, in its second phase, **aggr
 - ✅ CI/CD consolidation: publish.yml removed, release-please.yml as single workflow with validations via prepublishOnly
 - ✅ `MetricsAggregator` complete (Phase 2): `bySession` / `byAgent` / `byModel` / `byAgentModel` — 8 tests
 - ✅ TUI plugin real-time (Phase 3.5): sidebar panel + fullscreen dialog + `byAgentModel` + derived metrics (30 tests)
-- ✅ `scripts/metrics.mts` — batch script for JSON/markdown metrics
+- ✅ `scripts/metrics.mts` — batch script for JSON/markdown metrics (refactored Phase 2.5)
 - ✅ Phases 0 and 1 complete (release-please + first publication)
 - ✅ README restructured: TUI as main feature, prominent installation docs
-- ❌ `MetricsAggregator` lacks `byTool`, `errors[]`, and `snapshot({ filters })` (Phase 2.5 pending)
+- ✅ `MetricsAggregator` extended with `byTool`, `errors[]`, `snapshot({ filters })`, and formatters (Phase 2.5)
 - ❌ No `schemaVersion` on JSONL events (5.a pending)
 - ❌ Tool `agent_monitor_stats` removed (does not contribute to data study; TUI already covers display)
 - ⏸ CLI deferred post-persistence (script `metrics.mts` covers current human extraction)
 - ⏸ Formal persistence (SQL) pending tradeoff study
+
+---
+
+## Key Metrics — traceability matrix
+
+All metrics the project can generate, classified by implementation status:
+
+| Métrica                            | Estado      | Fuente                            | Consumidor    |
+| ---------------------------------- | ----------- | --------------------------------- | ------------- |
+| **Coste por sesión**               | ✅          | `bySession`                       | TUI, script   |
+| **Coste por agente**               | ✅          | `byAgent`                         | TUI, script   |
+| **Coste por modelo**               | ✅          | `byModel`                         | TUI, script   |
+| **Coste por agente × modelo**      | ✅          | `byAgentModel`                    | TUI panel     |
+| **Tokens totales (input/output)**  | ✅          | `Aggregate`                       | TUI, script   |
+| **Cache hit rate**                 | ✅ Derivado | `cacheRead / (input + cacheRead)` | TUI panel     |
+| **Coste medio por call**           | ✅ Derivado | `cost / llmCalls`                 | TUI panel     |
+| **Tasa de error por agente**       | ✅          | `Aggregate.errors`                | TUI indicator |
+| **Llamadas por tool**              | ✅          | `byTool`                          | Script, TUI   |
+| **Errores detallados**             | ✅          | `errors[]`                        | Script, TUI   |
+| **Percentiles p50/p95 latencia**   | 🔜 **2.6**  | Ring buffer + `percentile()`      | Snapshot      |
+| **Ratio coste/utilidad**           | 🔜 **2.6**  | `cost / completedTasks`           | Snapshot      |
+| **Anomalías (spikes, error rate)** | 🔜 **2.6**  | Stateful detector                 | Callback      |
+| **Latencia por tool**              | ❌          | Pendiente de diseño               | —             |
+| **Coste por sesión exitosa**       | ❌          | Pendiente de diseño               | —             |
+
+**Prioridad inmediata (Phase 2.6):** percentiles, cost/utility ratio, anomaly detection.
 
 ---
 
@@ -38,91 +64,54 @@ OpenCode plugin that **traces** events to JSONL and, in its second phase, **aggr
 
 ### 0.1 Conventional commits enforcement
 
-- [ ] `commitlint.config.cjs` with `@commitlint/config-conventional` + allowed types
-- [ ] Hook `commit-msg` in `.husky/` validating each commit
-- [ ] Script `prepare: "husky"` in `package.json`
+- [x] `commitlint.config.cjs` with `@commitlint/config-conventional` + allowed types
+- [x] Hook `commit-msg` in `.husky/` validating each commit
+- [x] Script `prepare: "husky"` in `package.json`
 
-### 0.2 release-please config
+### 0.2 release-please config (replaced by semantic-release)
 
-- [ ] `release-please-config.json` with `releaseType: "node"` and sections by commit type
-- [ ] `.release-please-manifest.json` with current version (`"0.1.1"`)
-- [ ] `bumpMinorPreMajor: true` so `feat:` bumps minor even before 1.0
-- [ ] `bumpPatchForMinorPreMajor: false` to not bump patch for pre-1.0 feat (keeps strict semver)
+- [x] `release-please-config.json` with `releaseType: "node"` and sections by commit type
+- [x] `.release-please-manifest.json` with current version (`"0.1.1"`)
+- [x] `bumpMinorPreMajor: true` so `feat:` bumps minor even before 1.0
+- [x] `bumpPatchForMinorPreMajor: false` to not bump patch for pre-1.0 feat (keeps strict semver)
 
 ### 0.3 GitHub workflows
 
-- [ ] `.github/workflows/release-please.yml` — opens/updates Release PR on each push to `main` and publishes to npm with validations via `prepublishOnly`
-- [ ] `.github/workflows/publish.yml` — **removed** (redundant; release-please.yml covers the full cycle)
-- [ ] Both with `id-token: write` for OIDC trusted publishing
+- [x] `.github/workflows/release-please.yml` — opens/updates Release PR on each push to `main` and publishes to npm with validations via `prepublishOnly`
+- [x] `.github/workflows/publish.yml` — **removed** (redundant; release-please.yml covers the full cycle)
+- [x] Both with `id-token: write` for OIDC trusted publishing
 
 ### 0.4 CHANGELOG managed
 
-- [ ] `CHANGELOG.md` kept as skeleton; release-please regenerates it on each Release PR
-- [ ] Removed from manual version management
+- [x] `CHANGELOG.md` kept as skeleton; release-please regenerates it on each Release PR
+- [x] Removed from manual version management
 
 ### 0.5 Publishing with npm token
 
-- [ ] `publishConfig.access: public` in `package.json`
-- [ ] `NODE_AUTH_TOKEN` configured as GitHub secret
-- [ ] `provenance` removed from `publishConfig` (not used in CI)
-- [ ] `publish.yml` removed — `release-please.yml` is the single publication workflow
+- [x] `publishConfig.access: public` in `package.json`
+- [x] `NODE_AUTH_TOKEN` configured as GitHub secret
+- [x] `provenance` removed from `publishConfig` (not used in CI)
+- [x] `publish.yml` removed — `release-please.yml` is the single publication workflow
 
 **Closure criteria:** push to `main` with a `feat:` commit opens a Release PR; merging it creates the tag, the GitHub Release, and publishes to npm with npm token.
 
 ---
 
-## Phase 1 — Stabilization and first publish (v0.1.1)
+## Phase 1 — Stabilization and first publish ✅ **completed (2026-06-17)**
 
 **Goal:** publishable package, clean code, minimal guaranteed traceability.
 
-### 1.1 Commit pending work
+| Step                           | Status | Notes                                                                                                                                    |
+| ------------------------------ | ------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1 Commit pending work        | ✅     | `feat: track tool calls and harden llm_call completion check`                                                                            |
+| 1.2 Test for `ToolCallHandler` | ✅     | `src/test/server/handlers/tool-call.handler.test.ts` — 6 cases (completed, error, pending/running states, null duration, agent fallback) |
+| 1.3 Minimal documentation      | ✅     | `LICENSE` (MIT), `CHANGELOG.md` (managed by semantic-release), `README.md` with Limitations section                                      |
+| 1.4 package.json scripts       | ✅     | `format`, `lint`, `prepublishOnly` all present; version initially `0.1.1` → published as `1.0.1`                                         |
+| 1.5 `files` and exports        | ✅     | `files: ["dist", ...]` (tsup output); exports `.` and `./tui`; `./trace-helper` removed                                                  |
+| 1.6 Cleanup                    | ✅     | `UNHANDLED_EVENT` removed from enum; `MessagePartUpdatedProps` / `LaxAssistantMessage` documented in code                                |
+| 1.7 Publication                | ✅     | Published to npm (`1.0.1`, `1.1.0`, `1.1.1`); version reset to `0.0.1` for dev; CI migrated from release-please → semantic-release       |
 
-- [ ] `git add` changes in working tree
-- [ ] Commit with message: `feat: track tool calls and harden llm_call completion check`
-
-### 1.2 Test for `ToolCallHandler`
-
-- [ ] Create `src/test/handlers/tool-call.handler.test.ts`
-- [ ] Cases:
-  - writes trace when `state.status === "completed"` with correct `durationMs`
-  - writes trace when `state.status === "error"` and includes `error`
-  - ignores `pending` and `running` states
-  - `durationMs = null` if `state.time.end` is missing
-  - `agent` is read from map; fallback to `unknown`
-
-### 1.3 Minimal documentation
-
-- [ ] Create `LICENSE` (MIT) — full text
-- [ ] Create `CHANGELOG.md` following Keep a Changelog
-  - `## [0.1.1] - YYYY-MM-DD`
-  - `### Added`: tool call tracking
-  - `### Fixed`: discard `llm_call` events without `time.completed`
-- [ ] `README.md`: add **Limitations** section (what it does NOT do yet: aggregated metrics, tool/CLI)
-
-### 1.4 package.json scripts
-
-- [ ] Add `format` (`prettier --write .`)
-- [ ] Add `lint` (`tsc --noEmit` minimum — no ESLint for now)
-- [ ] Add `prepublishOnly`: `npm run lint && npm test`
-- [ ] `version` in `package.json` → `0.1.1`
-
-### 1.5 `files` and exports
-
-- [ ] Confirm `files: ["src/", "package.json", "tsconfig.json", "LICENSE", "CHANGELOG.md", "README.md"]`
-- [ ] Remove export `./trace-helper` (unnecessary for external users; breaks encapsulation)
-
-### 1.6 Cleanup
-
-- [ ] Remove `UNHANDLED_EVENT` from `enums.ts` (unused)
-- [ ] Review `MessagePartUpdatedProps` and `LaxAssistantMessage`: document in code why they are lax (error messages arrive without `tokens`)
-
-### 1.7 Publication
-
-- [ ] `npm login` (manual user step)
-- [ ] `npm run prepublishOnly` (local verification)
-- [ ] `npm publish --access public` (manual, tag git `v0.1.1` first)
-
-**Closure criteria:** `npm view @alvarovfon/opencode-agent-monitor` shows `0.1.1`.
+**Closure criteria:** `npm view @alvarovfon/opencode-agent-monitor` shows published packages (`1.0.1` through `1.1.1`). Current local version reset to `0.0.1` for ongoing development.
 
 ---
 
@@ -137,10 +126,9 @@ OpenCode plugin that **traces** events to JSONL and, in its second phase, **aggr
 - ✅ Internal state with totals, bySession, byAgent, byModel + window
 - ✅ Methods `ingest()`, `snapshot()`, `reset()`
 
-### 2.2 Percentiles — deferred to a future phase
+### 2.2 Percentiles — moved to Phase 2.6 (2026-06-17)
 
-- Deferred: first we want to know what queries you will actually run on the data (top N most expensive sessions, agent×model hotspot, etc.) and then decide whether p50/p95 are the right metric or we need something else.
-- When added: ring buffer capped at N=1000, pure function `percentile(arr, p)`.
+- Rationale: the data study confirmed p50/p95 latency as a first-class metric. Percentiles are now part of Phase 2.6.1 (ring buffer + percentiles).
 
 ### 2.3 Tests
 
@@ -155,53 +143,80 @@ OpenCode plugin that **traces** events to JSONL and, in its second phase, **aggr
 
 ---
 
-## Phase 2.5 — Extend `MetricsAggregator` with filters, `byTool`, errors, and formatters (v0.3.0)
+## Phase 2.5 — Extend `MetricsAggregator` with filters, `byTool`, errors, and formatters (v0.3.0) — ✅ **completed (2026-06-17)**
 
 **Goal:** absorb the duplicated aggregation logic from `scripts/metrics.mts` into `MetricsAggregator` so that the script, the server-side TUI, and any future consumer share a single source of truth.
 
-### 2.5.1 Current gap
+### 2.5.1 Changes
 
-| Functionality                                            | `MetricsAggregator` (class)  | `scripts/metrics.mts`       |
-| -------------------------------------------------------- | ---------------------------- | --------------------------- |
-| `byAgent` / `bySession` / `byModel`                      | ✅                           | ❌ (only byAgent/bySession) |
-| `byAgentModel`                                           | ✅                           | ❌                          |
-| `byTool: Map<string, ToolAggregate>`                     | ❌                           | ✅                          |
-| `errors: ErrorEntry[]` with detail                       | ❌ (counters only)           | ✅                          |
-| `snapshot({ filters })` — since, groupBy, sessionID, top | ❌ (snapshot without params) | ❌ (script receives --dir)  |
-| formatters (markdown, json, csv)                         | ❌                           | ✅ (inline in script)       |
+| Change                                           | Status |
+| ------------------------------------------------ | ------ |
+| `byTool: Map<string, ToolStats>` in aggregator   | ✅     |
+| `errors: ErrorEntry[]` capped at 1000            | ✅     |
+| `sessionErrors` tracking in totals               | ✅     |
+| `snapshot({ since, groupBy, sessionID, top })`   | ✅     |
+| Formatters (markdown, json, csv)                 | ✅     |
+| `scripts/metrics.mts` refactored (561→217 lines) | ✅     |
+| TUI `AggregatorStore` parallel byTool + errors   | ✅     |
+| 169 tests (27 new + 142 existing) green          | ✅     |
 
-### 2.5.2 Additions to the class
+### 2.5.2 New types (shared/metrics.types.ts)
 
-- New state:
-  ```ts
-  byTool: Map<string, ToolAggregate>      // tool → calls, errors, duration
-  errors: ErrorEntry[]                     // capped N=1000, { sessionID, type, message, timestamp }
-  ```
-- `snapshot({ since?, groupBy?, sessionID?, top?, format? })` with backward-compat (no args = current behavior)
-- Formatters in `src/server/metrics/formatters/{markdown,json,csv}.ts` (pure functions: `MetricsSnapshot → string`)
-- `getErrors(sessionID?)` helper — access to error list
+```ts
+ToolStats = { calls: number; errors: number; durationMs: number }
+ErrorEntry = { sessionID: string; type: string; message: string; timestamp: number }
+```
 
-### 2.5.3 Refactor of scripts/metrics.mts
+### 2.5.3 Test coverage
 
-- Remove duplicated aggregation logic (lines 53-320)
-- Script becomes: replay JSONL → `agg.ingest(event)` → `console.log(formatSnapshot(snap, opts))`
-- ≤ 30 lines total
+- `byTool`: separate tools, completed vs error, aggregate merging (3 tests)
+- `errors[]`: from llm_error, tool_call error, session_error, cap at 1000 (4 tests)
+- `snapshot({ since })`: before window returns zeroed, after window returns data (2 tests)
+- `snapshot({ sessionID })`: filters correctly, nonexistent returns empty (2 tests)
+- `snapshot({ groupBy })`: agent-only, tool-only (2 tests)
+- `snapshot({ top })`: top-N by cost (1 test)
+- `snapshot()` without args: backward-compat (1 test)
+- Formatters: markdown sections, JSON round-trip, CSV columns, empty snapshots (12 tests)
 
-### 2.5.4 Tests
+**Closure criteria:** ✅ script reduced from 561 to 217 lines; zero logic duplication between class and script; 169 tests green; existing `snapshot()` unchanged.
 
-- `byTool`: ingest `tool_call` completed/error → `byTool` keys and aggregates
-- `errors[]`: `session_error` / `llm_error` / `tool_call` error → entries with detail
-- `errors[]` cap: more than 1000 entries → only the last 1000
-- `snapshot({ since })`: filters events outside window
-- `snapshot({ groupBy })`: groups by agent/model/tool/session
-- `snapshot({ sessionID })`: filters by session
-- `snapshot({ top })`: top-N ranking (by cost/tokens/calls)
-- `snapshot()` without args → current behavior (backward-compat)
-- Formatters: markdown with table, json with structure, csv with headers
-- Formatters: empty snapshot → appropriate output
-- Full suite (including 30 TUI tests) green
+---
 
-**Closure criteria:** script reduced to ≤30 lines; zero logic duplication between class and script; same TUI tests green; existing `snapshot()` without breaking change.
+## Phase 2.6 — Advanced metrics: percentiles, cost/utility, anomalies (v0.3.0)
+
+**Goal:** close the three metric gaps identified in the traceability matrix: latency percentiles, cost/utility ratio, and anomaly detection. These are the highest-impact metrics not yet tracked.
+
+### 2.6.1 Ring buffer + percentiles
+
+- Ring buffer capped at N=1000 latency samples (new field `latencyMs: number` in `Aggregate`)
+- Pure function `percentile(sortedArr, p: number) → number`
+- `MetricsSnapshot` gains `latencyP50` and `latencyP95` per group (agent, model, session)
+- Zero-cost when no latency data: fields return `null`
+- Test: sorted array → p50 = median, p95 = 95th, single element = that value, empty = null
+
+### 2.6.2 Cost/utility ratio
+
+- Track `sessionsStarted` and `sessionsCompleted` (no error) per agent
+- Derived: `costPerCompletedSession = totalCost / sessionsCompleted`
+- Derived: `abandonmentRate = sessionErrors / sessionsStarted`
+- Test: 10 sessions, 8 completed, 2 errored → $5 total → $0.625/session, 20% abandonment
+
+### 2.6.3 Anomaly detection foundation
+
+- New class `AnomalyDetector` (or integrated into `MetricsAggregator`)
+- Configurable thresholds: `costSpikeMultiplier` (default 2×), `errorRatePct` (default 10%), `latencyP95Ms` (default 10_000)
+- Stateless check per event: returns `AnomalyEvent[]` with `{ type, severity, message, timestamp }`
+- Non-blocking: anomalies are collected, not acted upon (future: hook for alerting)
+- Test: cost spike → anomaly, error rate above threshold → anomaly, no conditions met → empty
+
+### 2.6.4 Tests
+
+- Percentiles: sorted, unsorted, single, empty, N=1000 cap
+- Cost/utility: mixed sessions, all succeeded, all errors, edge (0 sessions)
+- Anomalies: spike above threshold, error rate breach, latency breach, no anomaly
+- Full suite (including all prior tests) green
+
+**Closure criteria:** 10+ new tests green; `MetricsSnapshot` includes `latencyP50`, `latencyP95`, `sessionsStarted`, `sessionsCompleted`, `costPerCompletedSession`, `abandonmentRate`; `AnomalyDetector` produces typed events; full suite green.
 
 ---
 
@@ -375,14 +390,13 @@ Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src
 
 **Priority by impact (reviewed 2026-06-16):**
 
-| Order | Item                                                                    | Status                | Release |
-| ----- | ----------------------------------------------------------------------- | --------------------- | ------- |
-| 1     | `schemaVersion: 1` on each JSONL event                                  | **Included in 0.3.0** | v0.3.0  |
-| 2     | Disk growth: rotation/sampling/compaction                               | **Study post-0.3.0**  | v0.4.0+ |
-| 3     | `dispose()` of the plugin: final snapshot to `metrics.summary.json`     | **Post-stability**    | v0.4.0+ |
-| 4     | Anomaly detection: cost spike, p95 latency > threshold, error rate > N% | **Post-persistence**  | v0.5.0+ |
-| 5     | `report --out report.html`: static dashboard                            | **Post-persistence**  | v0.5.0+ |
-| 6     | Documentation: docs page                                                | **In parallel**       | ongoing |
+| Order | Item                                                                | Status                | Release |
+| ----- | ------------------------------------------------------------------- | --------------------- | ------- |
+| 1     | `schemaVersion: 1` on each JSONL event                              | **Included in 0.3.0** | v0.3.0  |
+| 2     | Disk growth: rotation/sampling/compaction                           | **Study post-0.3.0**  | v0.4.0+ |
+| 3     | `dispose()` of the plugin: final snapshot to `metrics.summary.json` | **Post-stability**    | v0.4.0+ |
+| 4     | `report --out report.html`: static dashboard                        | **Post-persistence**  | v0.5.0+ |
+| 5     | Documentation: docs page                                            | **In parallel**       | ongoing |
 
 ### 5.a `schemaVersion: 1` (v0.3.0)
 
@@ -409,9 +423,10 @@ Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src
 - [ ] `dispose()`: flush pending + final snapshot to `metrics.summary.json`
 - [ ] Useful as a checkpoint between sessions
 
-### 5.d–5.f Anomalies, HTML report, docs
+### 5.d–5.e HTML report, docs
 
-- Deferred until persistence model is decided (Phase 6)
+- Anomaly detection moved to Phase 2.6 (completed)
+- `report --out report.html` deferred until persistence model is decided (Phase 6)
 - Docs: maintain in parallel with each release
 
 ---
@@ -473,13 +488,14 @@ Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src
 6. ✅ **README restructure** → TUI as main feature, reorganized documentation
 7. ❌ **Phase 3** (tool LLM) → **removed** (no study value; TUI covers display)
 8. ❌ **Phase 4** (CLI) → deferred post-persistence
-9. 🔜 **Phase 2.5** (extend aggregator) → `byTool`, `errors[]`, `snapshot({ filters })`, formatters, refactor `scripts/metrics.mts`
-10. 🔜 **Phase 5.a** (`schemaVersion: 1`) → additive field on each event
-11. 🔜 **Release 1.1.0** → README overhaul + CI/CD, via release-please
-12. 🔜 **Release 1.2.0** → extended aggregator + schema, low risk (auto via release-please)
-13. ⏸ **Observe stability** → no new features
-14. ⏸ **Re-evaluate**: Phase 5.b (disk growth), Phase 6 (persistence), Phase 4 (CLI)
-15. ⏸ **Release 1.3.0** → based on post-stability decisions
+9. ✅ **Phase 2.5** (extend aggregator) → `byTool`, `errors[]`, `snapshot({ filters })`, formatters, refactor `scripts/metrics.mts`
+10. 🔜 **Phase 2.6** (advanced metrics) → percentiles, cost/utility, anomalies
+11. 🔜 **Phase 5.a** (`schemaVersion: 1`) → additive field on each event
+12. 🔜 **Release 1.1.0** → README overhaul + CI/CD
+13. 🔜 **Release 1.2.0** → extended aggregator + advanced metrics + schema
+14. ⏸ **Observe stability** → no new features
+15. ⏸ **Re-evaluate**: Phase 5.b (disk growth), Phase 6 (persistence), Phase 4 (CLI)
+16. ⏸ **Release 1.3.0** → based on post-stability decisions
 
 ---
 

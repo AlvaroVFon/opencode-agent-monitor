@@ -1,4 +1,9 @@
-import type { Aggregate, MetricsSnapshot } from "../shared/metrics.types";
+import type {
+  Aggregate,
+  ErrorEntry,
+  MetricsSnapshot,
+  ToolStats,
+} from "../shared/metrics.types";
 
 // ---------------------------------------------------------------------------
 // TraceEvent — the shape produced by the JSONL tailer from trace.jsonl files.
@@ -133,6 +138,8 @@ export class AggregatorStore {
   private bySession: Map<string, SessionAggregate>;
   private byModel: Map<string, Aggregate>;
   private byAgentModel: Map<string, Map<string, Aggregate>>;
+  private byTool: Map<string, ToolStats>;
+  private errors: ErrorEntry[];
   private firstSeenAt: number;
   private lastSeenAt: number;
   private lastActiveAgent: { name: string; timestamp: number } | null;
@@ -145,6 +152,8 @@ export class AggregatorStore {
     this.bySession = new Map();
     this.byModel = new Map();
     this.byAgentModel = new Map();
+    this.byTool = new Map();
+    this.errors = [];
     this.firstSeenAt = 0;
     this.lastSeenAt = 0;
     this.lastActiveAgent = null;
@@ -177,6 +186,15 @@ export class AggregatorStore {
       case "tool_call": {
         this.addTool(this.totals, event);
         this.addTool(this.getSession(event.sessionID), event);
+        this.addToolStats(this.getTool(event.tool), event);
+        if (event.status === "error" && event.error) {
+          this.pushError({
+            sessionID: event.sessionID,
+            type: "tool_error",
+            message: event.error,
+            timestamp: event.timestamp,
+          });
+        }
         break;
       }
 
@@ -189,6 +207,12 @@ export class AggregatorStore {
       case "session_error": {
         this.totals.sessionErrors += 1;
         this.getSession(event.sessionID).sessionErrors += 1;
+        this.pushError({
+          sessionID: event.sessionID,
+          type: event.errorType ?? "session_error",
+          message: event.errorMessage ?? "",
+          timestamp: event.timestamp,
+        });
         break;
       }
 
@@ -238,6 +262,10 @@ export class AggregatorStore {
           ),
         ]),
       ),
+      byTool: Object.fromEntries(
+        Array.from(this.byTool.entries()).map(([k, v]) => [k, { ...v }]),
+      ),
+      errors: this.errors.map((e) => ({ ...e })),
       window: {
         firstSeenAt: this.firstSeenAt,
         lastSeenAt: this.lastSeenAt,
@@ -254,6 +282,8 @@ export class AggregatorStore {
     this.bySession = new Map();
     this.byModel = new Map();
     this.byAgentModel = new Map();
+    this.byTool = new Map();
+    this.errors = [];
     this.firstSeenAt = 0;
     this.lastSeenAt = 0;
     this.lastActiveAgent = null;
@@ -304,6 +334,29 @@ export class AggregatorStore {
       this.byAgentModel.set(agent, inner);
     }
     return getOrCreate(inner, model, emptyAggregate);
+  }
+
+  private getTool(tool: string): ToolStats {
+    return getOrCreate(this.byTool, tool, () => ({
+      calls: 0,
+      errors: 0,
+      durationMs: 0,
+    }));
+  }
+
+  private addToolStats(target: ToolStats, event: ToolCallEvent): void {
+    target.calls += 1;
+    if (event.status === "error") {
+      target.errors += 1;
+    }
+    target.durationMs += event.durationMs;
+  }
+
+  private pushError(entry: ErrorEntry): void {
+    if (this.errors.length >= 1000) {
+      this.errors.shift();
+    }
+    this.errors.push(entry);
   }
 
   private emitSnapshot(): void {

@@ -1,46 +1,55 @@
-import { EventType, PartStatus, PartType, Role, UNKNOWN } from "../enums";
+import { PartStatus, PartType, Role, UNKNOWN } from "../enums";
 import type {
   MessagePartUpdatedProps,
   MessageUpdatedProps,
   SessionCreatedProps,
+  SessionErrorProps,
 } from "../types";
 import { MetricsAggregatorHelper } from "../helpers/metrics-aggregator.helper";
-import { MetricsHandlersRegistry } from "./metrics.aggregator.registry";
+import { SnapshotFilterHelper } from "../helpers/snapshot-filter.helper";
+import { SnapshotTransformHelper } from "../helpers/snapshot-transform.helper";
+import type { MetricsHandlersRegistry } from "./metrics.aggregator.registry";
 import type { LlmAssistantMessage } from "./messages.types";
 import type {
   Aggregate,
+  ErrorEntry,
   MetricsSnapshot,
   TokenUsage,
+  ToolStats,
 } from "../../shared/metrics.types";
 
 export class MetricsAggregator {
-  private readonly totals: Aggregate & { sessionsCreated: number };
+  private readonly totals: Aggregate & {
+    sessionsCreated: number;
+    sessionErrors: number;
+  };
   private readonly bySession = new Map<string, Aggregate>();
   private readonly byAgent = new Map<string, Aggregate>();
   private readonly byModel = new Map<string, Aggregate>();
   private readonly byAgentModel = new Map<string, Map<string, Aggregate>>();
+  private readonly byTool = new Map<string, ToolStats>();
+  private readonly errors: ErrorEntry[] = [];
   private firstSeenAt = 0;
   private lastSeenAt = 0;
-  private readonly registry: MetricsHandlersRegistry;
+  private registry!: MetricsHandlersRegistry;
 
   constructor(
     private readonly currentAgent: Map<string, string>,
     private readonly helper: MetricsAggregatorHelper,
+    private readonly filterHelper: SnapshotFilterHelper = new SnapshotFilterHelper(
+      new SnapshotTransformHelper(new MetricsAggregatorHelper()),
+    ),
   ) {
     this.totals = {
       ...this.helper.emptyAggregate(),
       sessionsCreated: 0,
+      sessionErrors: 0,
     };
-    this.registry = new MetricsHandlersRegistry()
-      .register(EventType.MESSAGE_UPDATED, (properties) =>
-        this.ingestMessage(properties as MessageUpdatedProps),
-      )
-      .register(EventType.MESSAGE_PART_UPDATED, (properties) =>
-        this.ingestPart(properties as MessagePartUpdatedProps),
-      )
-      .register(EventType.SESSION_CREATED, (properties) =>
-        this.ingestSessionCreated(properties as SessionCreatedProps),
-      );
+  }
+
+  /** Called by aggregator-wiring after construction. */
+  init(registry: MetricsHandlersRegistry): void {
+    this.registry = registry;
   }
 
   ingest(event: { type: string; properties: unknown }): void {
@@ -48,13 +57,46 @@ export class MetricsAggregator {
     this.registry.dispatch(event);
   }
 
-  snapshot(): MetricsSnapshot {
+  snapshot(opts?: {
+    since?: number;
+    groupBy?: "agent" | "model" | "session" | "tool";
+    sessionID?: string;
+    top?: number;
+  }): MetricsSnapshot {
+    const base = this.buildBaseSnapshot();
+
+    if (opts?.since) {
+      const filtered = this.filterHelper.since(base, opts.since);
+      if (filtered) return filtered;
+    }
+
+    if (opts?.sessionID) {
+      return this.filterHelper.sessionID(base, opts.sessionID);
+    }
+
+    if (opts?.groupBy) {
+      return this.filterHelper.groupBy(base, opts.groupBy);
+    }
+
+    if (opts?.top && opts.top > 0) {
+      return this.filterHelper.top(base, opts.top);
+    }
+
+    return base;
+  }
+
+  private buildBaseSnapshot(): MetricsSnapshot {
     return {
-      totals: this.helper.cloneAggregateWithSessions(this.totals),
+      totals: {
+        ...this.helper.cloneAggregateWithSessions(this.totals),
+        sessionErrors: this.totals.sessionErrors,
+      },
       bySession: this.helper.mapToRecord(this.bySession),
       byAgent: this.helper.mapToRecord(this.byAgent),
       byModel: this.helper.mapToRecord(this.byModel),
       byAgentModel: this.helper.mapToNestedRecord(this.byAgentModel),
+      byTool: this.helper.mapToToolStatsRecord(this.byTool),
+      errors: this.errors.map((e) => ({ ...e })),
       window: { firstSeenAt: this.firstSeenAt, lastSeenAt: this.lastSeenAt },
       lastActiveAgent: null,
     };
@@ -71,15 +113,18 @@ export class MetricsAggregator {
     this.totals.tokens.cacheRead = 0;
     this.totals.cost = 0;
     this.totals.sessionsCreated = 0;
+    this.totals.sessionErrors = 0;
     this.bySession.clear();
     this.byAgent.clear();
     this.byModel.clear();
     this.byAgentModel.clear();
+    this.byTool.clear();
+    this.errors.length = 0;
     this.firstSeenAt = 0;
     this.lastSeenAt = 0;
   }
 
-  private ingestMessage(props: MessageUpdatedProps): void {
+  ingestMessage(props: MessageUpdatedProps): void {
     const msg = props.info as LlmAssistantMessage;
 
     if (msg.role !== Role.ASSISTANT) return;
@@ -111,11 +156,16 @@ export class MetricsAggregator {
     }
   }
 
-  private ingestPart(props: MessagePartUpdatedProps): void {
+  ingestPart(props: MessagePartUpdatedProps): void {
     const part = props.part as {
       type?: string;
       sessionID?: string;
-      state?: { status?: string };
+      tool?: string;
+      state?: {
+        status?: string;
+        time?: { start?: number; end?: number };
+        error?: unknown;
+      };
     };
 
     if (part.type !== PartType.TOOL) return;
@@ -126,16 +176,51 @@ export class MetricsAggregator {
 
     const sessionID = part.sessionID;
     const agent = this.currentAgent.get(sessionID) ?? UNKNOWN;
+    const toolName = part.tool ?? UNKNOWN;
+    const durationMs =
+      part.state?.time?.start && part.state?.time?.end
+        ? part.state.time.end - part.state.time.start
+        : 0;
 
-    this.recordToolCall(sessionID, agent, status === PartStatus.ERROR);
+    this.recordToolCall(
+      sessionID,
+      agent,
+      toolName,
+      status === PartStatus.ERROR,
+      durationMs,
+    );
+
+    if (status === PartStatus.ERROR) {
+      this.pushError({
+        sessionID,
+        type: "tool_error",
+        message: String(part.state?.error ?? ""),
+        timestamp: Date.now(),
+      });
+    }
   }
 
-  private ingestSessionCreated(props: SessionCreatedProps): void {
+  ingestSessionCreated(props: SessionCreatedProps): void {
     const sessionID = (props as { info?: { id?: string } }).info?.id;
     if (!sessionID) return;
 
     this.totals.sessionsCreated += 1;
     this.ensureAggregate(this.bySession, sessionID);
+  }
+
+  ingestSessionError(props: SessionErrorProps): void {
+    const sessionID =
+      props.sessionID ?? (props as { info?: { id?: string } }).info?.id;
+    if (!sessionID) return;
+
+    this.totals.sessionErrors += 1;
+
+    this.pushError({
+      sessionID,
+      type: props.error?.name ?? "session_error",
+      message: String(props.error?.data ?? ""),
+      timestamp: Date.now(),
+    });
   }
 
   private recordLlmCall(
@@ -188,12 +273,21 @@ export class MetricsAggregator {
       this.ensureNestedAggregate(this.byAgentModel, agent, model),
       inc,
     );
+
+    this.pushError({
+      sessionID,
+      type: "llm_error",
+      message: "",
+      timestamp: Date.now(),
+    });
   }
 
   private recordToolCall(
     sessionID: string,
     agent: string,
+    toolName: string,
     isError: boolean,
+    durationMs: number,
   ): void {
     const inc: Aggregate = {
       ...this.helper.emptyAggregate(),
@@ -207,6 +301,16 @@ export class MetricsAggregator {
       inc,
     );
     this.helper.addToAggregate(this.ensureAggregate(this.byAgent, agent), inc);
+
+    const toolInc: ToolStats = {
+      calls: 1,
+      errors: isError ? 1 : 0,
+      durationMs,
+    };
+    this.helper.addToToolStats(
+      this.ensureToolStats(this.byTool, toolName),
+      toolInc,
+    );
   }
 
   private ensureAggregate(map: Map<string, Aggregate>, key: string): Aggregate {
@@ -234,6 +338,22 @@ export class MetricsAggregator {
       inner.set(innerKey, bucket);
     }
     return bucket;
+  }
+
+  private ensureToolStats(map: Map<string, ToolStats>, key: string): ToolStats {
+    let bucket = map.get(key);
+    if (!bucket) {
+      bucket = this.helper.emptyToolStats();
+      map.set(key, bucket);
+    }
+    return bucket;
+  }
+
+  private pushError(entry: ErrorEntry): void {
+    if (this.errors.length >= 1000) {
+      this.errors.shift();
+    }
+    this.errors.push(entry);
   }
 
   private touchWindow(now: number): void {
