@@ -1,5 +1,5 @@
 import { TraceHelper } from "../helpers/trace.helpers";
-import { TraceEventType } from "../enums";
+import { PartStatus, PartType, TraceEventType } from "../enums";
 import { Handler } from "../handler.interface";
 import type { MessagePartUpdatedProps } from "../types";
 
@@ -9,8 +9,11 @@ export class ToolCallHandler implements Handler {
   handle(properties: unknown): void {
     const part = (properties as MessagePartUpdatedProps).part;
 
-    if (part.type !== "tool") return;
-    if (part.state.status !== "completed" && part.state.status !== "error")
+    if (part.type !== PartType.TOOL) return;
+    if (
+      part.state.status !== PartStatus.COMPLETED &&
+      part.state.status !== PartStatus.ERROR
+    )
       return;
 
     const durationMs =
@@ -25,7 +28,9 @@ export class ToolCallHandler implements Handler {
       callID: part.callID,
       status: part.state.status,
       durationMs,
-      ...(part.state.status === "error" ? { error: part.state.error } : {}),
+      ...(part.state.status === PartStatus.ERROR
+        ? { error: part.state.error }
+        : {}),
       timestamp: Date.now(),
     });
   }
