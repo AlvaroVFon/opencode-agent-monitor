@@ -171,6 +171,57 @@ describe("aggregate", () => {
     assert.deepEqual(snap.byAgentModel, {});
     assert.equal(snap.lastActiveAgent, null);
   });
+
+  it("aggregates session_error with error field instead of errorMessage", () => {
+    const events: TraceEvent[] = [
+      {
+        type: "session_error",
+        sessionID: "s1",
+        errorType: "UnknownError",
+        error: "raw error string",
+        timestamp: 1000,
+      },
+    ];
+    const snap = cliAggregator.aggregate(events);
+    assert.equal(snap.totals.sessionErrors, 1);
+    assert.equal(snap.errors[0].message, "raw error string");
+  });
+
+  it("aggregates with out-of-order timestamps covering both firstSeenAt conditions", () => {
+    const events: TraceEvent[] = [
+      {
+        type: "llm_call",
+        sessionID: "s1",
+        agent: "coder",
+        model: "gpt-4",
+        finish: "stop",
+        inputTokens: 10,
+        outputTokens: 20,
+        reasoningTokens: 0,
+        cacheRead: 0,
+        cost: 0.001,
+        durationMs: 100,
+        timestamp: 500,
+      },
+      {
+        type: "llm_call",
+        sessionID: "s2",
+        agent: "coder",
+        model: "gpt-4",
+        finish: "stop",
+        inputTokens: 5,
+        outputTokens: 10,
+        reasoningTokens: 0,
+        cacheRead: 0,
+        cost: 0.001,
+        durationMs: 50,
+        timestamp: 100,
+      },
+    ];
+    const snap = cliAggregator.aggregate(events);
+    assert.equal(snap.window.firstSeenAt, 100);
+    assert.equal(snap.window.lastSeenAt, 500);
+  });
 });
 
 describe("parseDuration", () => {
@@ -268,5 +319,16 @@ describe("filterEvents", () => {
   it("returns empty when no events match", () => {
     const result = cliAggregator.filterEvents(events, 999);
     assert.equal(result.length, 0);
+  });
+
+  it("passes through agent_delegation events without sessionID", () => {
+    const adEvents: TraceEvent[] = [
+      {
+        type: "agent_delegation",
+        timestamp: 100,
+      },
+    ];
+    const result = cliAggregator.filterEvents(adEvents, null, "s1");
+    assert.equal(result.length, 1);
   });
 });

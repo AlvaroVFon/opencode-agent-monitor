@@ -175,4 +175,25 @@ describe("errors command", () => {
     assert.equal(status, 0);
     assert.ok(stdout.includes("list errors from trace files"));
   });
+
+  it("filters by --since and includes recent errors", () => {
+    const dir = makeTempDir();
+    writeTrace(dir, [
+      {
+        type: "session_error",
+        sessionID: "s1",
+        errorType: "RuntimeError",
+        errorMessage: "recent",
+        timestamp: Date.now(),
+      },
+    ]);
+    const { stdout, stderr, status } = runCli(
+      ["errors", "--since", "24h", "--json"],
+      dir,
+    );
+    assert.equal(status, 0, `stderr: ${stderr}`);
+    const parsed = JSON.parse(stdout);
+    assert.equal(parsed.length, 1);
+    assert.equal(parsed[0].message, "recent");
+  });
 });

@@ -156,4 +156,57 @@ describe("stats command", () => {
     assert.equal(status, 0);
     assert.ok(stdout.includes("aggregate and display metrics"));
   });
+
+  it("filters by --since and includes recent events", () => {
+    const dir = makeTempDir();
+    writeTrace(dir, [
+      {
+        type: "llm_call",
+        sessionID: "s1",
+        agent: "coder",
+        model: "gpt-4",
+        finish: "stop",
+        inputTokens: 10,
+        outputTokens: 20,
+        reasoningTokens: 0,
+        cacheRead: 5,
+        cost: 0.002,
+        durationMs: 800,
+        timestamp: Date.now(),
+      },
+    ]);
+    const { stdout, stderr, status } = runCli(
+      ["stats", "--since", "24h", "--json"],
+      dir,
+    );
+    assert.equal(status, 0, `stderr: ${stderr}`);
+    const parsed = JSON.parse(stdout);
+    assert.equal(parsed.totals.llmCalls, 1);
+  });
+
+  it("exits with error when --since filters everything out", () => {
+    const dir = makeTempDir();
+    writeTrace(dir, [
+      {
+        type: "llm_call",
+        sessionID: "s1",
+        agent: "coder",
+        model: "gpt-4",
+        finish: "stop",
+        inputTokens: 10,
+        outputTokens: 20,
+        reasoningTokens: 0,
+        cacheRead: 5,
+        cost: 0.002,
+        durationMs: 800,
+        timestamp: 1000,
+      },
+    ]);
+    const { stderr, status } = runCli(
+      ["stats", "--since", "1d", "--json"],
+      dir,
+    );
+    assert.equal(status, 1);
+    assert.ok(stderr.includes("No events match"));
+  });
 });
