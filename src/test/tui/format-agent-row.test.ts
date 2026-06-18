@@ -1,9 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import {
-  formatAgentRow,
-  formatAgentRows,
-} from "../../tui/formatters/format-agent-row";
+import { agentRowFormatter } from "../../tui/formatters/agent-row.formatter";
 import type { Aggregate } from "../../shared/metrics.types";
 
 // ---------------------------------------------------------------------------
@@ -48,7 +45,7 @@ describe("formatAgentRow", () => {
     //   coder  $0.0234  ctx: 12,345  in: 1,000  out: 500  calls: 3  err: 0
     // We assert on each piece of information that must appear, rather than
     // locking the test to a specific whitespace layout.
-    const row = formatAgentRow(
+    const row = agentRowFormatter.row(
       "coder",
       makeAggregate({
         llmCalls: 3,
@@ -80,7 +77,7 @@ describe("formatAgentRow", () => {
   it("computes_context_tokens_as_input_plus_cacheRead_plus_reasoning", () => {
     // ctx = input + cacheRead + reasoning (per spec, "Technical Notes").
     // Output tokens are NOT part of the context figure.
-    const row = formatAgentRow(
+    const row = agentRowFormatter.row(
       "reviewer",
       makeAggregate({
         tokens: { input: 100, output: 9999, reasoning: 50, cacheRead: 25 },
@@ -103,7 +100,7 @@ describe("formatAgentRow", () => {
   it("formats_small_token_counts_without_separators", () => {
     // Token counts below 1000 should appear as plain integers (no commas).
     // toLocaleString('en-US') returns the bare integer for values < 1000.
-    const row = formatAgentRow(
+    const row = agentRowFormatter.row(
       "scout",
       makeAggregate({
         tokens: { input: 42, output: 7, reasoning: 3, cacheRead: 1 },
@@ -127,13 +124,13 @@ describe("formatAgentRow", () => {
 
 describe("formatAgentRows", () => {
   it("zero_agents_returns_empty_array: returns [] when byAgent is empty", () => {
-    const rows = formatAgentRows({});
+    const rows = agentRowFormatter.rows({});
     assert.ok(Array.isArray(rows), "result must be an array");
     assert.equal(rows.length, 0, "empty input must produce an empty array");
   });
 
   it("single_agent_returns_one_formatted_row: returns exactly one string", () => {
-    const rows = formatAgentRows({
+    const rows = agentRowFormatter.rows({
       coder: makeAggregate({
         llmCalls: 1,
         llmErrors: 0,
@@ -148,7 +145,7 @@ describe("formatAgentRows", () => {
   });
 
   it("n_agents_sorted_by_cost_descending: highest cost comes first", () => {
-    const rows = formatAgentRows({
+    const rows = agentRowFormatter.rows({
       alpha: makeAggregate({ cost: 0.01, llmCalls: 1 }),
       bravo: makeAggregate({ cost: 0.1, llmCalls: 1 }),
       charlie: makeAggregate({ cost: 0.05, llmCalls: 1 }),
@@ -187,7 +184,7 @@ describe("formatAgentRows", () => {
   it("n_agents_sorted_by_cost_descending: works for two agents in any input order", () => {
     // Even when the cheaper agent is listed first in the input, the output
     // must place the more expensive agent first.
-    const rows = formatAgentRows({
+    const rows = agentRowFormatter.rows({
       cheap: makeAggregate({ cost: 0.001, llmCalls: 1 }),
       pricey: makeAggregate({ cost: 0.999, llmCalls: 1 }),
     });
@@ -206,7 +203,7 @@ describe("formatAgentRows", () => {
   it("large_tokens_formatted_with_locale_separators: thousand-grouped output", () => {
     // Per the spec: tokens >= 1000 are formatted with locale separators.
     // Use unambiguous values that cannot collide with other fields in the row.
-    const row = formatAgentRows({
+    const row = agentRowFormatter.rows({
       big: makeAggregate({
         llmCalls: 2,
         llmErrors: 1,
@@ -241,7 +238,7 @@ describe("formatAgentRows", () => {
   it("large_tokens_formatted_with_locale_separators: handles values at and above 1,000,000", () => {
     // Sanity check that toLocaleString groups correctly for very large
     // numbers (millions and above).
-    const row = formatAgentRows({
+    const row = agentRowFormatter.rows({
       whale: makeAggregate({
         tokens: { input: 1_234_567, output: 0, reasoning: 0, cacheRead: 0 },
         cost: 0,

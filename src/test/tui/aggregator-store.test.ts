@@ -573,6 +573,218 @@ describe("AggregatorStore", () => {
     store.reset();
     assert.deepEqual(store.snapshot().byAgentModel, {});
   });
+
+  // -----------------------------------------------------------------------
+  // snapshot({ sessionID }) — filter data to a single session.
+  // -----------------------------------------------------------------------
+
+  it("snapshot_sessionID_filters_agents_to_session: byAgent only includes agents that had llm_calls in that session", () => {
+    const store = new AggregatorStore();
+
+    // Two sessions, each with different agents
+    store.ingest(
+      makeLlmCallEvent({
+        sessionID: "sess-1",
+        agent: "coder",
+        cost: 0.001,
+      }),
+    );
+    store.ingest(
+      makeLlmCallEvent({
+        sessionID: "sess-1",
+        agent: "reviewer",
+        cost: 0.002,
+      }),
+    );
+    store.ingest(
+      makeLlmCallEvent({
+        sessionID: "sess-2",
+        agent: "debugger",
+        cost: 0.003,
+      }),
+    );
+
+    const filtered = store.snapshot({ sessionID: "sess-1" });
+
+    // byAgent only has coder and reviewer (agents from sess-1)
+    assert.deepEqual(
+      Object.keys(filtered.byAgent).sort(),
+      ["coder", "reviewer"],
+      "byAgent must only contain agents from sess-1",
+    );
+    assert.equal(
+      filtered.byAgent["coder"]!.cost,
+      0.001,
+      "byAgent[coder].cost reflects sess-1 events",
+    );
+    assert.equal(
+      filtered.byAgent["reviewer"]!.cost,
+      0.002,
+      "byAgent[reviewer].cost reflects sess-1 events",
+    );
+    // debugger is NOT in sess-1
+    assert.ok(
+      !("debugger" in filtered.byAgent),
+      "byAgent must not contain debugger (from sess-2)",
+    );
+  });
+
+  it("snapshot_sessionID_filters_errors_to_session: errors array is scoped to the given session", () => {
+    const store = new AggregatorStore();
+
+    store.ingest(
+      makeToolCallEvent("bash", "error", {
+        sessionID: "sess-1",
+        error: "bash error",
+      }),
+    );
+    store.ingest(
+      makeSessionErrorEvent("sess-2", {
+        errorType: "session failure",
+      }),
+    );
+
+    const filtered = store.snapshot({ sessionID: "sess-1" });
+
+    assert.equal(filtered.errors.length, 1, "errors must be scoped to sess-1");
+    assert.equal(filtered.errors[0]!.message, "bash error");
+  });
+
+  it("snapshot_sessionID_returns_zeroed_for_missing_session: unknown sessionID returns zeroed snapshot", () => {
+    const store = new AggregatorStore();
+    store.ingest(makeLlmCallEvent({ sessionID: "sess-1", cost: 0.001 }));
+
+    const filtered = store.snapshot({ sessionID: "unknown" });
+
+    assert.equal(filtered.totals.llmCalls, 0, "totals must be zeroed");
+    assert.deepEqual(filtered.byAgent, {}, "byAgent must be empty");
+    assert.deepEqual(filtered.bySession, {}, "bySession must be empty");
+    assert.deepEqual(filtered.byModel, {}, "byModel must be empty");
+    assert.deepEqual(filtered.byAgentModel, {}, "byAgentModel must be empty");
+    assert.deepEqual(filtered.byTool, {}, "byTool must be empty");
+    assert.deepEqual(filtered.errors, [], "errors must be empty");
+  });
+
+  it("snapshot_sessionID_keeps_byAgentModel_for_session_agents: byAgentModel includes model breakdowns for agents in the session", () => {
+    const store = new AggregatorStore();
+
+    // Two agents in same session using different models
+    store.ingest(
+      makeLlmCallEvent({
+        sessionID: "sess-1",
+        agent: "coder",
+        model: "openai/gpt-4",
+        cost: 0.001,
+      }),
+    );
+    store.ingest(
+      makeLlmCallEvent({
+        sessionID: "sess-1",
+        agent: "coder",
+        model: "openai/gpt-4o-mini",
+        cost: 0.0005,
+      }),
+    );
+    store.ingest(
+      makeLlmCallEvent({
+        sessionID: "sess-1",
+        agent: "reviewer",
+        model: "anthropic/claude-3",
+        cost: 0.002,
+      }),
+    );
+    // Another session — should be excluded
+    store.ingest(
+      makeLlmCallEvent({
+        sessionID: "sess-2",
+        agent: "debugger",
+        model: "openai/gpt-4",
+        cost: 0.003,
+      }),
+    );
+
+    const filtered = store.snapshot({ sessionID: "sess-1" });
+
+    assert.equal(
+      Object.keys(filtered.byAgentModel).length,
+      2,
+      "byAgentModel must have 2 agents",
+    );
+    assert.ok(
+      "coder" in filtered.byAgentModel,
+      "coder must be in byAgentModel",
+    );
+    assert.ok(
+      "reviewer" in filtered.byAgentModel,
+      "reviewer must be in byAgentModel",
+    );
+    assert.ok(
+      !("debugger" in filtered.byAgentModel),
+      "debugger must not be in byAgentModel",
+    );
+
+    // coder's model breakdown reflects only sess-1 events
+    const coderModels = filtered.byAgentModel["coder"]!;
+    assert.equal(
+      Object.keys(coderModels).length,
+      2,
+      "coder must have 2 models",
+    );
+    assert.equal(coderModels["openai/gpt-4"]!.llmCalls, 1);
+    assert.equal(coderModels["openai/gpt-4o-mini"]!.llmCalls, 1);
+  });
+
+  it("snapshot_without_opts_returns_full_data: no opts returns same as current behavior", () => {
+    const store = new AggregatorStore();
+    store.ingest(
+      makeLlmCallEvent({ sessionID: "sess-1", agent: "coder", cost: 0.001 }),
+    );
+    store.ingest(
+      makeLlmCallEvent({ sessionID: "sess-2", agent: "reviewer", cost: 0.002 }),
+    );
+
+    const full = store.snapshot();
+    const explicitFull = store.snapshot({});
+
+    assert.deepEqual(explicitFull, full);
+    assert.equal(Object.keys(full.byAgent).length, 2);
+  });
+
+  it("snapshot_sessionID_totals_reflect_session_aggregates: totals use per-session aggregate, not global", () => {
+    const store = new AggregatorStore();
+
+    store.ingest(
+      makeLlmCallEvent({
+        sessionID: "sess-1",
+        agent: "coder",
+        cost: 0.001,
+        inputTokens: 100,
+      }),
+    );
+    store.ingest(
+      makeLlmCallEvent({
+        sessionID: "sess-2",
+        agent: "reviewer",
+        cost: 0.002,
+        inputTokens: 200,
+      }),
+    );
+
+    const filtered = store.snapshot({ sessionID: "sess-1" });
+
+    assert.equal(filtered.totals.llmCalls, 1, "totals.llmCalls per session");
+    assert.equal(filtered.totals.cost, 0.001, "totals.cost per session");
+    assert.equal(
+      filtered.totals.tokens.input,
+      100,
+      "totals.tokens.input per session",
+    );
+    assert.equal(
+      filtered.totals.sessionsCreated,
+      1,
+      "totals.sessionsCreated is 1 for a single session",
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

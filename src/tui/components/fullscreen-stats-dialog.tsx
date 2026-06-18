@@ -2,14 +2,16 @@ import { createMemo } from "solid-js";
 import { useKeyboard, type JSX } from "@opentui/solid";
 import type { TuiThemeCurrent } from "@opencode-ai/plugin/tui";
 import type { MetricsSnapshot } from "../../shared/metrics.types.js";
-import { formatFullscreenTable } from "../formatters/format-fullscreen-table.js";
+import { fullscreenTableFormatter } from "../formatters/fullscreen-table.formatter.js";
 
 export function FullscreenStatsDialog(props: {
   snapshot: MetricsSnapshot;
   onClose: () => void;
   theme: TuiThemeCurrent;
 }): JSX.Element {
-  const content = createMemo(() => formatFullscreenTable(props.snapshot));
+  const content = createMemo(() =>
+    fullscreenTableFormatter.format(props.snapshot),
+  );
 
   useKeyboard((event) => {
     if (event.name === "escape") {
