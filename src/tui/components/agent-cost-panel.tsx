@@ -111,11 +111,13 @@ function buildSeparator(width: number): string {
   return "─".repeat(Math.max(width, 28));
 }
 
+let _collapsed = false;
+
 export function AgentCostPanel(props: {
   snapshot: MetricsSnapshot;
   theme: TuiThemeCurrent;
 }): JSX.Element {
-  const [collapsed, setCollapsed] = createSignal(false);
+  const [collapsed, setCollapsed] = createSignal(_collapsed);
 
   const rows = createMemo(() =>
     buildAgentRows(props.snapshot.byAgent, props.snapshot.byAgentModel ?? {}),
@@ -147,9 +149,10 @@ export function AgentCostPanel(props: {
       {/* Title bar — clickable; toggles collapsed */}
       <box
         flexDirection="row"
-        onMouseUp={() =>
-          setCollapsed(panelHeaderFormatter.toggleCollapsed(collapsed()))
-        }
+        onMouseUp={() => {
+          _collapsed = panelHeaderFormatter.toggleCollapsed(collapsed());
+          setCollapsed(_collapsed);
+        }}
       >
         <text>
           <span style={{ fg: props.theme.textMuted }}>
