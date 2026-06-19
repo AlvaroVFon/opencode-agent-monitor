@@ -1,4 +1,4 @@
-import { createSignal } from "solid-js";
+import { createMemo, createSignal } from "solid-js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { PluginOptions } from "@opencode-ai/plugin";
@@ -63,16 +63,23 @@ const tui: TuiPlugin = async (
   //    even if tailer setup fails.
   const theme = (): TuiThemeCurrent => api.theme.current;
 
+  // Reactive wrapper so signal reads are tracked inside Solid's tree.
+  function SidebarContentPanel(props: { sessionID?: string }) {
+    const activeSnap = createMemo(() => {
+      const fullSnap = snapshot() ?? store.snapshot();
+      return props.sessionID
+        ? store.snapshot({ sessionID: props.sessionID })
+        : fullSnap;
+    });
+    return <AgentCostPanel snapshot={activeSnap()} theme={theme()} />;
+  }
+
   api.slots.register({
     order: SIDEBAR_ORDER,
     slots: {
-      sidebar_content: (_ctx, props) => {
-        const fullSnap = snapshot() ?? store.snapshot();
-        const sessionSnap = props.session_id
-          ? store.snapshot({ sessionID: props.session_id })
-          : fullSnap;
-        return <AgentCostPanel snapshot={sessionSnap} theme={theme()} />;
-      },
+      sidebar_content: (_ctx, props) => (
+        <SidebarContentPanel sessionID={props.session_id} />
+      ),
     },
   } satisfies TuiSlotPlugin);
 
