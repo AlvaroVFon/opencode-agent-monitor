@@ -36,6 +36,9 @@ export class AggregatorStore {
   private byAgentModel: Map<string, Map<string, Aggregate>>;
   private byTool: Map<string, ToolStats>;
   private bySkill: Map<string, SkillStats>;
+  private sessionParent: Map<string, string>;
+  private sessionChildren: Map<string, Set<string>>;
+  private bySessionLastActive: Map<string, { name: string; timestamp: number }>;
   private errors: ErrorEntry[];
   private firstSeenAt: number;
   private lastSeenAt: number;
@@ -53,6 +56,9 @@ export class AggregatorStore {
     this.byAgentModel = new Map();
     this.byTool = new Map();
     this.bySkill = new Map();
+    this.sessionParent = new Map();
+    this.sessionChildren = new Map();
+    this.bySessionLastActive = new Map();
     this.errors = [];
     this.firstSeenAt = 0;
     this.lastSeenAt = 0;
@@ -85,6 +91,15 @@ export class AggregatorStore {
             timestamp: event.timestamp,
           };
         }
+
+        // Track per-session last active agent.
+        const prev = this.bySessionLastActive.get(event.sessionID);
+        if (!prev || event.timestamp >= prev.timestamp) {
+          this.bySessionLastActive.set(event.sessionID, {
+            name: event.agent,
+            timestamp: event.timestamp,
+          });
+        }
         break;
       }
 
@@ -112,6 +127,15 @@ export class AggregatorStore {
       case TraceEventType.SESSION_CREATED: {
         this.totals.sessionsCreated += 1;
         this.getSession(event.sessionID);
+        if (event.parentID) {
+          this.sessionParent.set(event.sessionID, event.parentID);
+          let children = this.sessionChildren.get(event.parentID);
+          if (!children) {
+            children = new Set();
+            this.sessionChildren.set(event.parentID, children);
+          }
+          children.add(event.sessionID);
+        }
         break;
       }
 
@@ -180,39 +204,111 @@ export class AggregatorStore {
       };
     }
 
-    const agentMap = this.bySessionAgent.get(sessionID);
-    const agentNames = agentMap ? new Set(agentMap.keys()) : new Set<string>();
+    const childSessions = this.collectChildSessions(sessionID);
+    const allSessions = [sessionID, ...childSessions];
 
-    const sessionModelMap = this.bySessionAgentModel.get(sessionID);
-    const filteredByAgentModel: Record<string, Record<string, Aggregate>> = {};
-    if (sessionModelMap) {
-      for (const [agent, modelMap] of sessionModelMap) {
-        if (!agentNames.has(agent)) continue;
-        filteredByAgentModel[agent] = this.mapToRecord(modelMap, (v) =>
-          aggregateHelper.clone(v),
-        );
+    // Merge totals from all related sessions.
+    const mergedTotals = aggregateHelper.cloneSession(sessionAgg);
+    const mergedBySession: Record<string, SessionAggregate> = {
+      [sessionID]: aggregateHelper.cloneSession(sessionAgg),
+    };
+    const mergedByAgent: Record<string, Aggregate> = {};
+    const mergedByAgentModel: Record<string, Record<string, Aggregate>> = {};
+
+    for (const sid of allSessions) {
+      // Collect per-session totals.
+      if (sid !== sessionID) {
+        const childAgg = this.bySession.get(sid);
+        if (childAgg) {
+          aggregateHelper.addToAggregate(mergedTotals, childAgg);
+          mergedTotals.sessionErrors += childAgg.sessionErrors;
+          mergedBySession[sid] = aggregateHelper.cloneSession(childAgg);
+        }
+      }
+
+      // Merge per-session agents.
+      const agentMap = this.bySessionAgent.get(sid);
+      if (agentMap) {
+        for (const [agent, agg] of agentMap) {
+          if (mergedByAgent[agent]) {
+            aggregateHelper.addToAggregate(mergedByAgent[agent], agg);
+          } else {
+            mergedByAgent[agent] = aggregateHelper.clone(agg);
+          }
+        }
+      }
+
+      // Merge per-session agent-model breakdown.
+      const sessionModelMap = this.bySessionAgentModel.get(sid);
+      if (sessionModelMap) {
+        for (const [agent, modelMap] of sessionModelMap) {
+          if (!mergedByAgentModel[agent]) {
+            mergedByAgentModel[agent] = {};
+          }
+          for (const [model, agg] of modelMap) {
+            if (mergedByAgentModel[agent][model]) {
+              aggregateHelper.addToAggregate(
+                mergedByAgentModel[agent][model],
+                agg,
+              );
+            } else {
+              mergedByAgentModel[agent][model] = aggregateHelper.clone(agg);
+            }
+          }
+        }
       }
     }
 
+    // Pick the most recent active agent within this session group.
+    const sessionLastActive = this.pickSessionGroupLastActive(allSessions);
+
     return {
       totals: {
-        ...aggregateHelper.clone(sessionAgg),
-        sessionsCreated: 1,
-        sessionErrors: sessionAgg.sessionErrors,
+        ...aggregateHelper.clone(mergedTotals),
+        sessionsCreated: 1 + childSessions.size,
+        sessionErrors: mergedTotals.sessionErrors,
       },
-      bySession: { [sessionID]: aggregateHelper.clone(sessionAgg) },
-      byAgent: this.mapToRecord(agentMap ?? new Map(), (v) =>
-        aggregateHelper.clone(v),
-      ),
+      bySession: mergedBySession,
+      byAgent: mergedByAgent,
       byModel: {},
-      byAgentModel: filteredByAgentModel,
+      byAgentModel: mergedByAgentModel,
       byTool: {},
       bySkill: {},
       errors: this.errors
-        .filter((e) => e.sessionID === sessionID)
+        .filter((e) => allSessions.includes(e.sessionID))
         .map((e) => ({ ...e })),
-      ...this.snapshotFooter(),
+      window: {
+        firstSeenAt: this.firstSeenAt,
+        lastSeenAt: this.lastSeenAt,
+      },
+      lastActiveAgent: sessionLastActive,
     };
+  }
+
+  private pickSessionGroupLastActive(
+    sessionIDs: string[],
+  ): { name: string; timestamp: number } | null {
+    let best: { name: string; timestamp: number } | null = null;
+    for (const sid of sessionIDs) {
+      const entry = this.bySessionLastActive.get(sid);
+      if (entry && (!best || entry.timestamp > best.timestamp)) {
+        best = entry;
+      }
+    }
+    return best;
+  }
+
+  private collectChildSessions(sessionID: string): Set<string> {
+    const children = this.sessionChildren.get(sessionID);
+    if (!children || children.size === 0) return new Set();
+    const result = new Set(children);
+    for (const child of children) {
+      const grandchildren = this.collectChildSessions(child);
+      for (const g of grandchildren) {
+        result.add(g);
+      }
+    }
+    return result;
   }
 
   reset(): void {
@@ -225,6 +321,9 @@ export class AggregatorStore {
     this.byAgentModel = new Map();
     this.byTool = new Map();
     this.bySkill = new Map();
+    this.sessionParent = new Map();
+    this.sessionChildren = new Map();
+    this.bySessionLastActive = new Map();
     this.errors = [];
     this.firstSeenAt = 0;
     this.lastSeenAt = 0;
