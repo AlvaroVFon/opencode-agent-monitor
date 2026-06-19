@@ -6,13 +6,13 @@ import { PartStatus, PartType, TraceEventType } from "../../../shared/enums";
 function makePart(overrides: Record<string, unknown> = {}) {
   return {
     part: {
-      type: PartType.SKILL,
+      type: PartType.TOOL,
       sessionID: "sess-1",
-      name: "planner",
-      tool: "planner",
+      tool: "skill",
       state: {
         status: PartStatus.COMPLETED,
         time: { start: 1000, end: 1300 },
+        input: { name: "planner" },
         output: "ok",
         title: "Invoked planner",
       },
@@ -54,6 +54,7 @@ describe("SkillCallHandler", () => {
         state: {
           status: PartStatus.ERROR,
           time: { start: 1000, end: 1100 },
+          input: { name: "planner" },
           error: "skill failed",
         },
       }),
@@ -96,12 +97,23 @@ describe("SkillCallHandler", () => {
     assert.equal(writeTrace.mock.calls.length, 0);
   });
 
-  it("ignores non-skill part types", () => {
+  it("ignores non-skill tool calls", () => {
     const writeTrace = mock.fn();
     const handler = makeHandler(writeTrace);
 
     handler.handle({
       part: { type: PartType.TOOL, sessionID: "sess-1", tool: "bash" },
+    });
+
+    assert.equal(writeTrace.mock.calls.length, 0);
+  });
+
+  it("ignores non-tool part types even if tool field is set", () => {
+    const writeTrace = mock.fn();
+    const handler = makeHandler(writeTrace);
+
+    handler.handle({
+      part: { type: PartType.AGENT, name: "planner" },
     });
 
     assert.equal(writeTrace.mock.calls.length, 0);
@@ -113,11 +125,32 @@ describe("SkillCallHandler", () => {
 
     handler.handle(
       makePart({
-        state: { status: PartStatus.COMPLETED, time: { start: 1000 } },
+        state: {
+          status: PartStatus.COMPLETED,
+          time: { start: 1000 },
+          input: { name: "planner" },
+        },
       }),
     );
 
     assert.equal(writeTrace.mock.calls.length, 1);
     assert.equal(writeTrace.mock.calls[0].arguments[0].durationMs, 0);
+  });
+
+  it("uses 'unknown' when input.name is missing", () => {
+    const writeTrace = mock.fn();
+    const handler = makeHandler(writeTrace);
+
+    handler.handle(
+      makePart({
+        state: {
+          status: PartStatus.COMPLETED,
+          time: { start: 1000, end: 1100 },
+        },
+      }),
+    );
+
+    assert.equal(writeTrace.mock.calls.length, 1);
+    assert.equal(writeTrace.mock.calls[0].arguments[0].skill, "unknown");
   });
 });

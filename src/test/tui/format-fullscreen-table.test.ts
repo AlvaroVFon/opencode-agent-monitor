@@ -40,23 +40,32 @@ function makeAggregate(overrides: Partial<Aggregate> = {}): Aggregate {
 
 function makeSnapshot(
   byAgent: Record<string, Aggregate>,
-  totalsOverride: Partial<Aggregate & { sessionsCreated: number }> = {},
+  totalsOverride: Partial<
+    Aggregate & { sessionsCreated: number; sessionErrors: number }
+  > = {},
 ): MetricsSnapshot {
   return {
     byAgent,
     bySession: {},
     byModel: {},
     byAgentModel: {},
+    byTool: {},
+    bySkill: {},
+    errors: [],
+    lastActiveAgent: null,
     window: { firstSeenAt: 0, lastSeenAt: 0 },
     totals: {
       llmCalls: 0,
       llmErrors: 0,
       toolCalls: 0,
       toolErrors: 0,
+      skillCalls: 0,
+      skillErrors: 0,
       tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0 },
       cost: 0,
       workDurationMs: 0,
       sessionsCreated: 0,
+      sessionErrors: 0,
       ...totalsOverride,
       tokens: {
         input: 0,

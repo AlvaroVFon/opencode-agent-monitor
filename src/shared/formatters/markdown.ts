@@ -20,6 +20,8 @@ export function formatMarkdown(snap: MetricsSnapshot): string {
   lines.push(`| LLM Errors | ${fmt(t.llmErrors)} |`);
   lines.push(`| Tool Calls | ${fmt(t.toolCalls)} |`);
   lines.push(`| Tool Errors | ${fmt(t.toolErrors)} |`);
+  lines.push(`| Skill Calls | ${fmt(t.skillCalls)} |`);
+  lines.push(`| Skill Errors | ${fmt(t.skillErrors)} |`);
   lines.push(`| Sessions Created | ${fmt(t.sessionsCreated)} |`);
   lines.push(`| Session Errors | ${fmt(t.sessionErrors)} |`);
   lines.push(`| Input Tokens | ${fmt(t.tokens.input)} |`);

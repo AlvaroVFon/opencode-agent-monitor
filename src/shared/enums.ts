@@ -13,7 +13,6 @@ export enum PartType {
   AGENT = "agent",
   SUBTASK = "subtask",
   TOOL = "tool",
-  SKILL = "skill",
 }
 
 export enum PartStatus {

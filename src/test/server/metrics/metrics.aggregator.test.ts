@@ -328,8 +328,13 @@ describe("MetricsAggregator", () => {
     aggregator.ingest(makeToolCallEvent(PartStatus.COMPLETED), coderAgent);
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, {
-        type: PartType.SKILL,
-        tool: "planner",
+        type: PartType.TOOL,
+        tool: "skill",
+        state: {
+          status: PartStatus.COMPLETED,
+          time: { start: 1000, end: 1100 },
+          input: { name: "planner" },
+        },
       }),
       coderAgent,
     );
@@ -360,8 +365,13 @@ describe("MetricsAggregator", () => {
 
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, {
-        type: PartType.SKILL,
-        tool: "planner",
+        type: PartType.TOOL,
+        tool: "skill",
+        state: {
+          status: PartStatus.COMPLETED,
+          time: { start: 1000, end: 1100 },
+          input: { name: "planner" },
+        },
       }),
       coderAgent,
     );
@@ -379,8 +389,14 @@ describe("MetricsAggregator", () => {
 
     aggregator.ingest(
       makeToolCallEvent(PartStatus.ERROR, {
-        type: PartType.SKILL,
-        tool: "planner",
+        type: PartType.TOOL,
+        tool: "skill",
+        state: {
+          status: PartStatus.ERROR,
+          time: { start: 1000, end: 1100 },
+          input: { name: "planner" },
+          error: "boom",
+        },
       }),
       coderAgent,
     );
@@ -397,15 +413,25 @@ describe("MetricsAggregator", () => {
 
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, {
-        type: PartType.SKILL,
-        tool: "planner",
+        type: PartType.TOOL,
+        tool: "skill",
+        state: {
+          status: PartStatus.COMPLETED,
+          time: { start: 1000, end: 1100 },
+          input: { name: "planner" },
+        },
       }),
       coderAgent,
     );
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, {
-        type: PartType.SKILL,
-        tool: "implementer",
+        type: PartType.TOOL,
+        tool: "skill",
+        state: {
+          status: PartStatus.COMPLETED,
+          time: { start: 1000, end: 1100 },
+          input: { name: "implementer" },
+        },
       }),
       coderAgent,
     );

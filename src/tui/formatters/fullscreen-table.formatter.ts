@@ -1,4 +1,8 @@
-import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types";
+import type {
+  Aggregate,
+  MetricsSnapshot,
+  SkillStats,
+} from "../../shared/metrics.types";
 
 interface TableRow {
   agent: string;
@@ -163,6 +167,40 @@ export class FullscreenTableFormatter {
     );
 
     lines.push(formatLine(total));
+
+    const skillKeys = Object.keys(snapshot.bySkill).sort();
+    if (skillKeys.length > 0) {
+      lines.push("");
+      lines.push("--- By Skill ---");
+      const skillHeader = ["Skill", "Calls", "Errors", "Avg Duration (ms)"];
+      const skillRows = skillKeys.map((k) => {
+        const ss = snapshot.bySkill[k]!;
+        return [
+          k,
+          this.formatNumber(ss.calls),
+          this.formatNumber(ss.errors),
+          this.formatNumber(ss.avgDurationMs),
+        ];
+      });
+      const skillWidths = skillHeader.map((h, i) =>
+        Math.max(h.length, ...skillRows.map((r) => r[i]!.length)),
+      );
+      const formatSkillLine = (cols: string[]) =>
+        cols
+          .map((c, i) =>
+            this.pad(c, skillWidths[i]!, i === 0 ? "left" : "right"),
+          )
+          .join("  ");
+      lines.push(formatSkillLine(skillHeader));
+      lines.push(
+        skillWidths
+          .map((w, i) => (i === 0 ? "".padEnd(w, "-") : "".padStart(w, "-")))
+          .join("  "),
+      );
+      for (const r of skillRows) {
+        lines.push(formatSkillLine(r));
+      }
+    }
 
     return lines.join("\n");
   }

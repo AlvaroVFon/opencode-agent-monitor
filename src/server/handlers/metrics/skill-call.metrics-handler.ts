@@ -17,21 +17,21 @@ export class SkillCallMetricsHandler implements MetricsHandler<MessagePartUpdate
       type?: string;
       sessionID?: string;
       tool?: string;
-      name?: string;
       state?: {
         status?: string;
         time?: { start?: number; end?: number };
         error?: unknown;
+        input?: Record<string, unknown>;
       };
     };
 
-    if (part.type !== PartType.SKILL) return;
+    if (part.type !== PartType.TOOL || part.tool !== "skill") return;
     if (!part.sessionID) return;
 
     const status = part.state?.status;
     if (status !== PartStatus.COMPLETED && status !== PartStatus.ERROR) return;
 
-    const skill = part.name ?? part.tool ?? UNKNOWN;
+    const skill = (part.state?.input?.name as string | undefined) ?? UNKNOWN;
     const durationMs =
       part.state?.time?.start && part.state?.time?.end
         ? part.state.time.end - part.state.time.start
