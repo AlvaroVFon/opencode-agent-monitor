@@ -147,10 +147,11 @@ describe("formatJson", () => {
 });
 
 describe("formatMarkdown", () => {
-  it("includes the summary section header", () => {
+  it("includes the summary section header and $/Call metric", () => {
     const out = formatMarkdown(makeMockSnapshot());
     assert.ok(out.includes("# Agent Monitor Metrics"));
     assert.ok(out.includes("## Summary"));
+    assert.ok(out.includes("$/Call"));
   });
 
   it("includes 'By Agent' section when byAgent has entries", () => {
@@ -162,6 +163,7 @@ describe("formatMarkdown", () => {
     const out = formatMarkdown(snap);
     assert.ok(out.includes("## By Agent"));
     assert.ok(out.includes("| coder |"));
+    assert.ok(out.includes("$0.0025")); // 0.0123 / 5
   });
 
   it("includes 'By Tool' section when byTool has entries", () => {

@@ -44,6 +44,26 @@ This adds the server plugin to `~/.config/opencode/opencode.json` and the TUI pl
 
 The trace directory is read from the same `traceDir` option used in the server plugin config (default: `~/.config/opencode/.tracing`).
 
+## CLI Usage
+
+### Quick start (no install)
+
+```bash
+npx @alvarovfon/opencode-agent-monitor stats
+npx @alvarovfon/opencode-agent-monitor stats --since 24h --top 5 --json
+npx @alvarovfon/opencode-agent-monitor errors --since 7d --limit 10
+npx @alvarovfon/opencode-agent-monitor export --since 30d --format markdown
+```
+
+### Global install
+
+```bash
+npm install -g @alvarovfon/opencode-agent-monitor
+agent-monitor stats
+```
+
+Three subcommands (`stats`, `errors`, `export`). Full reference in [`src/cli/README.md`](src/cli/README.md).
+
 ## Components
 
 The project ships three components that share the same `trace.jsonl` format:
