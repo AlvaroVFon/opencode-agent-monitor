@@ -4,11 +4,32 @@ import { join } from "node:path";
 import { traceReader } from "../reader";
 import { cliAggregator } from "../aggregate";
 import { TraceEventType } from "../../shared/enums";
-import { PRICING_REGISTRY, calculateModelCost } from "../../shared/pricing";
+import {
+  PRICING_REGISTRY,
+  calculateModelCost,
+  type ModelPricing,
+  type Usage,
+} from "../../shared/pricing";
+import {
+  DynamicPricingFetcher,
+  mergePricingRegistries,
+} from "../../shared/dynamic-pricing";
 import type { LlmCallEvent } from "../../shared/trace-events.types";
+
+interface ComparisonRow {
+  name: string;
+  cost: number;
+  diff: number;
+  diffPct: number;
+}
 
 export class CompareCommand {
   private defaultDir = join(homedir(), ".config", "opencode", ".tracing");
+  private fetcher: DynamicPricingFetcher;
+
+  constructor(fetcher?: DynamicPricingFetcher) {
+    this.fetcher = fetcher ?? new DynamicPricingFetcher();
+  }
 
   register(program: Command): void {
     program
@@ -17,14 +38,24 @@ export class CompareCommand {
       .option("--dir <path>", "trace directory", this.defaultDir)
       .option("--since <duration>", "time filter: 1d, 24h, 7d, 30d, all", "all")
       .option("--session <id>", "filter to a specific session")
-      .action((options) => this.execute(options));
+      .option(
+        "--static-pricing",
+        "use the built-in pricing registry only (skip opencode lookup)",
+      )
+      .action((options) => {
+        this.execute(options).catch((err) => {
+          process.stderr.write(`Error: ${String(err)}\n`);
+          process.exit(1);
+        });
+      });
   }
 
-  private execute(options: {
+  private async execute(options: {
     dir: string;
     since: string;
     session?: string;
-  }): void {
+    staticPricing?: boolean;
+  }): Promise<void> {
     const dir = options.dir;
     const since = cliAggregator.parseDuration(options.since);
     const sessionID = options.session;
@@ -46,52 +77,77 @@ export class CompareCommand {
     }
 
     const totalRealCost = llmCalls.reduce((sum, ev) => sum + (ev.cost || 0), 0);
-    const totalUsage = llmCalls.reduce(
-      (acc, ev) => {
-        acc.inputTokens += ev.inputTokens || 0;
-        acc.outputTokens += ev.outputTokens || 0;
-        acc.cacheRead += ev.cacheRead || 0;
-        acc.reasoningTokens += ev.reasoningTokens || 0;
-        return acc;
-      },
-      {
-        inputTokens: 0,
-        outputTokens: 0,
-        cacheRead: 0,
-        reasoningTokens: 0,
-      },
+    const sessionIDs = new Set(llmCalls.map((ev) => ev.sessionID));
+
+    const registry = await this.resolveRegistry(options.staticPricing === true);
+
+    const comparisons = registry.map((model) =>
+      this.simulateModel(model, llmCalls),
     );
-
-    const comparisons = PRICING_REGISTRY.map((model) => {
-      const estimatedCost = calculateModelCost(model, totalUsage);
-      return {
-        name: `${model.provider}/${model.model}`,
-        cost: estimatedCost,
-        diff: estimatedCost - totalRealCost,
-        diffPct:
-          totalRealCost > 0 ? (estimatedCost / totalRealCost - 1) * 100 : 0,
-      };
-    });
-
-    // Sort by cost ascending
     comparisons.sort((a, b) => a.cost - b.cost);
 
-    this.printTable(totalRealCost, comparisons);
+    this.printTable(
+      totalRealCost,
+      comparisons,
+      options.staticPricing === true,
+      llmCalls.length,
+      sessionIDs.size,
+    );
+  }
+
+  simulateModel(model: ModelPricing, llmCalls: LlmCallEvent[]): ComparisonRow {
+    const estimatedCost = llmCalls.reduce((sum, ev) => {
+      const usage: Usage = {
+        inputTokens: ev.inputTokens,
+        outputTokens: ev.outputTokens,
+        cacheRead: ev.cacheRead,
+        reasoningTokens: ev.reasoningTokens,
+      };
+      return sum + calculateModelCost(model, usage);
+    }, 0);
+
+    return {
+      name: `${model.provider}/${model.model}`,
+      cost: estimatedCost,
+      diff: estimatedCost - totalRealCost(llmCalls),
+      diffPct: diffPct(estimatedCost, totalRealCost(llmCalls)),
+    };
+  }
+
+  private async resolveRegistry(useStatic: boolean): Promise<ModelPricing[]> {
+    if (useStatic) {
+      return PRICING_REGISTRY;
+    }
+
+    const dynamic = await this.fetcher.getPricing();
+    if (!dynamic || dynamic.length === 0) {
+      return PRICING_REGISTRY;
+    }
+
+    return mergePricingRegistries(PRICING_REGISTRY, dynamic);
   }
 
   private printTable(
     realCost: number,
-    comparisons: {
-      name: string;
-      cost: number;
-      diff: number;
-      diffPct: number;
-    }[],
-  ) {
+    comparisons: ComparisonRow[],
+    usedStatic: boolean,
+    callCount: number,
+    sessionCount: number,
+  ): void {
     process.stdout.write(`\n# Cost Comparison Report\n\n`);
     process.stdout.write(
-      `**Real Cost (current models):** $${realCost.toFixed(4)}\n\n`,
+      `**Real Cost (current models):** $${realCost.toFixed(4)}\n`,
     );
+    process.stdout.write(
+      `_Scope: ${callCount} LLM call${callCount === 1 ? "" : "s"} across ${sessionCount} session${sessionCount === 1 ? "" : "s"}_\n\n`,
+    );
+    if (!usedStatic) {
+      process.stdout.write(
+        `_Pricing source: opencode models (with built-in fallback)_\n\n`,
+      );
+    } else {
+      process.stdout.write(`_Pricing source: built-in static registry_\n\n`);
+    }
 
     process.stdout.write(`| Model | Est. Cost | Difference | % |\n`);
     process.stdout.write(`| :--- | :--- | :--- | :--- |\n`);
@@ -105,4 +161,13 @@ export class CompareCommand {
     }
     process.stdout.write(`\n`);
   }
+}
+
+function totalRealCost(llmCalls: LlmCallEvent[]): number {
+  return llmCalls.reduce((sum, ev) => sum + (ev.cost || 0), 0);
+}
+
+function diffPct(estimated: number, real: number): number {
+  if (real <= 0) return 0;
+  return (estimated / real - 1) * 100;
 }
