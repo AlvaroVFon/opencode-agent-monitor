@@ -1,6 +1,6 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { SessionCreatedHandler } from "../../../server/handlers/session-created.handler";
+import { SessionCreatedHandler } from "../../../server/handlers/trace/session-created.handler";
 import { TraceEventType } from "../../../server/enums";
 
 describe("SessionCreatedHandler", () => {

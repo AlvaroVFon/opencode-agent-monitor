@@ -1,6 +1,6 @@
-import { Role } from "../enums";
-import { Handler } from "../handler.interface";
-import type { MessageUpdatedProps } from "../types";
+import { Role } from "../../enums";
+import { Handler } from "../../handler.interface";
+import type { MessageUpdatedProps } from "../../types";
 
 export class UserMessageHandler implements Handler<MessageUpdatedProps> {
   constructor(private readonly currentAgent: Map<string, string>) {}

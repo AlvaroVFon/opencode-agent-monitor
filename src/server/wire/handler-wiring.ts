@@ -2,14 +2,14 @@ import { TraceHelper } from "../helpers/trace.helpers";
 import { EventType } from "../enums";
 import { EventsRegistry } from "../events/events.registry";
 import { EventHandler } from "../events/events.handler";
-import { SessionCreatedHandler } from "../handlers/session-created.handler";
-import { SessionErrorHandler } from "../handlers/session-error.handler";
-import { UserMessageHandler } from "../handlers/user-message.handler";
-import { LlmErrorHandler } from "../handlers/llm-error.handler";
-import { LlmCallHandler } from "../handlers/llm-call.handler";
-import { AgentDelegationHandler } from "../handlers/agent-delegation.handler";
-import { SubtaskDelegationHandler } from "../handlers/subtask-delegation.handler";
-import { ToolCallHandler } from "../handlers/tool-call.handler";
+import { SessionCreatedHandler } from "../handlers/trace/session-created.handler";
+import { SessionErrorHandler } from "../handlers/trace/session-error.handler";
+import { UserMessageHandler } from "../handlers/trace/user-message.handler";
+import { LlmErrorHandler } from "../handlers/trace/llm-error.handler";
+import { LlmCallHandler } from "../handlers/trace/llm-call.handler";
+import { AgentDelegationHandler } from "../handlers/trace/agent-delegation.handler";
+import { SubtaskDelegationHandler } from "../handlers/trace/subtask-delegation.handler";
+import { ToolCallHandler } from "../handlers/trace/tool-call.handler";
 
 export function createEventHandler(
   traceHelper: TraceHelper,

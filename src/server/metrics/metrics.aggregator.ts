@@ -1,15 +1,7 @@
 import type { GetAgent } from "../handler.interface";
-import { EventType, PartStatus, PartType, Role, UNKNOWN } from "../enums";
-import type {
-  MessagePartUpdatedProps,
-  MessageUpdatedProps,
-  SessionCreatedProps,
-  SessionErrorProps,
-} from "../types";
 import { AggregateHelper } from "../../shared/aggregate.helpers";
 import { SnapshotFilterHelper } from "../helpers/snapshot-filter.helper";
 import { SnapshotTransformHelper } from "../helpers/snapshot-transform.helper";
-import type { LlmAssistantMessage } from "./messages.types";
 import type {
   Aggregate,
   ErrorEntry,
@@ -17,8 +9,10 @@ import type {
   TokenUsage,
   ToolStats,
 } from "../../shared/metrics.types";
+import type { MetricsRecorder } from "./metrics-handler.interface";
+import { MetricsHandlersRegistry } from "./metrics.handler-map";
 
-export class MetricsAggregator {
+export class MetricsAggregator implements MetricsRecorder {
   private readonly totals: Aggregate & {
     sessionsCreated: number;
     sessionErrors: number;
@@ -37,6 +31,7 @@ export class MetricsAggregator {
     private readonly filterHelper: SnapshotFilterHelper = new SnapshotFilterHelper(
       new SnapshotTransformHelper(new AggregateHelper()),
     ),
+    private readonly registry: MetricsHandlersRegistry = new MetricsHandlersRegistry(),
   ) {
     this.totals = {
       ...this.helper.empty(),
@@ -50,21 +45,7 @@ export class MetricsAggregator {
     getAgent?: GetAgent,
   ): void {
     this.touchWindow(Date.now());
-
-    switch (event.type) {
-      case EventType.MESSAGE_UPDATED:
-        this.ingestMessage(event.properties as MessageUpdatedProps, getAgent);
-        break;
-      case EventType.MESSAGE_PART_UPDATED:
-        this.ingestPart(event.properties as MessagePartUpdatedProps, getAgent);
-        break;
-      case EventType.SESSION_CREATED:
-        this.ingestSessionCreated(event.properties as SessionCreatedProps);
-        break;
-      case EventType.SESSION_ERROR:
-        this.ingestSessionError(event.properties as SessionErrorProps);
-        break;
-    }
+    this.registry.get(event.type)?.handle(event.properties, this, getAgent);
   }
 
   snapshot(opts?: {
@@ -135,106 +116,17 @@ export class MetricsAggregator {
     this.lastSeenAt = 0;
   }
 
-  ingestMessage(props: MessageUpdatedProps, getAgent?: GetAgent): void {
-    const msg = props.info as LlmAssistantMessage;
-
-    if (msg.role !== Role.ASSISTANT) return;
-
-    const sessionID = msg.sessionID;
-    if (!sessionID) return;
-
-    const agent = getAgent?.(sessionID) ?? UNKNOWN;
-    const model =
-      msg.providerID && msg.modelID
-        ? `${msg.providerID}/${msg.modelID}`
-        : UNKNOWN;
-
-    if (msg.error && !msg.tokens) {
-      this.recordLlmError(sessionID, agent, model);
-      return;
-    }
-
-    if (msg.finish && msg.tokens && msg.time?.completed) {
-      this.recordLlmCall(sessionID, agent, model, {
-        tokens: {
-          input: msg.tokens.input,
-          output: msg.tokens.output,
-          reasoning: msg.tokens.reasoning,
-          cacheRead: msg.tokens.cache.read,
-        },
-        cost: msg.cost ?? 0,
-      });
-    }
-  }
-
-  ingestPart(props: MessagePartUpdatedProps, getAgent?: GetAgent): void {
-    const part = props.part as {
-      type?: string;
-      sessionID?: string;
-      tool?: string;
-      state?: {
-        status?: string;
-        time?: { start?: number; end?: number };
-        error?: unknown;
-      };
-    };
-
-    if (part.type !== PartType.TOOL) return;
-    if (!part.sessionID) return;
-
-    const status = part.state?.status;
-    if (status !== PartStatus.COMPLETED && status !== PartStatus.ERROR) return;
-
-    const sessionID = part.sessionID;
-    const agent = getAgent?.(sessionID) ?? UNKNOWN;
-    const toolName = part.tool ?? UNKNOWN;
-    const durationMs =
-      part.state?.time?.start && part.state?.time?.end
-        ? part.state.time.end - part.state.time.start
-        : 0;
-
-    this.recordToolCall(
-      sessionID,
-      agent,
-      toolName,
-      status === PartStatus.ERROR,
-      durationMs,
-    );
-
-    if (status === PartStatus.ERROR) {
-      this.pushError({
-        sessionID,
-        type: "tool_error",
-        message: String(part.state?.error ?? ""),
-        timestamp: Date.now(),
-      });
-    }
-  }
-
-  ingestSessionCreated(props: SessionCreatedProps): void {
-    const sessionID = (props as { info?: { id?: string } }).info?.id;
-    if (!sessionID) return;
-
+  recordSessionCreated(sessionID: string): void {
     this.totals.sessionsCreated += 1;
     this.ensureAggregate(this.bySession, sessionID);
   }
 
-  ingestSessionError(props: SessionErrorProps): void {
-    const sessionID =
-      props.sessionID ?? (props as { info?: { id?: string } }).info?.id;
-    if (!sessionID) return;
-
+  recordSessionError(sessionID: string, type: string, message: string): void {
     this.totals.sessionErrors += 1;
-
-    this.pushError({
-      sessionID,
-      type: props.error?.name ?? "session_error",
-      message: String(props.error?.data ?? ""),
-      timestamp: Date.now(),
-    });
+    this.pushError({ sessionID, type, message, timestamp: Date.now() });
   }
 
-  private recordLlmCall(
+  recordLlmCall(
     sessionID: string,
     agent: string,
     model: string,
@@ -263,11 +155,7 @@ export class MetricsAggregator {
     );
   }
 
-  private recordLlmError(
-    sessionID: string,
-    agent: string,
-    model: string,
-  ): void {
+  recordLlmError(sessionID: string, agent: string, model: string): void {
     const inc: Aggregate = {
       ...this.helper.empty(),
       llmErrors: 1,
@@ -293,7 +181,7 @@ export class MetricsAggregator {
     });
   }
 
-  private recordToolCall(
+  recordToolCall(
     sessionID: string,
     agent: string,
     toolName: string,
@@ -360,7 +248,7 @@ export class MetricsAggregator {
     return bucket;
   }
 
-  private pushError(entry: ErrorEntry): void {
+  pushError(entry: ErrorEntry): void {
     if (this.errors.length >= 1000) {
       this.errors.shift();
     }

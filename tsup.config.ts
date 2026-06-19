@@ -5,6 +5,7 @@ export default defineConfig({
   entry: {
     "agent-monitor": "src/server/agent-monitor.ts",
     tui: "src/tui/agent-monitor-tui.tsx",
+    cli: "src/cli/main.ts",
   },
   format: ["esm"],
   target: "node22",

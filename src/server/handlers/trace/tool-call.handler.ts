@@ -1,7 +1,7 @@
-import { TraceHelper } from "../helpers/trace.helpers";
-import { PartStatus, PartType, TraceEventType } from "../enums";
-import { Handler } from "../handler.interface";
-import type { MessagePartUpdatedProps } from "../types";
+import { TraceHelper } from "../../helpers/trace.helpers";
+import { PartStatus, PartType, TraceEventType } from "../../enums";
+import { Handler } from "../../handler.interface";
+import type { MessagePartUpdatedProps } from "../../types";
 
 export class ToolCallHandler implements Handler<MessagePartUpdatedProps> {
   constructor(private readonly traceHelper: TraceHelper) {}
