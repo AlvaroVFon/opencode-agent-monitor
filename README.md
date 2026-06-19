@@ -61,6 +61,7 @@ npx @alvarovfon/opencode-agent-monitor stats
 npx @alvarovfon/opencode-agent-monitor stats --since 24h --top 5 --json
 npx @alvarovfon/opencode-agent-monitor errors --since 7d --limit 10
 npx @alvarovfon/opencode-agent-monitor export --since 30d --format markdown
+npx @alvarovfon/opencode-agent-monitor compare --since 24h
 ```
 
 ### Global install
@@ -70,7 +71,7 @@ npm install -g @alvarovfon/opencode-agent-monitor
 agent-monitor stats
 ```
 
-Three subcommands (`stats`, `errors`, `export`). Full reference in [`src/cli/README.md`](src/cli/README.md).
+Four subcommands (`stats`, `errors`, `export`, `compare`). Full reference in [`src/cli/README.md`](src/cli/README.md).
 
 ## Components
 
