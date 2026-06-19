@@ -317,6 +317,69 @@ describe("AggregatorStore", () => {
   });
 
   // -----------------------------------------------------------------------
+  // bySkill — skill call aggregation
+  // -----------------------------------------------------------------------
+
+  it("ingest_skill_call_updates_bySkill: ingesting a skill_call event updates bySkill and totals", () => {
+    const store = new AggregatorStore();
+
+    store.ingest({
+      type: "skill_call",
+      sessionID: "sess-1",
+      skill: "planner",
+      status: "completed",
+      durationMs: 300,
+      timestamp: 1_700_000_000_000,
+    });
+
+    const snap = store.snapshot();
+    assert.equal(snap.totals.skillCalls, 1, "totals.skillCalls");
+    assert.equal(snap.totals.skillErrors, 0, "totals.skillErrors");
+    assert.ok("planner" in snap.bySkill, "bySkill must contain planner");
+    assert.equal(snap.bySkill["planner"]!.calls, 1);
+    assert.equal(snap.bySkill["planner"]!.errors, 0);
+    assert.equal(snap.bySkill["planner"]!.avgDurationMs, 300);
+  });
+
+  it("ingest_skill_call_error_increments_errors: error status increments skillErrors", () => {
+    const store = new AggregatorStore();
+
+    store.ingest({
+      type: "skill_call",
+      sessionID: "sess-1",
+      skill: "planner",
+      status: "error",
+      durationMs: 100,
+      error: "fail",
+      timestamp: 1_700_000_000_000,
+    });
+
+    const snap = store.snapshot();
+    assert.equal(snap.totals.skillCalls, 1);
+    assert.equal(snap.totals.skillErrors, 1);
+    assert.equal(snap.bySkill["planner"]!.calls, 1);
+    assert.equal(snap.bySkill["planner"]!.errors, 1);
+  });
+
+  it("bySkill_reset_clears: reset() returns bySkill to empty", () => {
+    const store = new AggregatorStore();
+    store.ingest({
+      type: "skill_call",
+      sessionID: "sess-1",
+      skill: "planner",
+      status: "completed",
+      durationMs: 300,
+      timestamp: 1_700_000_000_000,
+    });
+    assert.equal(store.snapshot().totals.skillCalls, 1);
+
+    store.reset();
+
+    assert.deepEqual(store.snapshot().bySkill, {});
+    assert.equal(store.snapshot().totals.skillCalls, 0);
+  });
+
+  // -----------------------------------------------------------------------
   // snapshot({ sessionID }) — filter data to a single session.
   // -----------------------------------------------------------------------
 

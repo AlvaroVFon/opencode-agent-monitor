@@ -6,6 +6,7 @@ import type {
   Aggregate,
   ErrorEntry,
   MetricsSnapshot,
+  SkillStats,
   TokenUsage,
   ToolStats,
 } from "../../shared/metrics.types";
@@ -22,6 +23,7 @@ export class MetricsAggregator implements MetricsRecorder {
   private readonly byModel = new Map<string, Aggregate>();
   private readonly byAgentModel = new Map<string, Map<string, Aggregate>>();
   private readonly byTool = new Map<string, ToolStats>();
+  private readonly bySkill = new Map<string, SkillStats>();
   private readonly errors: ErrorEntry[] = [];
   private firstSeenAt = 0;
   private lastSeenAt = 0;
@@ -45,7 +47,9 @@ export class MetricsAggregator implements MetricsRecorder {
     getAgent?: GetAgent,
   ): void {
     this.touchWindow(Date.now());
-    this.registry.get(event.type)?.handle(event.properties, this, getAgent);
+    for (const handler of this.registry.get(event.type)) {
+      handler.handle(event.properties, this, getAgent);
+    }
   }
 
   snapshot(opts?: {
@@ -88,6 +92,7 @@ export class MetricsAggregator implements MetricsRecorder {
       byModel: this.helper.mapToRecord(this.byModel),
       byAgentModel: this.helper.mapToNestedRecord(this.byAgentModel),
       byTool: this.helper.mapToToolStatsRecord(this.byTool),
+      bySkill: this.helper.mapToSkillStatsRecord(this.bySkill),
       errors: this.errors.map((e) => ({ ...e })),
       window: { firstSeenAt: this.firstSeenAt, lastSeenAt: this.lastSeenAt },
       lastActiveAgent: null,
@@ -99,6 +104,8 @@ export class MetricsAggregator implements MetricsRecorder {
     this.totals.llmErrors = 0;
     this.totals.toolCalls = 0;
     this.totals.toolErrors = 0;
+    this.totals.skillCalls = 0;
+    this.totals.skillErrors = 0;
     this.totals.tokens.input = 0;
     this.totals.tokens.output = 0;
     this.totals.tokens.reasoning = 0;
@@ -111,6 +118,7 @@ export class MetricsAggregator implements MetricsRecorder {
     this.byModel.clear();
     this.byAgentModel.clear();
     this.byTool.clear();
+    this.bySkill.clear();
     this.errors.length = 0;
     this.firstSeenAt = 0;
     this.lastSeenAt = 0;
@@ -137,6 +145,8 @@ export class MetricsAggregator implements MetricsRecorder {
       llmErrors: 0,
       toolCalls: 0,
       toolErrors: 0,
+      skillCalls: 0,
+      skillErrors: 0,
       tokens: { ...payload.tokens },
       cost: payload.cost,
       workDurationMs: 0,
@@ -210,6 +220,43 @@ export class MetricsAggregator implements MetricsRecorder {
       this.ensureToolStats(this.byTool, toolName),
       toolInc,
     );
+  }
+
+  recordSkillCall(
+    sessionID: string,
+    skill: string,
+    isError: boolean,
+    durationMs: number,
+  ): void {
+    const inc: Aggregate = {
+      ...this.helper.empty(),
+      skillCalls: 1,
+      skillErrors: isError ? 1 : 0,
+    };
+
+    this.helper.addToAggregate(this.totals, inc);
+
+    const skillInc: SkillStats = {
+      calls: 1,
+      errors: isError ? 1 : 0,
+      avgDurationMs: durationMs,
+    };
+    this.helper.addToSkillStats(
+      this.ensureSkillStats(this.bySkill, skill),
+      skillInc,
+    );
+  }
+
+  private ensureSkillStats(
+    map: Map<string, SkillStats>,
+    key: string,
+  ): SkillStats {
+    let bucket = map.get(key);
+    if (!bucket) {
+      bucket = this.helper.emptySkillStats();
+      map.set(key, bucket);
+    }
+    return bucket;
   }
 
   private ensureAggregate(map: Map<string, Aggregate>, key: string): Aggregate {

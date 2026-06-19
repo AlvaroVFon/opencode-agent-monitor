@@ -1,5 +1,7 @@
+import { TraceEventType } from "./enums";
+
 export type LlmCallEvent = {
-  type: "llm_call";
+  type: TraceEventType.LLM_CALL;
   sessionID: string;
   agent: string;
   model: string;
@@ -14,7 +16,7 @@ export type LlmCallEvent = {
 };
 
 export type ToolCallEvent = {
-  type: "tool_call";
+  type: TraceEventType.TOOL_CALL;
   sessionID: string;
   tool: string;
   callID: string;
@@ -24,15 +26,25 @@ export type ToolCallEvent = {
   timestamp: number;
 };
 
+export type SkillCallEvent = {
+  type: TraceEventType.SKILL_CALL;
+  sessionID: string;
+  skill: string;
+  status: "completed" | "error";
+  durationMs: number;
+  error?: string;
+  timestamp: number;
+};
+
 export type SessionCreatedEvent = {
-  type: "session_created";
+  type: TraceEventType.SESSION_CREATED;
   sessionID: string;
   parentID: string | null;
   timestamp: number;
 };
 
 export type SessionErrorEvent = {
-  type: "session_error";
+  type: TraceEventType.SESSION_ERROR;
   sessionID: string;
   errorType?: string;
   errorMessage?: string;
@@ -41,7 +53,7 @@ export type SessionErrorEvent = {
 };
 
 export type AgentDelegationEvent = {
-  type: "agent_delegation";
+  type: TraceEventType.AGENT_DELEGATION;
   timestamp: number;
   [key: string]: unknown;
 };
@@ -49,6 +61,7 @@ export type AgentDelegationEvent = {
 export type TraceEvent =
   | LlmCallEvent
   | ToolCallEvent
+  | SkillCallEvent
   | SessionCreatedEvent
   | SessionErrorEvent
   | AgentDelegationEvent;

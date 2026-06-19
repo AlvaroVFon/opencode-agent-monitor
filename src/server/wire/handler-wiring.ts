@@ -10,6 +10,7 @@ import { LlmCallHandler } from "../handlers/trace/llm-call.handler";
 import { AgentDelegationHandler } from "../handlers/trace/agent-delegation.handler";
 import { SubtaskDelegationHandler } from "../handlers/trace/subtask-delegation.handler";
 import { ToolCallHandler } from "../handlers/trace/tool-call.handler";
+import { SkillCallHandler } from "../handlers/trace/skill-call.handler";
 
 export function createEventHandler(
   traceHelper: TraceHelper,
@@ -31,7 +32,11 @@ export function createEventHandler(
       EventType.MESSAGE_PART_UPDATED,
       new SubtaskDelegationHandler(traceHelper),
     )
-    .register(EventType.MESSAGE_PART_UPDATED, new ToolCallHandler(traceHelper));
+    .register(EventType.MESSAGE_PART_UPDATED, new ToolCallHandler(traceHelper))
+    .register(
+      EventType.MESSAGE_PART_UPDATED,
+      new SkillCallHandler(traceHelper),
+    );
 
   return new EventHandler(traceHelper, registry);
 }

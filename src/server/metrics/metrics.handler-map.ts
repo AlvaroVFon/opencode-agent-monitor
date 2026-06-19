@@ -15,17 +15,19 @@ export type MetricsHandlerMap = {
 };
 
 export class MetricsHandlersRegistry {
-  private readonly handlers = new Map<string, MetricsHandler>();
+  private readonly handlers = new Map<string, MetricsHandler[]>();
 
   register<E extends EventType>(
     eventType: E,
     handler: MetricsHandlerMap[E],
   ): this {
-    this.handlers.set(eventType, handler as MetricsHandler);
+    const list = this.handlers.get(eventType) ?? [];
+    list.push(handler as MetricsHandler);
+    this.handlers.set(eventType, list);
     return this;
   }
 
-  get(eventType: string): MetricsHandler | undefined {
-    return this.handlers.get(eventType);
+  get(eventType: string): MetricsHandler[] {
+    return this.handlers.get(eventType) ?? [];
   }
 }

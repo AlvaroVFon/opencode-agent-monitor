@@ -4,6 +4,7 @@ import type {
   Aggregate,
   ErrorEntry,
   MetricsSnapshot,
+  SkillStats,
   ToolStats,
 } from "../../../../shared/metrics.types";
 import { formatJson } from "../../../../shared/formatters/json";
@@ -29,6 +30,8 @@ function makeMockSnapshot(
       llmErrors: 0,
       toolCalls: 0,
       toolErrors: 0,
+      skillCalls: 0,
+      skillErrors: 0,
       tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0 },
       cost: 0,
       workDurationMs: 0,
@@ -40,6 +43,7 @@ function makeMockSnapshot(
     byModel: {},
     byAgentModel: {},
     byTool: {},
+    bySkill: {},
     errors: [],
     window: { firstSeenAt: 0, lastSeenAt: 0 },
     lastActiveAgent: null,
@@ -61,6 +65,8 @@ function makeAggregate(overrides?: Partial<Aggregate>): Aggregate {
     llmErrors: 0,
     toolCalls: 0,
     toolErrors: 0,
+    skillCalls: 0,
+    skillErrors: 0,
     tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0 },
     cost: 0,
     workDurationMs: 0,
@@ -70,6 +76,10 @@ function makeAggregate(overrides?: Partial<Aggregate>): Aggregate {
 
 function makeToolStats(overrides?: Partial<ToolStats>): ToolStats {
   return { calls: 0, errors: 0, durationMs: 0, ...overrides };
+}
+
+function makeSkillStats(overrides?: Partial<SkillStats>): SkillStats {
+  return { calls: 0, errors: 0, avgDurationMs: 0, ...overrides };
 }
 
 function makeError(overrides?: Partial<ErrorEntry>): ErrorEntry {
@@ -91,10 +101,13 @@ describe("formatJson", () => {
     assert.notEqual(parsed, null);
   });
 
-  it("includes byTool and errors sections in the output", () => {
+  it("includes byTool, bySkill, and errors sections in the output", () => {
     const snap = makeMockSnapshot({
       byTool: {
         bash: makeToolStats({ calls: 3, errors: 1, durationMs: 250 }),
+      },
+      bySkill: {
+        planner: makeSkillStats({ calls: 5, errors: 1, avgDurationMs: 120 }),
       },
       errors: [makeError({ type: "tool_error", sessionID: "sess-A" })],
     });
@@ -103,8 +116,11 @@ describe("formatJson", () => {
     const parsed = JSON.parse(out) as MetricsSnapshot;
 
     assert.ok("byTool" in parsed, "JSON output must contain byTool");
+    assert.ok("bySkill" in parsed, "JSON output must contain bySkill");
     assert.ok("errors" in parsed, "JSON output must contain errors");
     assert.equal(parsed.byTool["bash"]!.calls, 3);
+    assert.equal(parsed.bySkill["planner"]!.calls, 5);
+    assert.equal(parsed.bySkill["planner"]!.avgDurationMs, 120);
     assert.equal(parsed.errors.length, 1);
     assert.equal(parsed.errors[0]!.type, "tool_error");
   });
@@ -177,6 +193,17 @@ describe("formatMarkdown", () => {
     assert.ok(out.includes("| bash |"));
   });
 
+  it("includes 'By Skill' section when bySkill has entries", () => {
+    const snap = makeMockSnapshot({
+      bySkill: {
+        planner: makeSkillStats({ calls: 5, errors: 0, avgDurationMs: 200 }),
+      },
+    });
+    const out = formatMarkdown(snap);
+    assert.ok(out.includes("## By Skill"));
+    assert.ok(out.includes("| planner |"));
+  });
+
   it("includes '## Errors' section when errors[] has entries", () => {
     const snap = makeMockSnapshot({
       errors: [
@@ -205,6 +232,7 @@ describe("formatMarkdown", () => {
     // optional sections must be absent
     assert.ok(!out.includes("## By Agent"));
     assert.ok(!out.includes("## By Tool"));
+    assert.ok(!out.includes("## By Skill"));
     assert.ok(!out.includes("## Errors"));
   });
 });
@@ -228,10 +256,10 @@ describe("formatCsv", () => {
     const out = formatCsv(makeMockSnapshot());
     const lines = out.split("\n");
     assert.equal(lines[0], "section,key,metric,value");
-    // 7 totals rows are always emitted (llmCalls, llmErrors, toolCalls,
-    // toolErrors, cost, sessionsCreated, sessionErrors)
+    // 9 totals rows are always emitted (llmCalls, llmErrors, toolCalls,
+    // toolErrors, skillCalls, skillErrors, cost, sessionsCreated, sessionErrors)
     const totalsLines = lines.filter((l) => l.startsWith("totals,"));
-    assert.equal(totalsLines.length, 7);
+    assert.equal(totalsLines.length, 9);
     // and they are zeroed
     assert.ok(totalsLines.every((l) => l.endsWith(",0")));
   });

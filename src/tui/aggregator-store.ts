@@ -2,10 +2,12 @@ import type {
   Aggregate,
   ErrorEntry,
   MetricsSnapshot,
+  SkillStats,
   ToolStats,
 } from "../shared/metrics.types";
 import type {
   LlmCallEvent,
+  SkillCallEvent,
   ToolCallEvent,
   TraceEvent,
 } from "../shared/trace-events.types";
@@ -33,6 +35,7 @@ export class AggregatorStore {
   private byModel: Map<string, Aggregate>;
   private byAgentModel: Map<string, Map<string, Aggregate>>;
   private byTool: Map<string, ToolStats>;
+  private bySkill: Map<string, SkillStats>;
   private errors: ErrorEntry[];
   private firstSeenAt: number;
   private lastSeenAt: number;
@@ -49,6 +52,7 @@ export class AggregatorStore {
     this.byModel = new Map();
     this.byAgentModel = new Map();
     this.byTool = new Map();
+    this.bySkill = new Map();
     this.errors = [];
     this.firstSeenAt = 0;
     this.lastSeenAt = 0;
@@ -96,6 +100,12 @@ export class AggregatorStore {
             timestamp: event.timestamp,
           });
         }
+        break;
+      }
+
+      case TraceEventType.SKILL_CALL: {
+        this.addSkill(this.totals, event);
+        this.addSkillStats(this.getSkill(event.skill), event);
         break;
       }
 
@@ -148,6 +158,7 @@ export class AggregatorStore {
       byModel: this.mapToRecord(this.byModel, (v) => aggregateHelper.clone(v)),
       byAgentModel: this.cloneAgentModelRecord(),
       byTool: this.mapToRecord(this.byTool, (v) => ({ ...v })),
+      bySkill: this.mapToRecord(this.bySkill, (v) => ({ ...v })),
       errors: this.errors.map((e) => ({ ...e })),
       ...this.snapshotFooter(),
     };
@@ -163,6 +174,7 @@ export class AggregatorStore {
         byModel: {},
         byAgentModel: {},
         byTool: {},
+        bySkill: {},
         errors: [],
         ...this.snapshotFooter(),
       };
@@ -195,6 +207,7 @@ export class AggregatorStore {
       byModel: {},
       byAgentModel: filteredByAgentModel,
       byTool: {},
+      bySkill: {},
       errors: this.errors
         .filter((e) => e.sessionID === sessionID)
         .map((e) => ({ ...e })),
@@ -211,6 +224,7 @@ export class AggregatorStore {
     this.byModel = new Map();
     this.byAgentModel = new Map();
     this.byTool = new Map();
+    this.bySkill = new Map();
     this.errors = [];
     this.firstSeenAt = 0;
     this.lastSeenAt = 0;
@@ -317,6 +331,28 @@ export class AggregatorStore {
       target.errors += 1;
     }
     target.durationMs += event.durationMs;
+  }
+
+  private addSkill(aggregate: Aggregate, event: SkillCallEvent): void {
+    aggregate.skillCalls += 1;
+    if (event.status === "error") {
+      aggregate.skillErrors += 1;
+    }
+  }
+
+  private getSkill(skill: string): SkillStats {
+    return aggregateHelper.getOrCreate(this.bySkill, skill, () =>
+      aggregateHelper.emptySkillStats(),
+    );
+  }
+
+  private addSkillStats(target: SkillStats, event: SkillCallEvent): void {
+    const prevTotal = target.avgDurationMs * target.calls;
+    target.calls += 1;
+    if (event.status === "error") {
+      target.errors += 1;
+    }
+    target.avgDurationMs = (prevTotal + event.durationMs) / target.calls;
   }
 
   private pushError(entry: ErrorEntry): void {

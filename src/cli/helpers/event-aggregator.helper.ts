@@ -1,11 +1,13 @@
 import type {
   Aggregate,
+  SkillStats,
   ToolStats,
   ErrorEntry,
 } from "../../shared/metrics.types";
 import type {
   LlmCallEvent,
   ToolCallEvent,
+  SkillCallEvent,
   SessionCreatedEvent,
   SessionErrorEvent,
   TraceEvent,
@@ -17,6 +19,7 @@ type AggregationState = {
   totals: Aggregate & { sessionsCreated: number; sessionErrors: number };
   byAgent: Map<string, Aggregate>;
   byTool: Map<string, ToolStats>;
+  bySkill: Map<string, SkillStats>;
   bySession: Map<string, Aggregate>;
   errors: ErrorEntry[];
 };
@@ -31,6 +34,7 @@ export class EventAggregatorHelper {
       },
       byAgent: new Map(),
       byTool: new Map(),
+      bySkill: new Map(),
       bySession: new Map(),
       errors: [],
     };
@@ -42,6 +46,8 @@ export class EventAggregatorHelper {
       llmErrors: 0,
       toolCalls: 0,
       toolErrors: 0,
+      skillCalls: 0,
+      skillErrors: 0,
       tokens: {
         input: event.inputTokens,
         output: event.outputTokens,
@@ -84,6 +90,18 @@ export class EventAggregatorHelper {
     ).toolCalls++;
   }
 
+  applySkillCall(state: AggregationState, event: SkillCallEvent): void {
+    state.totals.skillCalls++;
+    if (event.status === "error") state.totals.skillErrors++;
+    const s = aggregateHelper.getOrCreate(state.bySkill, event.skill, () =>
+      aggregateHelper.emptySkillStats(),
+    );
+    s.calls++;
+    if (event.status === "error") s.errors++;
+    const totalDurationMs = s.avgDurationMs * (s.calls - 1) + event.durationMs;
+    s.avgDurationMs = totalDurationMs / s.calls;
+  }
+
   applySessionCreated(
     state: AggregationState,
     event: SessionCreatedEvent,
@@ -109,6 +127,8 @@ export class EventAggregatorHelper {
       this.applyLlmCall(state, event);
     } else if (event.type === TraceEventType.TOOL_CALL) {
       this.applyToolCall(state, event);
+    } else if (event.type === TraceEventType.SKILL_CALL) {
+      this.applySkillCall(state, event);
     } else if (event.type === TraceEventType.SESSION_CREATED) {
       this.applySessionCreated(state, event);
     } else if (event.type === TraceEventType.SESSION_ERROR) {
@@ -121,6 +141,7 @@ export class EventAggregatorHelper {
       totals: state.totals,
       byAgent: Object.fromEntries(state.byAgent),
       byTool: Object.fromEntries(state.byTool),
+      bySkill: Object.fromEntries(state.bySkill),
       bySession: Object.fromEntries(state.bySession),
       byModel: {} as Record<string, Aggregate>,
       byAgentModel: {} as Record<string, Record<string, Aggregate>>,

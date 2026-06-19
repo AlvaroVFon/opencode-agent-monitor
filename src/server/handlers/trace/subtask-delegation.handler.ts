@@ -1,5 +1,5 @@
 import { TraceHelper } from "../../helpers/trace.helpers";
-import { TraceEventType, PartType } from "../../enums";
+import { TraceEventType, PartType } from "../../../shared/enums";
 import { Handler } from "../../handler.interface";
 import type { MessagePartUpdatedProps } from "../../types";
 
