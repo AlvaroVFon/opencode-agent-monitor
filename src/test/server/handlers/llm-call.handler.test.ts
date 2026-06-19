@@ -22,13 +22,14 @@ function makeMsg(overrides: Record<string, unknown> = {}) {
 describe("LlmCallHandler", () => {
   it("writes a trace when assistant finishes with tokens", () => {
     const writeTrace = mock.fn();
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const handler = new LlmCallHandler(
-      { writeTrace, writeTraceError: mock.fn(), ensureDir: () => {} } as any,
-      currentAgent,
-    );
+    const handler = new LlmCallHandler({
+      writeTrace,
+      writeTraceError: mock.fn(),
+      ensureDir: () => {},
+    } as any);
 
-    handler.handle(makeMsg());
+    const getAgent = (sID: string) => (sID === "sess-1" ? "coder" : "unknown");
+    handler.handle(makeMsg(), getAgent);
 
     assert.equal(writeTrace.mock.calls.length, 1);
     const event = writeTrace.mock.calls[0].arguments[0];
@@ -42,12 +43,13 @@ describe("LlmCallHandler", () => {
     assert.equal(event.durationMs, 50);
   });
 
-  it("uses UNKNOWN agent when sessionID not in map", () => {
+  it("uses UNKNOWN agent when no getAgent provided", () => {
     const writeTrace = mock.fn();
-    const handler = new LlmCallHandler(
-      { writeTrace, writeTraceError: mock.fn(), ensureDir: () => {} } as any,
-      new Map(),
-    );
+    const handler = new LlmCallHandler({
+      writeTrace,
+      writeTraceError: mock.fn(),
+      ensureDir: () => {},
+    } as any);
 
     handler.handle(makeMsg());
     assert.equal(writeTrace.mock.calls[0].arguments[0].agent, "unknown");
@@ -55,10 +57,11 @@ describe("LlmCallHandler", () => {
 
   it("ignores non-assistant messages", () => {
     const writeTrace = mock.fn();
-    const handler = new LlmCallHandler(
-      { writeTrace, writeTraceError: mock.fn(), ensureDir: () => {} } as any,
-      new Map(),
-    );
+    const handler = new LlmCallHandler({
+      writeTrace,
+      writeTraceError: mock.fn(),
+      ensureDir: () => {},
+    } as any);
 
     handler.handle(makeMsg({ role: "user" }));
     assert.equal(writeTrace.mock.calls.length, 0);
@@ -66,10 +69,11 @@ describe("LlmCallHandler", () => {
 
   it("ignores assistant messages without finish", () => {
     const writeTrace = mock.fn();
-    const handler = new LlmCallHandler(
-      { writeTrace, writeTraceError: mock.fn(), ensureDir: () => {} } as any,
-      new Map(),
-    );
+    const handler = new LlmCallHandler({
+      writeTrace,
+      writeTraceError: mock.fn(),
+      ensureDir: () => {},
+    } as any);
 
     handler.handle(makeMsg({ finish: undefined }));
     assert.equal(writeTrace.mock.calls.length, 0);
@@ -77,10 +81,11 @@ describe("LlmCallHandler", () => {
 
   it("ignores assistant messages without tokens", () => {
     const writeTrace = mock.fn();
-    const handler = new LlmCallHandler(
-      { writeTrace, writeTraceError: mock.fn(), ensureDir: () => {} } as any,
-      new Map(),
-    );
+    const handler = new LlmCallHandler({
+      writeTrace,
+      writeTraceError: mock.fn(),
+      ensureDir: () => {},
+    } as any);
 
     handler.handle(makeMsg({ tokens: undefined }));
     assert.equal(writeTrace.mock.calls.length, 0);
@@ -88,10 +93,11 @@ describe("LlmCallHandler", () => {
 
   it("skips trace when time.completed is missing", () => {
     const writeTrace = mock.fn();
-    const handler = new LlmCallHandler(
-      { writeTrace, writeTraceError: mock.fn(), ensureDir: () => {} } as any,
-      new Map([["sess-1", "coder"]]),
-    );
+    const handler = new LlmCallHandler({
+      writeTrace,
+      writeTraceError: mock.fn(),
+      ensureDir: () => {},
+    } as any);
 
     handler.handle(makeMsg({ time: undefined }));
     assert.equal(writeTrace.mock.calls.length, 0);

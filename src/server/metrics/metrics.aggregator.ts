@@ -1,3 +1,4 @@
+import type { GetAgent } from "../handler.interface";
 import { EventType, PartStatus, PartType, Role, UNKNOWN } from "../enums";
 import type {
   MessagePartUpdatedProps,
@@ -32,7 +33,6 @@ export class MetricsAggregator {
   private lastSeenAt = 0;
 
   constructor(
-    private readonly currentAgent: Map<string, string>,
     private readonly helper: AggregateHelper,
     private readonly filterHelper: SnapshotFilterHelper = new SnapshotFilterHelper(
       new SnapshotTransformHelper(new AggregateHelper()),
@@ -45,15 +45,18 @@ export class MetricsAggregator {
     };
   }
 
-  ingest(event: { type: string; properties: unknown }): void {
+  ingest(
+    event: { type: string; properties: unknown },
+    getAgent?: GetAgent,
+  ): void {
     this.touchWindow(Date.now());
 
     switch (event.type) {
       case EventType.MESSAGE_UPDATED:
-        this.ingestMessage(event.properties as MessageUpdatedProps);
+        this.ingestMessage(event.properties as MessageUpdatedProps, getAgent);
         break;
       case EventType.MESSAGE_PART_UPDATED:
-        this.ingestPart(event.properties as MessagePartUpdatedProps);
+        this.ingestPart(event.properties as MessagePartUpdatedProps, getAgent);
         break;
       case EventType.SESSION_CREATED:
         this.ingestSessionCreated(event.properties as SessionCreatedProps);
@@ -132,7 +135,7 @@ export class MetricsAggregator {
     this.lastSeenAt = 0;
   }
 
-  ingestMessage(props: MessageUpdatedProps): void {
+  ingestMessage(props: MessageUpdatedProps, getAgent?: GetAgent): void {
     const msg = props.info as LlmAssistantMessage;
 
     if (msg.role !== Role.ASSISTANT) return;
@@ -140,7 +143,7 @@ export class MetricsAggregator {
     const sessionID = msg.sessionID;
     if (!sessionID) return;
 
-    const agent = this.currentAgent.get(sessionID) ?? UNKNOWN;
+    const agent = getAgent?.(sessionID) ?? UNKNOWN;
     const model =
       msg.providerID && msg.modelID
         ? `${msg.providerID}/${msg.modelID}`
@@ -164,7 +167,7 @@ export class MetricsAggregator {
     }
   }
 
-  ingestPart(props: MessagePartUpdatedProps): void {
+  ingestPart(props: MessagePartUpdatedProps, getAgent?: GetAgent): void {
     const part = props.part as {
       type?: string;
       sessionID?: string;
@@ -183,7 +186,7 @@ export class MetricsAggregator {
     if (status !== PartStatus.COMPLETED && status !== PartStatus.ERROR) return;
 
     const sessionID = part.sessionID;
-    const agent = this.currentAgent.get(sessionID) ?? UNKNOWN;
+    const agent = getAgent?.(sessionID) ?? UNKNOWN;
     const toolName = part.tool ?? UNKNOWN;
     const durationMs =
       part.state?.time?.start && part.state?.time?.end
