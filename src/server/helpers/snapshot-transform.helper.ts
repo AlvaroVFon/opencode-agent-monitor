@@ -1,5 +1,5 @@
 import type { Aggregate } from "../../shared/metrics.types";
-import { MetricsAggregatorHelper } from "./metrics-aggregator.helper";
+import { AggregateHelper } from "../../shared/aggregate.helpers";
 
 type TotalsWithSessions = Aggregate & {
   sessionsCreated: number;
@@ -7,7 +7,7 @@ type TotalsWithSessions = Aggregate & {
 };
 
 export class SnapshotTransformHelper {
-  constructor(private readonly helper: MetricsAggregatorHelper) {}
+  constructor(private readonly helper: AggregateHelper) {}
 
   topNByCost(
     record: Record<string, Aggregate>,
@@ -24,7 +24,7 @@ export class SnapshotTransformHelper {
 
   zeroedTotals(): TotalsWithSessions {
     return {
-      ...this.helper.emptyAggregate(),
+      ...this.helper.empty(),
       sessionsCreated: 0,
       sessionErrors: 0,
     };

@@ -1,11 +1,9 @@
-import type {
-  Aggregate,
-  TokenUsage,
-  ToolStats,
-} from "../../shared/metrics.types";
+import type { Aggregate, TokenUsage, ToolStats } from "./metrics.types";
 
-export class MetricsAggregatorHelper {
-  emptyAggregate(): Aggregate {
+export type SessionAggregate = Aggregate & { sessionErrors: number };
+
+export class AggregateHelper {
+  empty(): Aggregate {
     return {
       llmCalls: 0,
       llmErrors: 0,
@@ -19,6 +17,19 @@ export class MetricsAggregatorHelper {
 
   emptyToolStats(): ToolStats {
     return { calls: 0, errors: 0, durationMs: 0 };
+  }
+
+  emptySession(): SessionAggregate {
+    return { ...this.empty(), sessionErrors: 0 };
+  }
+
+  getOrCreate<K, V>(map: Map<K, V>, key: K, factory: () => V): V {
+    let value = map.get(key);
+    if (!value) {
+      value = factory();
+      map.set(key, value);
+    }
+    return value;
   }
 
   addTokens(target: TokenUsage, source: TokenUsage): void {
@@ -44,31 +55,26 @@ export class MetricsAggregatorHelper {
     target.durationMs += source.durationMs;
   }
 
-  cloneAggregate(agg: Aggregate): Aggregate {
+  clone(aggregate: Aggregate): Aggregate {
     return {
-      llmCalls: agg.llmCalls,
-      llmErrors: agg.llmErrors,
-      toolCalls: agg.toolCalls,
-      toolErrors: agg.toolErrors,
-      tokens: { ...agg.tokens },
-      cost: agg.cost,
-      workDurationMs: agg.workDurationMs,
+      llmCalls: aggregate.llmCalls,
+      llmErrors: aggregate.llmErrors,
+      toolCalls: aggregate.toolCalls,
+      toolErrors: aggregate.toolErrors,
+      tokens: { ...aggregate.tokens },
+      cost: aggregate.cost,
+      workDurationMs: aggregate.workDurationMs,
     };
   }
 
-  cloneAggregateWithSessions(
-    agg: Aggregate & { sessionsCreated: number },
-  ): Aggregate & { sessionsCreated: number } {
-    return {
-      ...this.cloneAggregate(agg),
-      sessionsCreated: agg.sessionsCreated,
-    };
+  cloneSession(aggregate: SessionAggregate): SessionAggregate {
+    return { ...this.clone(aggregate), sessionErrors: aggregate.sessionErrors };
   }
 
   mapToRecord(map: Map<string, Aggregate>): Record<string, Aggregate> {
     const record: Record<string, Aggregate> = {};
     for (const [key, value] of map) {
-      record[key] = this.cloneAggregate(value);
+      record[key] = this.clone(value);
     }
     return record;
   }
@@ -91,3 +97,5 @@ export class MetricsAggregatorHelper {
     return record;
   }
 }
+
+export const aggregateHelper = new AggregateHelper();

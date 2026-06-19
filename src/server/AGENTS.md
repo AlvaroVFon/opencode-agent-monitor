@@ -65,7 +65,7 @@ EventHandler.handle(event)
 - `MetricsAggregator` in `metrics/metrics.aggregator.ts` ingests the **same SDK events** as the trace pipeline. It is **not** an output of the trace; it is a parallel consumer.
 - Internal state: `totals`, `bySession`, `byAgent`, `byModel`, `byAgentModel`. `snapshot()` returns a defensive-cloned `MetricsSnapshot`.
 - `MetricsAggregator` uses its **own** `MetricsHandlersRegistry` (single-handler-per-event) — separate from the `EventsRegistry` used by trace writing. Do not merge them.
-- Constructor: `new MetricsAggregator(currentAgent, new MetricsAggregatorHelper())`. `MetricsAggregatorHelper` is stateless and provides `add*` (mutates target) and `clone*` / `mapTo*` (defensive copy) methods.
+- Constructor: `new MetricsAggregator(currentAgent, new AggregateHelper())`. `AggregateHelper` (from `src/shared/aggregate.helpers`) is stateless and provides `add*` (mutates target) and `clone*` / `mapTo*` (defensive copy) methods.
 
 ## Type relaxations
 

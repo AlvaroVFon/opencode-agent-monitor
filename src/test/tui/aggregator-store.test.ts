@@ -1,74 +1,15 @@
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
-import { spawnSync } from "node:child_process";
 import { AggregatorStore } from "../../tui/aggregator-store";
 import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types";
-
-// ---------------------------------------------------------------------------
-// TraceEvent — the union type accepted by `store.ingest()`.
-// ---------------------------------------------------------------------------
-//
-// Inlined here so the test file is self-contained and remains the only source
-// of truth for the event shape during the TDD red phase. The shapes match
-// the TraceEvent union produced by the JSONL tailer and consumed by
-// `scripts/metrics.mts`.
-
-type LlmCallEvent = {
-  type: "llm_call";
-  sessionID: string;
-  agent: string;
-  model: string;
-  finish: string;
-  inputTokens: number;
-  outputTokens: number;
-  reasoningTokens: number;
-  cacheRead: number;
-  cost: number;
-  durationMs: number;
-  timestamp: number;
-};
-
-type ToolCallEvent = {
-  type: "tool_call";
-  sessionID: string;
-  tool: string;
-  callID: string;
-  status: "completed" | "error";
-  durationMs: number;
-  error?: string;
-  timestamp: number;
-};
-
-type SessionCreatedEvent = {
-  type: "session_created";
-  sessionID: string;
-  parentID: string | null;
-  timestamp: number;
-};
-
-type SessionErrorEvent = {
-  type: "session_error";
-  sessionID: string;
-  errorType?: string;
-  errorMessage?: string;
-  timestamp: number;
-};
-
-type AgentDelegationEvent = {
-  type: "agent_delegation";
-  timestamp: number;
-  [key: string]: unknown;
-};
-
-type TraceEvent =
-  | LlmCallEvent
-  | ToolCallEvent
-  | SessionCreatedEvent
-  | SessionErrorEvent
-  | AgentDelegationEvent;
+import type {
+  LlmCallEvent,
+  ToolCallEvent,
+  SessionCreatedEvent,
+  SessionErrorEvent,
+  AgentDelegationEvent,
+  TraceEvent,
+} from "../../shared/trace-events.types";
 
 // ---------------------------------------------------------------------------
 // Fixture builders — small helpers that produce events with sensible defaults
@@ -149,123 +90,8 @@ function makeAgentDelegationEvent(
   };
 }
 
-// ---------------------------------------------------------------------------
-// scripts/metrics.mts integration — write events to a temp dir, run the
-// script with `--json`, and parse the resulting snapshot. Used by the
-// replay test to assert that the store's aggregated state matches the
-// canonical `aggregate()` implementation in scripts/metrics.mts.
-// ---------------------------------------------------------------------------
-
-// Shape of an Aggregate after scripts/metrics.mts' toJsonSafe() projection.
-// We deliberately leave `durationMs` as `unknown` because the store does
-// not track it (per spec); the comparison helpers below ignore it.
-
-interface ScriptAggregate {
-  llmCalls: number;
-  llmErrors: number;
-  toolCalls: number;
-  toolErrors: number;
-  tokens: {
-    input: number;
-    output: number;
-    reasoning: number;
-    cacheRead: number;
-  };
-  cost: number;
-  durationMs: unknown;
-}
-
-interface ScriptSnapshot {
-  totals: ScriptAggregate;
-  byAgent: Record<string, ScriptAggregate>;
-  byTool: Record<string, unknown>;
-  bySession: Record<string, unknown>;
-  errors: unknown[];
-  window: { firstSeenAt: number; lastSeenAt: number };
-}
-
-const tempDirs: string[] = [];
-
-function makeTempDir(): string {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "aggregator-store-test-"));
-  tempDirs.push(dir);
-  return dir;
-}
-
-function aggregateViaScript(events: TraceEvent[]): ScriptSnapshot {
-  const dir = makeTempDir();
-  const tracePath = path.join(dir, "trace.jsonl");
-  const text =
-    events.length === 0
-      ? ""
-      : events.map((e) => JSON.stringify(e)).join("\n") + "\n";
-  fs.writeFileSync(tracePath, text);
-
-  const scriptPath = path.join(process.cwd(), "scripts", "metrics.mts");
-  const result = spawnSync(
-    process.execPath,
-    ["--import", "tsx", scriptPath, "--dir", dir, "--json"],
-    { encoding: "utf8", timeout: 30_000 },
-  );
-
-  if (result.error) {
-    throw new Error(
-      `failed to spawn scripts/metrics.mts: ${result.error.message}`,
-    );
-  }
-  if (result.status !== 0) {
-    throw new Error(
-      `scripts/metrics.mts exited with status ${result.status}\n` +
-        `stdout:\n${result.stdout}\n` +
-        `stderr:\n${result.stderr}`,
-    );
-  }
-  return JSON.parse(result.stdout) as ScriptSnapshot;
-}
-
-function assertAggregateMatches(
-  label: string,
-  actual: Aggregate,
-  expected: ScriptAggregate,
-): void {
-  assert.equal(actual.llmCalls, expected.llmCalls, `${label}.llmCalls`);
-  assert.equal(actual.llmErrors, expected.llmErrors, `${label}.llmErrors`);
-  assert.equal(actual.toolCalls, expected.toolCalls, `${label}.toolCalls`);
-  assert.equal(actual.toolErrors, expected.toolErrors, `${label}.toolErrors`);
-  assert.equal(actual.cost, expected.cost, `${label}.cost`);
-  assert.equal(
-    actual.tokens.input,
-    expected.tokens.input,
-    `${label}.tokens.input`,
-  );
-  assert.equal(
-    actual.tokens.output,
-    expected.tokens.output,
-    `${label}.tokens.output`,
-  );
-  assert.equal(
-    actual.tokens.reasoning,
-    expected.tokens.reasoning,
-    `${label}.tokens.reasoning`,
-  );
-  assert.equal(
-    actual.tokens.cacheRead,
-    expected.tokens.cacheRead,
-    `${label}.tokens.cacheRead`,
-  );
-}
-
 afterEach(() => {
-  while (tempDirs.length > 0) {
-    const dir = tempDirs.pop();
-    if (dir) {
-      try {
-        fs.rmSync(dir, { recursive: true, force: true });
-      } catch {
-        // best-effort cleanup
-      }
-    }
-  }
+  // no-op
 });
 
 // ---------------------------------------------------------------------------
@@ -322,92 +148,8 @@ describe("AggregatorStore", () => {
     assert.equal(snap.window.lastSeenAt, 1_700_000_123_456);
   });
 
-  it("replay_from_jsonl_matches_scripts_metrics_aggregate: replaying a trace.jsonl produces a snapshot matching scripts/metrics.mts aggregate()", () => {
-    const events: TraceEvent[] = [
-      makeSessionCreatedEvent("sess-1", {
-        timestamp: 1_700_000_000_000,
-      }),
-      makeLlmCallEvent({
-        sessionID: "sess-1",
-        agent: "coder",
-        model: "openai/gpt-4",
-        inputTokens: 100,
-        outputTokens: 50,
-        reasoningTokens: 5,
-        cacheRead: 2,
-        cost: 0.001,
-        durationMs: 800,
-        timestamp: 1_700_000_001_000,
-      }),
-      makeLlmCallEvent({
-        sessionID: "sess-1",
-        agent: "coder",
-        model: "openai/gpt-4",
-        inputTokens: 200,
-        outputTokens: 80,
-        reasoningTokens: 0,
-        cacheRead: 0,
-        cost: 0.002,
-        durationMs: 1200,
-        timestamp: 1_700_000_002_000,
-      }),
-      makeToolCallEvent("bash", "completed", {
-        sessionID: "sess-1",
-        callID: "call-1",
-        durationMs: 250,
-        timestamp: 1_700_000_003_000,
-      }),
-      makeToolCallEvent("bash", "error", {
-        sessionID: "sess-1",
-        callID: "call-2",
-        durationMs: 500,
-        timestamp: 1_700_000_004_000,
-      }),
-      makeLlmCallEvent({
-        sessionID: "sess-2",
-        agent: "reviewer",
-        model: "anthropic/claude-3",
-        inputTokens: 50,
-        outputTokens: 25,
-        reasoningTokens: 0,
-        cacheRead: 0,
-        cost: 0.003,
-        durationMs: 600,
-        timestamp: 1_700_000_005_000,
-      }),
-    ];
-
-    // Replay via the store under test
-    const store = new AggregatorStore();
-    for (const e of events) store.ingest(e);
-    const snap = store.snapshot();
-
-    // Reference snapshot from scripts/metrics.mts
-    const script = aggregateViaScript(events);
-
-    // Same set of agent keys
-    assert.deepEqual(
-      Object.keys(snap.byAgent).sort(),
-      Object.keys(script.byAgent).sort(),
-      "byAgent keys must match scripts/metrics.mts output",
-    );
-
-    // Per-agent: shared fields only (drop script's durationMs)
-    for (const agent of Object.keys(snap.byAgent)) {
-      assertAggregateMatches(
-        `byAgent[${agent}]`,
-        snap.byAgent[agent]!,
-        script.byAgent[agent]!,
-      );
-    }
-
-    // Totals: shared fields only
-    assertAggregateMatches("totals", snap.totals, script.totals);
-
-    // Window
-    assert.equal(snap.window.firstSeenAt, script.window.firstSeenAt);
-    assert.equal(snap.window.lastSeenAt, script.window.lastSeenAt);
-  });
+  // replay_from_jsonl test removed along with scripts/metrics.mts
+  // (superseded by CLI stats/export commands)
 
   it("stream_vs_batch_ingestion_produces_same_snapshot: one-by-one ingest equals batch ingest result", () => {
     const events: TraceEvent[] = [

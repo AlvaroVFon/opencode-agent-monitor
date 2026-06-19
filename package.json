@@ -1,6 +1,6 @@
 {
   "name": "@alvarovfon/opencode-agent-monitor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "OpenCode plugin for tracing LLM calls, agent delegations, tool calls and session events to JSONL files",
   "type": "module",
   "main": "dist/agent-monitor.js",
@@ -13,17 +13,28 @@
     "./tui": {
       "types": "./dist/tui.d.ts",
       "import": "./dist/tui.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
     }
+  },
+  "bin": {
+    "agent-monitor": "dist/cli.js"
   },
   "scripts": {
     "build": "tsup",
     "test": "node --import tsx --experimental-test-module-mocks --test 'src/test/**/*.test.ts'",
+    "test:coverage": "node --import tsx --experimental-test-coverage --experimental-test-module-mocks --test 'src/test/**/*.test.ts'",
     "lint": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:prod": "tsx scripts/test-prod.mts",
     "commitlint": "commitlint --edit",
-    "metrics": "tsx scripts/metrics.mts",
+    "metrics": "tsx src/cli/main.ts stats",
+    "metrics:stats": "tsx src/cli/main.ts stats",
+    "metrics:errors": "tsx src/cli/main.ts errors",
+    "metrics:export": "tsx src/cli/main.ts export",
     "prepare-release": "tsx scripts/release.mts",
     "prepare": "husky",
     "prepack": "pnpm run build",
@@ -36,6 +47,7 @@
   "dependencies": {
     "@opencode-ai/plugin": "^1.14.50",
     "@opencode-ai/sdk": "^1.x",
+    "commander": "^15.0.0",
     "solid-js": "^1.9.0"
   },
   "peerDependencies": {

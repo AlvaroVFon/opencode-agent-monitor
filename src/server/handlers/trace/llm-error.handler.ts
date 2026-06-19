@@ -1,21 +1,18 @@
-import { TraceHelper } from "../helpers/trace.helpers";
-import { extractErrorMessage } from "../helpers/error.helpers";
-import { TraceEventType, UNKNOWN, Role } from "../enums";
-import { Handler } from "../handler.interface";
-import type { MessageUpdatedProps } from "../types";
+import { TraceHelper } from "../../helpers/trace.helpers";
+import { extractErrorMessage } from "../../helpers/error.helpers";
+import { TraceEventType, UNKNOWN, Role } from "../../enums";
+import { Handler, type GetAgent } from "../../handler.interface";
+import type { MessageUpdatedProps } from "../../types";
 
-export class LlmErrorHandler implements Handler {
-  constructor(
-    private readonly traceHelper: TraceHelper,
-    private readonly currentAgent: Map<string, string>,
-  ) {}
+export class LlmErrorHandler implements Handler<MessageUpdatedProps> {
+  constructor(private readonly traceHelper: TraceHelper) {}
 
-  handle(properties: unknown): void {
-    const msg = (properties as MessageUpdatedProps).info;
+  handle(properties: MessageUpdatedProps, getAgent?: GetAgent): void {
+    const msg = properties.info;
 
     if (msg.role !== Role.ASSISTANT || !msg.error || msg.tokens) return;
 
-    const agent = this.currentAgent.get(msg.sessionID) ?? UNKNOWN;
+    const agent = getAgent?.(msg.sessionID) ?? UNKNOWN;
     const model = `${msg.providerID}/${msg.modelID}`;
     const { name: errorName, data } = msg.error;
 

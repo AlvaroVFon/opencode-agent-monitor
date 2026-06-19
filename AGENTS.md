@@ -9,7 +9,7 @@ pnpm lint           # tsc --noEmit (does NOT check src/test/)
 pnpm format:check   # prettier --check .
 pnpm test           # node --import tsx --experimental-test-module-mocks --test 'src/test/**/*.test.ts'
 pnpm format         # prettier --write .
-pnpm metrics        # tsx scripts/metrics.mts (aggregate trace.jsonl → markdown/json)
+pnpm metrics        # tsx src/cli/main.ts stats (aggregate trace.jsonl → markdown/json)
 pnpm test:prod      # tsx scripts/test-prod.mts
 ```
 
@@ -21,6 +21,8 @@ pnpm test:prod      # tsx scripts/test-prod.mts
 ## Conventions
 
 - **All code follows object-oriented programming (OOP) principles.** Classes and objects are the primary building blocks; pure functions are used only for stateless formatting and data transformation.
+- **Export naming — PascalCase class, camelCase singleton.** Classes use PascalCase (`CliAggregator`, `TraceReader`, `AggregateHelper`). When a single instance is exported from the same file, it uses camelCase matching the class name (`cliAggregator`, `traceReader`, `aggregateHelper`).
+- **Instantiation strategy depends on layer.** CLI and TUI helpers export a singleton instance inline (they are leaf utilities). Server-side helpers export only the class; instances are created in `src/server/wire/` factories. Both approaches are valid.
 
 ## Key conventions
 

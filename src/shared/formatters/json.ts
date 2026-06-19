@@ -1,4 +1,4 @@
-import type { MetricsSnapshot } from "../../../shared/metrics.types";
+import type { MetricsSnapshot } from "../metrics.types";
 
 export function formatJson(snap: MetricsSnapshot): string {
   return JSON.stringify(

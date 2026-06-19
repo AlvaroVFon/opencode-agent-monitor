@@ -4,70 +4,18 @@ import type {
   MetricsSnapshot,
   ToolStats,
 } from "../shared/metrics.types";
+import type {
+  LlmCallEvent,
+  ToolCallEvent,
+  TraceEvent,
+} from "../shared/trace-events.types";
+import { TraceEventType } from "../shared/enums";
 import {
   aggregateHelper,
   type SessionAggregate,
-} from "./helpers/aggregate.helper.js";
+} from "../shared/aggregate.helpers";
 
-// ---------------------------------------------------------------------------
-// TraceEvent — the shape produced by the JSONL tailer from trace.jsonl files.
-// These are distinct from the OpenCode SDK events consumed by
-// MetricsAggregator.
-// ---------------------------------------------------------------------------
-
-type LlmCallEvent = {
-  type: "llm_call";
-  sessionID: string;
-  agent: string;
-  model: string;
-  finish: string;
-  inputTokens: number;
-  outputTokens: number;
-  reasoningTokens: number;
-  cacheRead: number;
-  cost: number;
-  durationMs: number;
-  timestamp: number;
-};
-
-type ToolCallEvent = {
-  type: "tool_call";
-  sessionID: string;
-  tool: string;
-  callID: string;
-  status: "completed" | "error";
-  durationMs: number;
-  error?: string;
-  timestamp: number;
-};
-
-type SessionCreatedEvent = {
-  type: "session_created";
-  sessionID: string;
-  parentID: string | null;
-  timestamp: number;
-};
-
-type SessionErrorEvent = {
-  type: "session_error";
-  sessionID: string;
-  errorType?: string;
-  errorMessage?: string;
-  timestamp: number;
-};
-
-type AgentDelegationEvent = {
-  type: "agent_delegation";
-  timestamp: number;
-  [key: string]: unknown;
-};
-
-export type TraceEvent =
-  | LlmCallEvent
-  | ToolCallEvent
-  | SessionCreatedEvent
-  | SessionErrorEvent
-  | AgentDelegationEvent;
+export type { TraceEvent };
 
 // ---------------------------------------------------------------------------
 // AggregatorStore
@@ -111,7 +59,7 @@ export class AggregatorStore {
     this.touch(event.timestamp);
 
     switch (event.type) {
-      case "llm_call": {
+      case TraceEventType.LLM_CALL: {
         this.addLlm(this.totals, event);
         this.addLlm(this.getAgent(event.agent), event);
         this.addLlm(this.getSession(event.sessionID), event);
@@ -136,7 +84,7 @@ export class AggregatorStore {
         break;
       }
 
-      case "tool_call": {
+      case TraceEventType.TOOL_CALL: {
         this.addTool(this.totals, event);
         this.addTool(this.getSession(event.sessionID), event);
         this.addToolStats(this.getTool(event.tool), event);
@@ -151,13 +99,13 @@ export class AggregatorStore {
         break;
       }
 
-      case "session_created": {
+      case TraceEventType.SESSION_CREATED: {
         this.totals.sessionsCreated += 1;
         this.getSession(event.sessionID);
         break;
       }
 
-      case "session_error": {
+      case TraceEventType.SESSION_ERROR: {
         this.totals.sessionErrors += 1;
         this.getSession(event.sessionID).sessionErrors += 1;
         this.pushError({
@@ -169,7 +117,7 @@ export class AggregatorStore {
         break;
       }
 
-      case "agent_delegation":
+      case TraceEventType.AGENT_DELEGATION:
       default: {
         // No aggregation required for delegation events.
         break;

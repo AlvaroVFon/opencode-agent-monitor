@@ -2,8 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { EventType, PartStatus, PartType, Role } from "../../../server/enums";
 import { MetricsAggregator } from "../../../server/metrics/metrics.aggregator";
-import { MetricsAggregatorHelper } from "../../../server/helpers/metrics-aggregator.helper";
-import { buildMetricsHandlersRegistry } from "../../../server/wire/aggregator-wiring";
+import { AggregateHelper } from "../../../shared/aggregate.helpers";
+import { buildDefaultRegistry } from "../../../server/wire/aggregator-wiring";
 
 const makeLlmCallEvent = (overrides: Record<string, unknown> = {}) => ({
   type: EventType.MESSAGE_UPDATED,
@@ -72,20 +72,26 @@ const makeSessionErrorEvent = (overrides: Record<string, unknown> = {}) => ({
 });
 
 function createTestAggregator(
-  currentAgent: Map<string, string>,
-  helper = new MetricsAggregatorHelper(),
+  helper = new AggregateHelper(),
 ): MetricsAggregator {
-  const aggregator = new MetricsAggregator(currentAgent, helper);
-  aggregator.init(buildMetricsHandlersRegistry(aggregator));
-  return aggregator;
+  return new MetricsAggregator(helper, undefined, buildDefaultRegistry());
 }
+
+const coderAgent = (sID: string) => (sID === "sess-1" ? "coder" : "unknown");
+const reviewerAgent = (sID: string) => {
+  const map: Record<string, string> = {
+    "sess-1": "coder",
+    "sess-2": "reviewer",
+    "sess-3": "tester",
+  };
+  return map[sID] ?? "unknown";
+};
 
 describe("MetricsAggregator", () => {
   it("ingests llm_call and updates totals, bySession, byAgent, byModel", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeLlmCallEvent());
+    aggregator.ingest(makeLlmCallEvent(), coderAgent);
 
     const snap = aggregator.snapshot();
     assert.equal(snap.totals.llmCalls, 1);
@@ -99,7 +105,6 @@ describe("MetricsAggregator", () => {
     assert.equal(snap.byModel["openai/gpt-4"].llmCalls, 1);
     assert.equal(snap.bySession["sess-1"].cost, 0.002);
 
-    // byAgentModel — the per-agent+model bucket
     assert.ok(
       "coder" in snap.byAgentModel,
       "byAgentModel must contain the event's agent name",
@@ -121,13 +126,9 @@ describe("MetricsAggregator", () => {
   });
 
   it("splits aggregates across distinct agents and models", () => {
-    const currentAgent = new Map([
-      ["sess-1", "coder"],
-      ["sess-2", "reviewer"],
-    ]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeLlmCallEvent({ sessionID: "sess-1" }));
+    aggregator.ingest(makeLlmCallEvent({ sessionID: "sess-1" }), reviewerAgent);
     aggregator.ingest(
       makeLlmCallEvent({
         sessionID: "sess-2",
@@ -136,6 +137,7 @@ describe("MetricsAggregator", () => {
         cost: 0.003,
         tokens: { input: 5, output: 8, reasoning: 0, cache: { read: 0 } },
       }),
+      reviewerAgent,
     );
 
     const snap = aggregator.snapshot();
@@ -148,7 +150,6 @@ describe("MetricsAggregator", () => {
     assert.equal(snap.byModel["openai/gpt-4"].cost, 0.002);
     assert.equal(snap.byModel["anthropic/claude-3"].cost, 0.003);
 
-    // byAgentModel — each agent must keep its model segregated
     assert.equal(Object.keys(snap.byAgentModel).length, 2);
     assert.equal(snap.byAgentModel["coder"]!["openai/gpt-4"]!.cost, 0.002);
     assert.equal(
@@ -168,8 +169,7 @@ describe("MetricsAggregator", () => {
   });
 
   it("byAgentModel separates multiple models for the same agent", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
     aggregator.ingest(
       makeLlmCallEvent({
@@ -177,6 +177,7 @@ describe("MetricsAggregator", () => {
         cost: 0.001,
         tokens: { input: 10, output: 5, reasoning: 0, cache: { read: 0 } },
       }),
+      coderAgent,
     );
     aggregator.ingest(
       makeLlmCallEvent({
@@ -184,6 +185,7 @@ describe("MetricsAggregator", () => {
         cost: 0.0005,
         tokens: { input: 20, output: 10, reasoning: 0, cache: { read: 0 } },
       }),
+      coderAgent,
     );
     aggregator.ingest(
       makeLlmCallEvent({
@@ -191,6 +193,7 @@ describe("MetricsAggregator", () => {
         cost: 0.002,
         tokens: { input: 30, output: 15, reasoning: 0, cache: { read: 0 } },
       }),
+      coderAgent,
     );
 
     const snap = aggregator.snapshot();
@@ -207,10 +210,9 @@ describe("MetricsAggregator", () => {
   });
 
   it("ingests llm_error without touching tokens or cost", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeLlmErrorEvent());
+    aggregator.ingest(makeLlmErrorEvent(), coderAgent);
 
     const snap = aggregator.snapshot();
     assert.equal(snap.totals.llmErrors, 1);
@@ -221,10 +223,9 @@ describe("MetricsAggregator", () => {
   });
 
   it("ingests tool_call completed", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeToolCallEvent(PartStatus.COMPLETED));
+    aggregator.ingest(makeToolCallEvent(PartStatus.COMPLETED), coderAgent);
 
     const snap = aggregator.snapshot();
     assert.equal(snap.totals.toolCalls, 1);
@@ -233,10 +234,9 @@ describe("MetricsAggregator", () => {
   });
 
   it("ingests tool_call error", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeToolCallEvent(PartStatus.ERROR));
+    aggregator.ingest(makeToolCallEvent(PartStatus.ERROR), coderAgent);
 
     const snap = aggregator.snapshot();
     assert.equal(snap.totals.toolCalls, 1);
@@ -245,7 +245,7 @@ describe("MetricsAggregator", () => {
   });
 
   it("ingests session_created and updates firstSeenAt/lastSeenAt window", () => {
-    const aggregator = createTestAggregator(new Map());
+    const aggregator = createTestAggregator();
 
     aggregator.ingest(makeSessionCreatedEvent("sess-A"));
 
@@ -257,7 +257,7 @@ describe("MetricsAggregator", () => {
   });
 
   it("returns zeroed snapshot for fresh aggregator", () => {
-    const aggregator = createTestAggregator(new Map());
+    const aggregator = createTestAggregator();
 
     const snap = aggregator.snapshot();
     assert.equal(snap.totals.llmCalls, 0);
@@ -282,16 +282,20 @@ describe("MetricsAggregator", () => {
   });
 
   it("ingests tool_call with tool name into byTool", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, { tool: "bash" }),
+      coderAgent,
     );
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, { tool: "read" }),
+      coderAgent,
     );
-    aggregator.ingest(makeToolCallEvent(PartStatus.ERROR, { tool: "bash" }));
+    aggregator.ingest(
+      makeToolCallEvent(PartStatus.ERROR, { tool: "bash" }),
+      coderAgent,
+    );
 
     const snap = aggregator.snapshot();
     assert.equal(snap.byTool["bash"].calls, 2);
@@ -301,7 +305,7 @@ describe("MetricsAggregator", () => {
   });
 
   it("ingests session_error and records error entry", () => {
-    const aggregator = createTestAggregator(new Map());
+    const aggregator = createTestAggregator();
 
     aggregator.ingest(makeSessionErrorEvent());
 
@@ -313,12 +317,11 @@ describe("MetricsAggregator", () => {
   });
 
   it("reset() clears all state", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeLlmCallEvent());
-    aggregator.ingest(makeLlmErrorEvent());
-    aggregator.ingest(makeToolCallEvent(PartStatus.COMPLETED));
+    aggregator.ingest(makeLlmCallEvent(), coderAgent);
+    aggregator.ingest(makeLlmErrorEvent(), coderAgent);
+    aggregator.ingest(makeToolCallEvent(PartStatus.COMPLETED), coderAgent);
     aggregator.ingest(makeSessionCreatedEvent("sess-1"));
 
     aggregator.reset();
@@ -339,11 +342,11 @@ describe("MetricsAggregator", () => {
   // ── Phase 2.5: byTool granular coverage ──────────────────────────────────
 
   it("byTool: tool completed adds to byTool", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, { tool: "bash" }),
+      coderAgent,
     );
 
     const snap = aggregator.snapshot();
@@ -354,10 +357,12 @@ describe("MetricsAggregator", () => {
   });
 
   it("byTool: tool error increments errors", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeToolCallEvent(PartStatus.ERROR, { tool: "bash" }));
+    aggregator.ingest(
+      makeToolCallEvent(PartStatus.ERROR, { tool: "bash" }),
+      coderAgent,
+    );
 
     const snap = aggregator.snapshot();
     assert.equal(snap.byTool["bash"]!.calls, 1);
@@ -365,14 +370,15 @@ describe("MetricsAggregator", () => {
   });
 
   it("byTool: multiple tools are tracked separately", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, { tool: "bash" }),
+      coderAgent,
     );
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, { tool: "read" }),
+      coderAgent,
     );
 
     const snap = aggregator.snapshot();
@@ -386,10 +392,9 @@ describe("MetricsAggregator", () => {
   // ── Phase 2.5: errors[] granular coverage ────────────────────────────────
 
   it("errors: llm_error pushes error entry", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeLlmErrorEvent());
+    aggregator.ingest(makeLlmErrorEvent(), coderAgent);
 
     const snap = aggregator.snapshot();
     assert.equal(snap.errors.length, 1);
@@ -399,10 +404,12 @@ describe("MetricsAggregator", () => {
   });
 
   it("errors: tool_call error pushes error entry", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeToolCallEvent(PartStatus.ERROR, { tool: "bash" }));
+    aggregator.ingest(
+      makeToolCallEvent(PartStatus.ERROR, { tool: "bash" }),
+      coderAgent,
+    );
 
     const snap = aggregator.snapshot();
     assert.equal(snap.errors.length, 1);
@@ -411,7 +418,7 @@ describe("MetricsAggregator", () => {
   });
 
   it("errors: session_error pushes error entry with error name as type", () => {
-    const aggregator = createTestAggregator(new Map());
+    const aggregator = createTestAggregator();
 
     aggregator.ingest(
       makeSessionErrorEvent({
@@ -424,37 +431,33 @@ describe("MetricsAggregator", () => {
     assert.equal(snap.errors.length, 1);
     assert.equal(snap.errors[0]!.type, "CustomBoom");
     assert.equal(snap.errors[0]!.sessionID, "sess-X");
-    // `data` is String()-coerced by the aggregator — a string passes through
     assert.equal(snap.errors[0]!.message, "explode");
   });
 
   it("errors: capped at 1000 entries", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
     for (let i = 0; i < 1001; i++) {
-      aggregator.ingest(makeLlmErrorEvent());
+      aggregator.ingest(makeLlmErrorEvent(), coderAgent);
     }
 
     const snap = aggregator.snapshot();
     assert.equal(snap.errors.length, 1000, "errors[] must cap at 1000");
-    // the totals counter, however, is unbounded
     assert.equal(snap.totals.llmErrors, 1001);
   });
 
   // ── Phase 2.5: snapshot() filter options ─────────────────────────────────
 
   it("snapshot({ since }): returns zeroed when window is before since", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeLlmCallEvent());
+    aggregator.ingest(makeLlmCallEvent(), coderAgent);
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, { tool: "bash" }),
+      coderAgent,
     );
-    aggregator.ingest(makeLlmErrorEvent());
+    aggregator.ingest(makeLlmErrorEvent(), coderAgent);
 
-    // since is in the future — the window is entirely before it
     const snap = aggregator.snapshot({ since: Date.now() + 1_000_000 });
 
     assert.equal(snap.totals.llmCalls, 0);
@@ -470,10 +473,9 @@ describe("MetricsAggregator", () => {
   });
 
   it("snapshot({ since }): returns data when window is after since", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeLlmCallEvent());
+    aggregator.ingest(makeLlmCallEvent(), coderAgent);
 
     const snap = aggregator.snapshot({ since: 0 });
 
@@ -483,14 +485,13 @@ describe("MetricsAggregator", () => {
   });
 
   it("snapshot({ sessionID }): returns only that session's aggregates", () => {
-    const currentAgent = new Map([
-      ["sess-1", "coder"],
-      ["sess-2", "reviewer"],
-    ]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeLlmCallEvent({ sessionID: "sess-1" }));
-    aggregator.ingest(makeLlmCallEvent({ sessionID: "sess-2", cost: 0.003 }));
+    aggregator.ingest(makeLlmCallEvent({ sessionID: "sess-1" }), reviewerAgent);
+    aggregator.ingest(
+      makeLlmCallEvent({ sessionID: "sess-2", cost: 0.003 }),
+      reviewerAgent,
+    );
 
     const snap = aggregator.snapshot({ sessionID: "sess-1" });
 
@@ -499,34 +500,30 @@ describe("MetricsAggregator", () => {
     assert.equal(snap.bySession["sess-1"]!.llmCalls, 1);
     assert.equal(snap.bySession["sess-1"]!.cost, 0.002);
     assert.equal(snap.bySession["sess-2"], undefined);
-    // session-filtered view zeros the cross-cutting maps
     assert.deepEqual(snap.byAgent, {});
     assert.deepEqual(snap.byModel, {});
     assert.deepEqual(snap.byTool, {});
-    // totals are global and preserved
     assert.equal(snap.totals.llmCalls, 2);
   });
 
   it("snapshot({ sessionID }): returns empty bySession when session not found", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeLlmCallEvent({ sessionID: "sess-1" }));
+    aggregator.ingest(makeLlmCallEvent({ sessionID: "sess-1" }), coderAgent);
 
     const snap = aggregator.snapshot({ sessionID: "nonexistent" });
 
     assert.deepEqual(snap.bySession, {});
-    // totals are NOT zeroed — they reflect global state
     assert.equal(snap.totals.llmCalls, 1);
   });
 
   it("snapshot({ groupBy: 'agent' }): returns only byAgent", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeLlmCallEvent());
+    aggregator.ingest(makeLlmCallEvent(), coderAgent);
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, { tool: "bash" }),
+      coderAgent,
     );
 
     const snap = aggregator.snapshot({ groupBy: "agent" });
@@ -540,14 +537,15 @@ describe("MetricsAggregator", () => {
   });
 
   it("snapshot({ groupBy: 'tool' }): returns only byTool", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, { tool: "bash" }),
+      coderAgent,
     );
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, { tool: "read" }),
+      coderAgent,
     );
 
     const snap = aggregator.snapshot({ groupBy: "tool" });
@@ -561,14 +559,12 @@ describe("MetricsAggregator", () => {
   });
 
   it("snapshot({ top: 1 }): returns top-N sessions/agents/models by cost", () => {
-    const currentAgent = new Map([
-      ["sess-1", "coder"],
-      ["sess-2", "reviewer"],
-      ["sess-3", "tester"],
-    ]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
-    aggregator.ingest(makeLlmCallEvent({ sessionID: "sess-1", cost: 0.001 }));
+    aggregator.ingest(
+      makeLlmCallEvent({ sessionID: "sess-1", cost: 0.001 }),
+      reviewerAgent,
+    );
     aggregator.ingest(
       makeLlmCallEvent({
         sessionID: "sess-2",
@@ -577,27 +573,29 @@ describe("MetricsAggregator", () => {
         cost: 0.005,
         tokens: { input: 1, output: 2, reasoning: 0, cache: { read: 0 } },
       }),
+      reviewerAgent,
     );
-    aggregator.ingest(makeLlmCallEvent({ sessionID: "sess-3", cost: 0.002 }));
+    aggregator.ingest(
+      makeLlmCallEvent({ sessionID: "sess-3", cost: 0.002 }),
+      reviewerAgent,
+    );
 
     const snap = aggregator.snapshot({ top: 1 });
 
     assert.equal(Object.keys(snap.bySession).length, 1);
     assert.equal(snap.bySession["sess-2"]!.cost, 0.005);
-    // byAgent also gets top-1 (reviewer was the only agent for sess-2)
     assert.equal(snap.byAgent["reviewer"]!.cost, 0.005);
-    // byModel also gets top-1
     assert.equal(snap.byModel["anthropic/claude-3"]!.cost, 0.005);
   });
 
   it("snapshot(): backward-compat returns full snapshot with byTool and errors", () => {
-    const currentAgent = new Map([["sess-1", "coder"]]);
-    const aggregator = createTestAggregator(currentAgent);
+    const aggregator = createTestAggregator();
 
     aggregator.ingest(
       makeToolCallEvent(PartStatus.COMPLETED, { tool: "bash" }),
+      coderAgent,
     );
-    aggregator.ingest(makeLlmErrorEvent());
+    aggregator.ingest(makeLlmErrorEvent(), coderAgent);
     aggregator.ingest(
       makeSessionErrorEvent({
         sessionID: "sess-1",
@@ -617,7 +615,6 @@ describe("MetricsAggregator", () => {
     assert.equal(snap.errors.length, 2);
     assert.equal(snap.totals.sessionErrors, 1);
     assert.equal(snap.totals.toolCalls, 1);
-    // unfiltered snapshot exposes every dimension
     assert.equal(Object.keys(snap.byAgent).length, 1);
     assert.equal(Object.keys(snap.bySession).length, 1);
     assert.equal(Object.keys(snap.byModel).length, 1);

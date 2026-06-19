@@ -1,14 +1,14 @@
-import { TraceHelper } from "../helpers/trace.helpers";
-import { extractErrorMessage } from "../helpers/error.helpers";
-import { TraceEventType, UNKNOWN } from "../enums";
-import { Handler } from "../handler.interface";
-import type { SessionErrorProps } from "../types";
+import { TraceHelper } from "../../helpers/trace.helpers";
+import { extractErrorMessage } from "../../helpers/error.helpers";
+import { TraceEventType, UNKNOWN } from "../../enums";
+import { Handler } from "../../handler.interface";
+import type { SessionErrorProps } from "../../types";
 
-export class SessionErrorHandler implements Handler {
+export class SessionErrorHandler implements Handler<SessionErrorProps> {
   constructor(private readonly traceHelper: TraceHelper) {}
 
-  handle(properties: unknown): void {
-    const { sessionID, error } = properties as SessionErrorProps;
+  handle(properties: SessionErrorProps): void {
+    const { sessionID, error } = properties;
 
     const errorName = error?.name ?? UNKNOWN;
     const errorMessage = extractErrorMessage(error?.data);

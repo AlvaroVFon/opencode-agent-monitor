@@ -6,7 +6,7 @@
 
 OpenCode plugin that **traces** events to JSONL and, in its second phase, **aggregates and exposes metrics** via tool (consumable by the LLM) and CLI (consumable by humans), focusing on **cost, tokens, latency, and error rate** per `agent` / `model` / `tool`.
 
-## Current state (snapshot as of 2026-06-17)
+## Current state (snapshot as of 2026-06-19)
 
 - ✅ Event tracing: `session_created`, `session_error`, `llm_call`, `llm_error`, `agent_delegation`, `tool_call`, `write_trace_error`
 - ✅ Dual output (`trace.jsonl` + `trace.errors.jsonl`) with defensive I/O handling
@@ -21,13 +21,16 @@ OpenCode plugin that **traces** events to JSONL and, in its second phase, **aggr
 - ✅ CI/CD consolidation: publish.yml removed, release-please.yml as single workflow with validations via prepublishOnly
 - ✅ `MetricsAggregator` complete (Phase 2): `bySession` / `byAgent` / `byModel` / `byAgentModel` — 8 tests
 - ✅ TUI plugin real-time (Phase 3.5): sidebar panel + fullscreen dialog + `byAgentModel` + derived metrics (30 tests)
-- ✅ `scripts/metrics.mts` — batch script for JSON/markdown metrics (refactored Phase 2.5)
+- ✅ `scripts/metrics.mts` — removed in favour of CLI stats/export
 - ✅ Phases 0 and 1 complete (release-please + first publication)
 - ✅ README restructured: TUI as main feature, prominent installation docs
 - ✅ `MetricsAggregator` extended with `byTool`, `errors[]`, `snapshot({ filters })`, and formatters (Phase 2.5)
 - ❌ No `schemaVersion` on JSONL events (5.a pending)
 - ❌ Tool `agent_monitor_stats` removed (does not contribute to data study; TUI already covers display)
-- ⏸ CLI deferred post-persistence (script `metrics.mts` covers current human extraction)
+- ✅ CLI implemented (replaces `metrics.mts`)
+- ✅ CLI exposed as `bin` via `package.json` (`agent-monitor`), with `./cli` export and tsup entry
+- ✅ CLI documented in root `README.md` and `src/cli/README.md` (npx, global install, local dev)
+- ✅ `$/Call` metric added to markdown report (Summary + By Agent)
 - ⏸ Formal persistence (SQL) pending tradeoff study
 
 ---
@@ -47,6 +50,7 @@ All metrics the project can generate, classified by implementation status:
 | **Coste medio por call**           | ✅ Derivado | `cost / llmCalls`                 | TUI panel     |
 | **Tasa de error por agente**       | ✅          | `Aggregate.errors`                | TUI indicator |
 | **Llamadas por tool**              | ✅          | `byTool`                          | Script, TUI   |
+| **Skills más usados**              | 🔜 **2.7**  | `TraceEventType.SKILL_CALL`       | bySkill       |
 | **Errores detallados**             | ✅          | `errors[]`                        | Script, TUI   |
 | **Percentiles p50/p95 latencia**   | 🔜 **2.6**  | Ring buffer + `percentile()`      | Snapshot      |
 | **Ratio coste/utilidad**           | 🔜 **2.6**  | `cost / completedTasks`           | Snapshot      |
@@ -54,7 +58,7 @@ All metrics the project can generate, classified by implementation status:
 | **Latencia por tool**              | ❌          | Pendiente de diseño               | —             |
 | **Coste por sesión exitosa**       | ❌          | Pendiente de diseño               | —             |
 
-**Prioridad inmediata (Phase 2.6):** percentiles, cost/utility ratio, anomaly detection.
+**Prioridad inmediata (Phase 2.7):** skill usage tracking.
 
 ---
 
@@ -139,26 +143,26 @@ All metrics the project can generate, classified by implementation status:
 - ✅ `src/server/agent-monitor.ts`: `MetricsAggregator` instantiated and each event passed to `metricsAggregator.ingest(event)` in parallel to `EventHandler`
 - ✅ No changes to handlers or `TraceHelper` — additive
 
-**Closure criteria:** ✅ 8 tests green + full suite (89 tests) still green; plugin keeps writing JSONL as before; `MetricsAggregator.snapshot()` available for internal consumers (next planned use: `scripts/metrics.mts` in Phase 2.5).
+**Closure criteria:** ✅ 8 tests green + full suite (89 tests) still green; plugin keeps writing JSONL as before; `MetricsAggregator.snapshot()` available for internal consumers (later used by CLI and TUI).
 
 ---
 
 ## Phase 2.5 — Extend `MetricsAggregator` with filters, `byTool`, errors, and formatters (v0.3.0) — ✅ **completed (2026-06-17)**
 
-**Goal:** absorb the duplicated aggregation logic from `scripts/metrics.mts` into `MetricsAggregator` so that the script, the server-side TUI, and any future consumer share a single source of truth.
+**Goal:** absorb the duplicated aggregation logic from the old `scripts/metrics.mts` into `MetricsAggregator` so that the script, the server-side TUI, and any future consumer share a single source of truth.
 
 ### 2.5.1 Changes
 
-| Change                                           | Status |
-| ------------------------------------------------ | ------ |
-| `byTool: Map<string, ToolStats>` in aggregator   | ✅     |
-| `errors: ErrorEntry[]` capped at 1000            | ✅     |
-| `sessionErrors` tracking in totals               | ✅     |
-| `snapshot({ since, groupBy, sessionID, top })`   | ✅     |
-| Formatters (markdown, json, csv)                 | ✅     |
-| `scripts/metrics.mts` refactored (561→217 lines) | ✅     |
-| TUI `AggregatorStore` parallel byTool + errors   | ✅     |
-| 169 tests (27 new + 142 existing) green          | ✅     |
+| Change                                                      | Status |
+| ----------------------------------------------------------- | ------ |
+| `byTool: Map<string, ToolStats>` in aggregator              | ✅     |
+| `errors: ErrorEntry[]` capped at 1000                       | ✅     |
+| `sessionErrors` tracking in totals                          | ✅     |
+| `snapshot({ since, groupBy, sessionID, top })`              | ✅     |
+| Formatters (markdown, json, csv)                            | ✅     |
+| `scripts/metrics.mts` refactored (removed in favour of CLI) | ✅     |
+| TUI `AggregatorStore` parallel byTool + errors              | ✅     |
+| 169 tests (27 new + 142 existing) green                     | ✅     |
 
 ### 2.5.2 New types (shared/metrics.types.ts)
 
@@ -220,9 +224,51 @@ ErrorEntry = { sessionID: string; type: string; message: string; timestamp: numb
 
 ---
 
+## Phase 2.7 — Skill usage tracking (alta prioridad)
+
+**Goal:** track which skills are used, how often, and their cost/error rate.
+
+### 2.7.1 Nuevos tipos de evento
+
+- `SKILL_CALL` / `SKILL_RESULT` en `TraceEventType` (`src/shared/enums.ts`)
+- `SkillCallEvent` / `SkillResultEvent` en la unión `TraceEvent` (`trace-events.types.ts`)
+- Nuevo campo `skillCalls: number` y `skillErrors: number` en `Aggregate` (`metrics.types.ts`)
+
+### 2.7.2 Handler
+
+- `src/server/handlers/skill-call.handler.ts` — detecta part type `"skill"` y escribe evento al trace
+- Registrarlo en `agent-monitor.ts`
+
+### 2.7.3 Agregación (3 pipelines)
+
+- `MetricsAggregator` (server): ingest `skill_call`/`skill_result`
+- `EventAggregatorHelper` (CLI): dispatch en `apply()`
+- `AggregatorStore` (TUI): dispatch en switch
+
+### 2.7.4 bySkill en snapshot
+
+- `bySkill: Record<string, SkillAggregate>` en `MetricsSnapshot`
+- `SkillAggregate = { calls: number; errors: number; avgDurationMs: number }`
+
+### 2.7.5 Formateadores
+
+- Markdown: sección "## By Skill" con tabla
+- CSV: columnas skill, calls, errors, avgDurationMs
+- JSON: `bySkill` en snapshot
+
+### 2.7.6 Tests
+
+- Handler: escribe trace para skill, ignora no-skill (2+ tests)
+- Agregadores: contadores, errores, bySkill (4+ tests)
+- Formateadores: secciones, CSV header, JSON round-trip (3 tests)
+
+**Closure criteria:** 9+ new tests green; skill events written to `trace.jsonl`; `bySkill` appears in CLI, export, and TUI outputs; full suite green.
+
+---
+
 ## Phase 3 — Tool for OpenCode ❌ REMOVED (2026-06-16)
 
-**Reason:** the project's goal is to generate metrics for **study**, not for the LLM to display them. The TUI plugin (Phase 3.5) already provides real-time display and `scripts/metrics.mts` provides offline extraction. The tool duplicated both functions for a consumer (LLM) that does not add study value. Its existence also added a `zod` dependency and a `tool` hook that are no longer justified.
+**Reason:** the project's goal is to generate metrics for **study**, not for the LLM to display them. The TUI plugin (Phase 3.5) already provides real-time display and the CLI provides offline extraction. The tool duplicated both functions for a consumer (LLM) that does not add study value. Its existence also added a `zod` dependency and a `tool` hook that are no longer justified.
 
 Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src/test/tools/agent-monitor-stats.test.ts`, and the `zod` dependency. `agent-monitor.ts` no longer exposes `Hooks.tool`. `MetricsAggregator` remains intact for Phase 2.5.
 
@@ -342,47 +388,45 @@ Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src
 
 ---
 
-## Phase 4 — CLI `bin/agent-monitor` ⏸ DEFERRED (post-persistence)
+## Phase 4 — CLI `bin/agent-monitor` ✅ **completed (2026-06-19)**
 
-**Status:** deferred until the persistence model is decided (Phase 6). The `npm run metrics` script covers current human extraction. A CLI over JSONL would have more value over DuckDB/SQLite once implemented.
-
-<details>
-<summary>Original spec (2026-06-15)</summary>
+**Goal:** ship the CLI as an installable binary so users can run `agent-monitor stats` without `pnpm` or `tsx`.
 
 ### 4.1 Structure
 
-- `bin/agent-monitor` (shebang `#!/usr/bin/env node`)
-- `src/cli/cli.ts` — entry point
+- `src/cli/main.ts` — entry point (shebang `#!/usr/bin/env node`, preserved by tsup)
 - Subcommands:
-  - `stats [--since 1d|24h|7d|all] [--group-by agent|model|tool] [--session <id>] [--json] [--no-color]`
-  - `errors [--since 1d] [--limit N]`
-  - `tail [--follow] [--filter type=llm_call]`
-  - `export --format csv|json --out <file>`
+  - `stats [--dir] [--since] [--session] [--top] [--json] [--markdown/--md]`
+  - `errors [--dir] [--since] [--limit] [--type] [--json]`
+  - `export [--dir] [--format csv|json|markdown] [--out] [--since]`
 
-### 4.2 Data source
-
-- Default: reads `trace.jsonl` from `traceDir` (configurable via `--dir` or env `AGENT_MONITOR_DIR`)
-- Alternative `--live`: connects to the in-memory plugin aggregator (not viable cross-process, dev only) → **discarded in v1, the CLI is read-only over JSONL**
-
-### 4.3 Implementation
-
-- No dependencies: `node:readline` for `tail --follow`, manual arg parser (avoid commander/yargs to keep bundle small)
-- Tables: `console.table` with ASCII fallback if `--no-color`
-
-### 4.4 package.json
+### 4.2 package.json
 
 ```json
-"bin": { "agent-monitor": "bin/agent-monitor" }
+"exports": { "./cli": { "types": "./dist/cli.d.ts", "import": "./dist/cli.js" } },
+"bin": { "agent-monitor": "dist/cli.js" }
 ```
 
-### 4.5 Tests
+### 4.3 tsup
 
-- `src/test/cli/stats.test.ts`, `errors.test.ts`, `tail.test.ts`, `export.test.ts`
-- Use `node:test` with binary spawn + JSONL fixture
+- Added `cli: "src/cli/main.ts"` entry (alongside existing `agent-monitor` and `tui`)
 
-**Closure criteria:** `npx @alvarovfon/opencode-agent-monitor stats` shows table; tests green.
+### 4.4 Documentation
 
-</details>
+- Root `README.md`: CLI Usage section (npx quick start, global install)
+- `src/cli/README.md`: updated usage with npx, global install, and local dev; added `--markdown`/`--md` flag; commands show `agent-monitor` as primary bin
+
+### 4.5 Bonus: `$/Call` metric
+
+- Added to markdown report: Summary table row `$/Call` and By Agent column `$/Call`
+- Both guard against `llmCalls === 0`
+
+### 4.6 Tests
+
+- Existing `formatMarkdown` tests updated to assert `$/Call` presence
+- All 220 tests green
+
+**Closure criteria:** `npx @alvarovfon/opencode-agent-monitor stats` shows table; `agent-monitor --help` works from installed package; lint + format:check + test pass.
 
 ---
 
@@ -478,7 +522,7 @@ Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src
 
 ---
 
-## Execution order (reviewed 2026-06-17)
+## Execution order (reviewed 2026-06-19)
 
 1. ✅ **Phase 0** (automation) → release-please, commitlint, husky operational
 2. ✅ **Phase 1** (publication) → `1.0.1` on npm
@@ -487,24 +531,24 @@ Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src
 5. ✅ **CI/CD consolidation** → consolidated workflows, CI on push to develop, prepublishOnly
 6. ✅ **README restructure** → TUI as main feature, reorganized documentation
 7. ❌ **Phase 3** (tool LLM) → **removed** (no study value; TUI covers display)
-8. ❌ **Phase 4** (CLI) → deferred post-persistence
-9. ✅ **Phase 2.5** (extend aggregator) → `byTool`, `errors[]`, `snapshot({ filters })`, formatters, refactor `scripts/metrics.mts`
-10. 🔜 **Phase 2.6** (advanced metrics) → percentiles, cost/utility, anomalies
-11. 🔜 **Phase 5.a** (`schemaVersion: 1`) → additive field on each event
-12. 🔜 **Release 1.1.0** → README overhaul + CI/CD
+8. ✅ **Phase 4** (CLI bin) → `package.json` bin + tsup entry + README docs
+9. ✅ **Phase 2.5** (extend aggregator) → `byTool`, `errors[]`, `snapshot({ filters })`, formatters, refactor/remove `scripts/metrics.mts`
+10. 🔜 **Phase 2.7** (skill tracking) → new event types, handler, bySkill
+11. 🔜 **Phase 2.6** (advanced metrics) → percentiles, cost/utility, anomalies
+12. 🔜 **Phase 5.a** (`schemaVersion: 1`) → additive field on each event
 13. 🔜 **Release 1.2.0** → extended aggregator + advanced metrics + schema
 14. ⏸ **Observe stability** → no new features
-15. ⏸ **Re-evaluate**: Phase 5.b (disk growth), Phase 6 (persistence), Phase 4 (CLI)
+15. ⏸ **Re-evaluate**: Phase 5.b (disk growth), Phase 6 (persistence)
 16. ⏸ **Release 1.3.0** → based on post-stability decisions
 
 ---
 
-## Open questions / pending decisions (reviewed 2026-06-16)
+## Open questions / pending decisions (reviewed 2026-06-19)
 
 - ✅ Publish with provenance? Yes (configured with OIDC + GitHub Actions)
 - ✅ Should internal-only events (`write_trace_error`) be counted in metrics? No
 - ❌ Phase 3 (tool LLM): **removed** — no study value, TUI covers display
-- ⏸ Phase 4 (CLI): **deferred** post-persistence — script `metrics.mts` covers current extraction
+- ✅ Phase 4 (CLI): **completed** — `package.json` bin (`agent-monitor`), tsup entry, README docs, `$/Call` metric
+- ✅ Add `bin/` as entry point? → **done** via `package.json bin` pointing to bundled `dist/cli.js`
 - ⏸ Phase 6 (persistence): SQLite, DuckDB, Parquet, or hybrid? → study pending
 - ⏸ Disk growth: rotation, compaction, sampling? → design post-stability 0.3.0
-- ⏸ Add `bin/` as entry point? → re-evaluate with Phase 4 post-persistence
