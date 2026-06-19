@@ -1,6 +1,6 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { SubtaskDelegationHandler } from "../../../server/handlers/subtask-delegation.handler";
+import { SubtaskDelegationHandler } from "../../../server/handlers/trace/subtask-delegation.handler";
 import { TraceEventType } from "../../../server/enums";
 
 describe("SubtaskDelegationHandler", () => {

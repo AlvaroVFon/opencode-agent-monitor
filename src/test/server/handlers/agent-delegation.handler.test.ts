@@ -1,6 +1,6 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { AgentDelegationHandler } from "../../../server/handlers/agent-delegation.handler";
+import { AgentDelegationHandler } from "../../../server/handlers/trace/agent-delegation.handler";
 import { TraceEventType } from "../../../server/enums";
 
 describe("AgentDelegationHandler", () => {

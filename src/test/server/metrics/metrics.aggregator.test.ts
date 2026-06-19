@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { EventType, PartStatus, PartType, Role } from "../../../server/enums";
 import { MetricsAggregator } from "../../../server/metrics/metrics.aggregator";
 import { AggregateHelper } from "../../../shared/aggregate.helpers";
+import { buildDefaultRegistry } from "../../../server/wire/aggregator-wiring";
 
 const makeLlmCallEvent = (overrides: Record<string, unknown> = {}) => ({
   type: EventType.MESSAGE_UPDATED,
@@ -73,7 +74,7 @@ const makeSessionErrorEvent = (overrides: Record<string, unknown> = {}) => ({
 function createTestAggregator(
   helper = new AggregateHelper(),
 ): MetricsAggregator {
-  return new MetricsAggregator(helper);
+  return new MetricsAggregator(helper, undefined, buildDefaultRegistry());
 }
 
 const coderAgent = (sID: string) => (sID === "sess-1" ? "coder" : "unknown");

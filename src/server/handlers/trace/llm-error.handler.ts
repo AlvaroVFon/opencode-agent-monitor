@@ -1,8 +1,8 @@
-import { TraceHelper } from "../helpers/trace.helpers";
-import { extractErrorMessage } from "../helpers/error.helpers";
-import { TraceEventType, UNKNOWN, Role } from "../enums";
-import { Handler, type GetAgent } from "../handler.interface";
-import type { MessageUpdatedProps } from "../types";
+import { TraceHelper } from "../../helpers/trace.helpers";
+import { extractErrorMessage } from "../../helpers/error.helpers";
+import { TraceEventType, UNKNOWN, Role } from "../../enums";
+import { Handler, type GetAgent } from "../../handler.interface";
+import type { MessageUpdatedProps } from "../../types";
 
 export class LlmErrorHandler implements Handler<MessageUpdatedProps> {
   constructor(private readonly traceHelper: TraceHelper) {}

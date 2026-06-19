@@ -1,7 +1,7 @@
-import { TraceHelper } from "../helpers/trace.helpers";
-import { TraceEventType } from "../enums";
-import { Handler } from "../handler.interface";
-import type { SessionCreatedProps } from "../types";
+import { TraceHelper } from "../../helpers/trace.helpers";
+import { TraceEventType } from "../../enums";
+import { Handler } from "../../handler.interface";
+import type { SessionCreatedProps } from "../../types";
 
 export class SessionCreatedHandler implements Handler<SessionCreatedProps> {
   constructor(private readonly traceHelper: TraceHelper) {}

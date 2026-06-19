@@ -1,6 +1,6 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { LlmCallHandler } from "../../../server/handlers/llm-call.handler";
+import { LlmCallHandler } from "../../../server/handlers/trace/llm-call.handler";
 import { TraceEventType } from "../../../server/enums";
 
 function makeMsg(overrides: Record<string, unknown> = {}) {

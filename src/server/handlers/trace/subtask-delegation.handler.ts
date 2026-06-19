@@ -1,7 +1,7 @@
-import { TraceHelper } from "../helpers/trace.helpers";
-import { TraceEventType, PartType } from "../enums";
-import { Handler } from "../handler.interface";
-import type { MessagePartUpdatedProps } from "../types";
+import { TraceHelper } from "../../helpers/trace.helpers";
+import { TraceEventType, PartType } from "../../enums";
+import { Handler } from "../../handler.interface";
+import type { MessagePartUpdatedProps } from "../../types";
 
 export class SubtaskDelegationHandler implements Handler<MessagePartUpdatedProps> {
   constructor(private readonly traceHelper: TraceHelper) {}
