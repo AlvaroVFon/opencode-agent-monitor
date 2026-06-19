@@ -27,17 +27,20 @@ export function formatMarkdown(snap: MetricsSnapshot): string {
   lines.push(`| Reasoning Tokens | ${fmt(t.tokens.reasoning)} |`);
   lines.push(`| Cache Read Tokens | ${fmt(t.tokens.cacheRead)} |`);
   lines.push(`| Total Cost | ${fmtCost(t.cost)} |`);
+  lines.push(
+    `| $/Call | ${t.llmCalls > 0 ? fmtCost(t.cost / t.llmCalls) : "$0.0000"} |`,
+  );
   lines.push("");
 
   const agentKeys = Object.keys(snap.byAgent).sort();
   if (agentKeys.length > 0) {
     lines.push("## By Agent", "");
-    lines.push("| Agent | LLM Calls | LLM Errors | Cost |");
-    lines.push("|-------|-----------|------------|------|");
+    lines.push("| Agent | LLM Calls | LLM Errors | $/Call | Cost |");
+    lines.push("|-------|-----------|------------|--------|------|");
     for (const k of agentKeys) {
       const a = snap.byAgent[k]!;
       lines.push(
-        `| ${k} | ${fmt(a.llmCalls)} | ${fmt(a.llmErrors)} | ${fmtCost(a.cost)} |`,
+        `| ${k} | ${fmt(a.llmCalls)} | ${fmt(a.llmErrors)} | ${a.llmCalls > 0 ? fmtCost(a.cost / a.llmCalls) : "$0.0000"} | ${fmtCost(a.cost)} |`,
       );
     }
     lines.push("");

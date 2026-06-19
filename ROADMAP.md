@@ -6,7 +6,7 @@
 
 OpenCode plugin that **traces** events to JSONL and, in its second phase, **aggregates and exposes metrics** via tool (consumable by the LLM) and CLI (consumable by humans), focusing on **cost, tokens, latency, and error rate** per `agent` / `model` / `tool`.
 
-## Current state (snapshot as of 2026-06-17)
+## Current state (snapshot as of 2026-06-19)
 
 - ✅ Event tracing: `session_created`, `session_error`, `llm_call`, `llm_error`, `agent_delegation`, `tool_call`, `write_trace_error`
 - ✅ Dual output (`trace.jsonl` + `trace.errors.jsonl`) with defensive I/O handling
@@ -28,6 +28,9 @@ OpenCode plugin that **traces** events to JSONL and, in its second phase, **aggr
 - ❌ No `schemaVersion` on JSONL events (5.a pending)
 - ❌ Tool `agent_monitor_stats` removed (does not contribute to data study; TUI already covers display)
 - ✅ CLI implemented (replaces `metrics.mts`)
+- ✅ CLI exposed as `bin` via `package.json` (`agent-monitor`), with `./cli` export and tsup entry
+- ✅ CLI documented in root `README.md` and `src/cli/README.md` (npx, global install, local dev)
+- ✅ `$/Call` metric added to markdown report (Summary + By Agent)
 - ⏸ Formal persistence (SQL) pending tradeoff study
 
 ---
@@ -385,47 +388,45 @@ Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src
 
 ---
 
-## Phase 4 — CLI `bin/agent-monitor` ⏸ DEFERRED (post-persistence)
+## Phase 4 — CLI `bin/agent-monitor` ✅ **completed (2026-06-19)**
 
-**Status:** ✅ CLI implemented (stats, errors, export subcommands). Deferred CLI bin packaging for post-persistence.
-
-<details>
-<summary>Original spec (2026-06-15)</summary>
+**Goal:** ship the CLI as an installable binary so users can run `agent-monitor stats` without `pnpm` or `tsx`.
 
 ### 4.1 Structure
 
-- `bin/agent-monitor` (shebang `#!/usr/bin/env node`)
-- `src/cli/cli.ts` — entry point
+- `src/cli/main.ts` — entry point (shebang `#!/usr/bin/env node`, preserved by tsup)
 - Subcommands:
-  - `stats [--since 1d|24h|7d|all] [--group-by agent|model|tool] [--session <id>] [--json] [--no-color]`
-  - `errors [--since 1d] [--limit N]`
-  - `tail [--follow] [--filter type=llm_call]`
-  - `export --format csv|json --out <file>`
+  - `stats [--dir] [--since] [--session] [--top] [--json] [--markdown/--md]`
+  - `errors [--dir] [--since] [--limit] [--type] [--json]`
+  - `export [--dir] [--format csv|json|markdown] [--out] [--since]`
 
-### 4.2 Data source
-
-- Default: reads `trace.jsonl` from `traceDir` (configurable via `--dir` or env `AGENT_MONITOR_DIR`)
-- Alternative `--live`: connects to the in-memory plugin aggregator (not viable cross-process, dev only) → **discarded in v1, the CLI is read-only over JSONL**
-
-### 4.3 Implementation
-
-- No dependencies: `node:readline` for `tail --follow`, manual arg parser (avoid commander/yargs to keep bundle small)
-- Tables: `console.table` with ASCII fallback if `--no-color`
-
-### 4.4 package.json
+### 4.2 package.json
 
 ```json
-"bin": { "agent-monitor": "bin/agent-monitor" }
+"exports": { "./cli": { "types": "./dist/cli.d.ts", "import": "./dist/cli.js" } },
+"bin": { "agent-monitor": "dist/cli.js" }
 ```
 
-### 4.5 Tests
+### 4.3 tsup
 
-- `src/test/cli/stats.test.ts`, `errors.test.ts`, `tail.test.ts`, `export.test.ts`
-- Use `node:test` with binary spawn + JSONL fixture
+- Added `cli: "src/cli/main.ts"` entry (alongside existing `agent-monitor` and `tui`)
 
-**Closure criteria:** `npx @alvarovfon/opencode-agent-monitor stats` shows table; tests green.
+### 4.4 Documentation
 
-</details>
+- Root `README.md`: CLI Usage section (npx quick start, global install)
+- `src/cli/README.md`: updated usage with npx, global install, and local dev; added `--markdown`/`--md` flag; commands show `agent-monitor` as primary bin
+
+### 4.5 Bonus: `$/Call` metric
+
+- Added to markdown report: Summary table row `$/Call` and By Agent column `$/Call`
+- Both guard against `llmCalls === 0`
+
+### 4.6 Tests
+
+- Existing `formatMarkdown` tests updated to assert `$/Call` presence
+- All 220 tests green
+
+**Closure criteria:** `npx @alvarovfon/opencode-agent-monitor stats` shows table; `agent-monitor --help` works from installed package; lint + format:check + test pass.
 
 ---
 
@@ -521,7 +522,7 @@ Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src
 
 ---
 
-## Execution order (reviewed 2026-06-17)
+## Execution order (reviewed 2026-06-19)
 
 1. ✅ **Phase 0** (automation) → release-please, commitlint, husky operational
 2. ✅ **Phase 1** (publication) → `1.0.1` on npm
@@ -530,25 +531,24 @@ Action: removed `src/tools/agent-monitor-stats.{tool,interface,helper}.ts`, `src
 5. ✅ **CI/CD consolidation** → consolidated workflows, CI on push to develop, prepublishOnly
 6. ✅ **README restructure** → TUI as main feature, reorganized documentation
 7. ❌ **Phase 3** (tool LLM) → **removed** (no study value; TUI covers display)
-8. ❌ **Phase 4** (CLI) → deferred post-persistence
+8. ✅ **Phase 4** (CLI bin) → `package.json` bin + tsup entry + README docs
 9. ✅ **Phase 2.5** (extend aggregator) → `byTool`, `errors[]`, `snapshot({ filters })`, formatters, refactor/remove `scripts/metrics.mts`
 10. 🔜 **Phase 2.7** (skill tracking) → new event types, handler, bySkill
 11. 🔜 **Phase 2.6** (advanced metrics) → percentiles, cost/utility, anomalies
 12. 🔜 **Phase 5.a** (`schemaVersion: 1`) → additive field on each event
-13. 🔜 **Release 1.1.0** → README overhaul + CI/CD
-14. 🔜 **Release 1.2.0** → extended aggregator + advanced metrics + schema
-15. ⏸ **Observe stability** → no new features
-16. ⏸ **Re-evaluate**: Phase 5.b (disk growth), Phase 6 (persistence), Phase 4 (CLI)
-17. ⏸ **Release 1.3.0** → based on post-stability decisions
+13. 🔜 **Release 1.2.0** → extended aggregator + advanced metrics + schema
+14. ⏸ **Observe stability** → no new features
+15. ⏸ **Re-evaluate**: Phase 5.b (disk growth), Phase 6 (persistence)
+16. ⏸ **Release 1.3.0** → based on post-stability decisions
 
 ---
 
-## Open questions / pending decisions (reviewed 2026-06-16)
+## Open questions / pending decisions (reviewed 2026-06-19)
 
 - ✅ Publish with provenance? Yes (configured with OIDC + GitHub Actions)
 - ✅ Should internal-only events (`write_trace_error`) be counted in metrics? No
 - ❌ Phase 3 (tool LLM): **removed** — no study value, TUI covers display
-- ✅ Phase 4 (CLI): **implemented** — stats, errors, export subcommands (replaces `metrics.mts`). CLI bin packaging deferred post-persistence.
+- ✅ Phase 4 (CLI): **completed** — `package.json` bin (`agent-monitor`), tsup entry, README docs, `$/Call` metric
+- ✅ Add `bin/` as entry point? → **done** via `package.json bin` pointing to bundled `dist/cli.js`
 - ⏸ Phase 6 (persistence): SQLite, DuckDB, Parquet, or hybrid? → study pending
 - ⏸ Disk growth: rotation, compaction, sampling? → design post-stability 0.3.0
-- ⏸ Add `bin/` as entry point? → re-evaluate with Phase 4 post-persistence

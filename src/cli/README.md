@@ -4,34 +4,52 @@ Extract and analyze metrics from `trace.jsonl` files without running the TUI. Us
 
 ## Usage
 
+### Via npx (no install)
+
+```bash
+npx @alvarovfon/opencode-agent-monitor <command> [options]
+```
+
+### Global install
+
+```bash
+npm install -g @alvarovfon/opencode-agent-monitor
+agent-monitor <command> [options]
+```
+
+### Local development
+
 ```bash
 pnpm metrics <command> [options]
 ```
 
+---
+
 ### stats — aggregate and display metrics
 
 ```bash
-pnpm metrics stats [options]
+agent-monitor stats [options]
 ```
 
-| Flag                 | Default                       | Description                                  |
-| -------------------- | ----------------------------- | -------------------------------------------- |
-| `--dir <path>`       | `~/.config/opencode/.tracing` | Trace directory                              |
-| `--json`             | —                             | JSON output (default: markdown)              |
-| `--since <duration>` | `all`                         | Time filter: `1d`, `24h`, `7d`, `30d`, `all` |
-| `--session <id>`     | —                             | Filter to a specific session                 |
-| `--top <n>`          | —                             | Show top N entries by cost                   |
+| Flag                  | Default                       | Description                                  |
+| --------------------- | ----------------------------- | -------------------------------------------- |
+| `--dir <path>`        | `~/.config/opencode/.tracing` | Trace directory                              |
+| `--json`              | —                             | JSON output                                  |
+| `--markdown` / `--md` | —                             | Markdown output (default)                    |
+| `--since <duration>`  | `all`                         | Time filter: `1d`, `24h`, `7d`, `30d`, `all` |
+| `--session <id>`      | —                             | Filter to a specific session                 |
+| `--top <n>`           | —                             | Show top N entries by cost                   |
 
 Example:
 
 ```bash
-pnpm metrics stats --since 24h --top 5 --json
+agent-monitor stats --since 24h --top 5 --json
 ```
 
 ### errors — list errors
 
 ```bash
-pnpm metrics errors [options]
+agent-monitor errors [options]
 ```
 
 | Flag                 | Default                       | Description          |
@@ -45,13 +63,13 @@ pnpm metrics errors [options]
 Example:
 
 ```bash
-pnpm metrics errors --since 7d --limit 10 --json
+agent-monitor errors --since 7d --limit 10 --json
 ```
 
 ### export — export to file
 
 ```bash
-pnpm metrics export [options]
+agent-monitor export [options]
 ```
 
 | Flag                 | Default                       | Description                              |
@@ -64,7 +82,7 @@ pnpm metrics export [options]
 Example:
 
 ```bash
-pnpm metrics:export --since 30d
+agent-monitor export --since 30d --format markdown
 ```
 
 ## Output Formats
