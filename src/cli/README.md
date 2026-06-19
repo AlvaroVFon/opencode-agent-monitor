@@ -85,6 +85,20 @@ Example:
 agent-monitor export --since 30d --format markdown
 ```
 
+### compare — cost simulation
+
+Compare your real spending with what it would have costed on other models (GPT-4o, Claude 3.5 Sonnet, etc.).
+
+```bash
+agent-monitor compare [options]
+```
+
+| Flag                 | Default                       | Description                  |
+| -------------------- | ----------------------------- | ---------------------------- |
+| `--dir <path>`       | `~/.config/opencode/.tracing` | Trace directory              |
+| `--since <duration>` | `all`                         | Time filter                  |
+| `--session <id>`     | —                             | Filter to a specific session |
+
 ## Output Formats
 
 - **Markdown** (default for `stats`, available in `export`) — human-readable tables with summary, per-agent, per-tool, and errors sections.
