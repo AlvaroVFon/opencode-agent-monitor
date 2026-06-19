@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { EventType, PartStatus, PartType, Role } from "../../../server/enums";
+import { PartStatus, PartType } from "../../../shared/enums";
+import { EventType, Role } from "../../../server/enums";
 import { MetricsAggregator } from "../../../server/metrics/metrics.aggregator";
 import { AggregateHelper } from "../../../shared/aggregate.helpers";
 import { buildDefaultRegistry } from "../../../server/wire/aggregator-wiring";
@@ -264,6 +265,8 @@ describe("MetricsAggregator", () => {
     assert.equal(snap.totals.llmErrors, 0);
     assert.equal(snap.totals.toolCalls, 0);
     assert.equal(snap.totals.toolErrors, 0);
+    assert.equal(snap.totals.skillCalls, 0);
+    assert.equal(snap.totals.skillErrors, 0);
     assert.equal(snap.totals.sessionsCreated, 0);
     assert.equal(snap.totals.cost, 0);
     assert.equal(snap.totals.tokens.input, 0);
@@ -277,6 +280,7 @@ describe("MetricsAggregator", () => {
     assert.deepEqual(snap.byModel, {});
     assert.deepEqual(snap.byAgentModel, {});
     assert.deepEqual(snap.byTool, {});
+    assert.deepEqual(snap.bySkill, {});
     assert.deepEqual(snap.errors, []);
     assert.equal(snap.totals.sessionErrors, 0);
   });
@@ -322,6 +326,13 @@ describe("MetricsAggregator", () => {
     aggregator.ingest(makeLlmCallEvent(), coderAgent);
     aggregator.ingest(makeLlmErrorEvent(), coderAgent);
     aggregator.ingest(makeToolCallEvent(PartStatus.COMPLETED), coderAgent);
+    aggregator.ingest(
+      makeToolCallEvent(PartStatus.COMPLETED, {
+        type: PartType.SKILL,
+        tool: "planner",
+      }),
+      coderAgent,
+    );
     aggregator.ingest(makeSessionCreatedEvent("sess-1"));
 
     aggregator.reset();
@@ -330,13 +341,79 @@ describe("MetricsAggregator", () => {
     assert.equal(snap.totals.llmCalls, 0);
     assert.equal(snap.totals.llmErrors, 0);
     assert.equal(snap.totals.toolCalls, 0);
+    assert.equal(snap.totals.skillCalls, 0);
+    assert.equal(snap.totals.skillErrors, 0);
     assert.equal(snap.totals.sessionsCreated, 0);
     assert.equal(snap.totals.sessionErrors, 0);
     assert.equal(snap.window.firstSeenAt, 0);
     assert.equal(snap.window.lastSeenAt, 0);
     assert.deepEqual(snap.bySession, {});
     assert.deepEqual(snap.byTool, {});
+    assert.deepEqual(snap.bySkill, {});
     assert.deepEqual(snap.errors, []);
+  });
+
+  // ── Phase 2.7: bySkill granular coverage ──────────────────────────────────
+
+  it("ingests skill_call completed into bySkill", () => {
+    const aggregator = createTestAggregator();
+
+    aggregator.ingest(
+      makeToolCallEvent(PartStatus.COMPLETED, {
+        type: PartType.SKILL,
+        tool: "planner",
+      }),
+      coderAgent,
+    );
+
+    const snap = aggregator.snapshot();
+    assert.equal(snap.totals.skillCalls, 1);
+    assert.equal(snap.totals.skillErrors, 0);
+    assert.ok("planner" in snap.bySkill, "planner must be present in bySkill");
+    assert.equal(snap.bySkill["planner"]!.calls, 1);
+    assert.equal(snap.bySkill["planner"]!.errors, 0);
+  });
+
+  it("ingests skill_call error increments errors", () => {
+    const aggregator = createTestAggregator();
+
+    aggregator.ingest(
+      makeToolCallEvent(PartStatus.ERROR, {
+        type: PartType.SKILL,
+        tool: "planner",
+      }),
+      coderAgent,
+    );
+
+    const snap = aggregator.snapshot();
+    assert.equal(snap.totals.skillCalls, 1);
+    assert.equal(snap.totals.skillErrors, 1);
+    assert.equal(snap.bySkill["planner"]!.calls, 1);
+    assert.equal(snap.bySkill["planner"]!.errors, 1);
+  });
+
+  it("multiple skills are tracked separately in bySkill", () => {
+    const aggregator = createTestAggregator();
+
+    aggregator.ingest(
+      makeToolCallEvent(PartStatus.COMPLETED, {
+        type: PartType.SKILL,
+        tool: "planner",
+      }),
+      coderAgent,
+    );
+    aggregator.ingest(
+      makeToolCallEvent(PartStatus.COMPLETED, {
+        type: PartType.SKILL,
+        tool: "implementer",
+      }),
+      coderAgent,
+    );
+
+    const snap = aggregator.snapshot();
+    assert.equal(Object.keys(snap.bySkill).length, 2);
+    assert.equal(snap.bySkill["planner"]!.calls, 1);
+    assert.equal(snap.bySkill["implementer"]!.calls, 1);
   });
 
   // ── Phase 2.5: byTool granular coverage ──────────────────────────────────
@@ -469,6 +546,7 @@ describe("MetricsAggregator", () => {
     assert.deepEqual(snap.byModel, {});
     assert.deepEqual(snap.byAgentModel, {});
     assert.deepEqual(snap.byTool, {});
+    assert.deepEqual(snap.bySkill, {});
     assert.deepEqual(snap.errors, []);
   });
 
@@ -514,6 +592,7 @@ describe("MetricsAggregator", () => {
     const snap = aggregator.snapshot({ sessionID: "nonexistent" });
 
     assert.deepEqual(snap.bySession, {});
+    assert.deepEqual(snap.bySkill, {});
     assert.equal(snap.totals.llmCalls, 1);
   });
 
@@ -606,6 +685,7 @@ describe("MetricsAggregator", () => {
     const snap = aggregator.snapshot();
 
     assert.ok("byTool" in snap, "snapshot() must include byTool key");
+    assert.ok("bySkill" in snap, "snapshot() must include bySkill key");
     assert.ok("errors" in snap, "snapshot() must include errors key");
     assert.ok(
       "byAgentModel" in snap,

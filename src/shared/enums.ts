@@ -4,6 +4,19 @@ export enum TraceEventType {
   LLM_ERROR = "llm_error",
   LLM_CALL = "llm_call",
   TOOL_CALL = "tool_call",
+  SKILL_CALL = "skill_call",
   AGENT_DELEGATION = "agent_delegation",
   WRITE_TRACE_ERROR = "write_trace_error",
+}
+
+export enum PartType {
+  AGENT = "agent",
+  SUBTASK = "subtask",
+  TOOL = "tool",
+  SKILL = "skill",
+}
+
+export enum PartStatus {
+  COMPLETED = "completed",
+  ERROR = "error",
 }

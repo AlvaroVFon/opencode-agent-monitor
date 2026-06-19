@@ -4,7 +4,6 @@ import type {
   EventMessagePartUpdated,
   AssistantMessage,
   UserMessage,
-  ToolPart,
 } from "@opencode-ai/sdk";
 
 export type SessionCreatedProps = EventSessionCreated["properties"];

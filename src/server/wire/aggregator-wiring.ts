@@ -6,6 +6,7 @@ import { MetricsAggregator } from "../metrics/metrics.aggregator";
 import { MetricsHandlersRegistry } from "../metrics/metrics.handler-map";
 import { MessageUpdatedMetricsHandler } from "../handlers/metrics/message-updated.metrics-handler";
 import { MessagePartUpdatedMetricsHandler } from "../handlers/metrics/message-part-updated.metrics-handler";
+import { SkillCallMetricsHandler } from "../handlers/metrics/skill-call.metrics-handler";
 import { SessionCreatedMetricsHandler } from "../handlers/metrics/session-created.metrics-handler";
 import { SessionErrorMetricsHandler } from "../handlers/metrics/session-error.metrics-handler";
 
@@ -16,6 +17,7 @@ export function buildDefaultRegistry(): MetricsHandlersRegistry {
       EventType.MESSAGE_PART_UPDATED,
       new MessagePartUpdatedMetricsHandler(),
     )
+    .register(EventType.MESSAGE_PART_UPDATED, new SkillCallMetricsHandler())
     .register(EventType.SESSION_CREATED, new SessionCreatedMetricsHandler())
     .register(EventType.SESSION_ERROR, new SessionErrorMetricsHandler());
 }

@@ -62,6 +62,20 @@ export function formatMarkdown(snap: MetricsSnapshot): string {
     lines.push("");
   }
 
+  const skillKeys = Object.keys(snap.bySkill).sort();
+  if (skillKeys.length > 0) {
+    lines.push("## By Skill", "");
+    lines.push("| Skill | Calls | Errors | Avg Duration (ms) |");
+    lines.push("|-------|-------|--------|-------------------|");
+    for (const k of skillKeys) {
+      const ss = snap.bySkill[k]!;
+      lines.push(
+        `| ${k} | ${fmt(ss.calls)} | ${fmt(ss.errors)} | ${fmt(ss.avgDurationMs)} |`,
+      );
+    }
+    lines.push("");
+  }
+
   if (snap.errors.length > 0) {
     lines.push(`## Errors (${snap.errors.length})`, "");
     lines.push("| Session | Type | Message |");

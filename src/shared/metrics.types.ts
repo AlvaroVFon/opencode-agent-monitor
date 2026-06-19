@@ -25,6 +25,8 @@ export type Aggregate = {
   llmErrors: number;
   toolCalls: number;
   toolErrors: number;
+  skillCalls: number;
+  skillErrors: number;
   tokens: TokenUsage;
   cost: number;
   workDurationMs: number;
@@ -34,6 +36,12 @@ export type ToolStats = {
   calls: number;
   errors: number;
   durationMs: number;
+};
+
+export type SkillStats = {
+  calls: number;
+  errors: number;
+  avgDurationMs: number;
 };
 
 export type ErrorEntry = {
@@ -50,6 +58,7 @@ export type MetricsSnapshot = {
   byModel: Record<string, Aggregate>;
   byAgentModel: Record<string, Record<string, Aggregate>>;
   byTool: Record<string, ToolStats>;
+  bySkill: Record<string, SkillStats>;
   errors: ErrorEntry[];
   window: { firstSeenAt: number; lastSeenAt: number };
   lastActiveAgent: { name: string; timestamp: number } | null;

@@ -7,7 +7,7 @@ import type {
 } from "../../metrics/metrics-handler.interface";
 import type { MessagePartUpdatedProps } from "../../types";
 
-export class MessagePartUpdatedMetricsHandler implements MetricsHandler<MessagePartUpdatedProps> {
+export class SkillCallMetricsHandler implements MetricsHandler<MessagePartUpdatedProps> {
   handle(
     props: MessagePartUpdatedProps,
     recorder: MetricsRecorder,
@@ -17,6 +17,7 @@ export class MessagePartUpdatedMetricsHandler implements MetricsHandler<MessageP
       type?: string;
       sessionID?: string;
       tool?: string;
+      name?: string;
       state?: {
         status?: string;
         time?: { start?: number; end?: number };
@@ -24,32 +25,29 @@ export class MessagePartUpdatedMetricsHandler implements MetricsHandler<MessageP
       };
     };
 
-    if (part.type !== PartType.TOOL) return;
+    if (part.type !== PartType.SKILL) return;
     if (!part.sessionID) return;
 
     const status = part.state?.status;
     if (status !== PartStatus.COMPLETED && status !== PartStatus.ERROR) return;
 
-    const sessionID = part.sessionID;
-    const agent = getAgent?.(sessionID) ?? UNKNOWN;
-    const toolName = part.tool ?? UNKNOWN;
+    const skill = part.name ?? part.tool ?? UNKNOWN;
     const durationMs =
       part.state?.time?.start && part.state?.time?.end
         ? part.state.time.end - part.state.time.start
         : 0;
 
-    recorder.recordToolCall(
-      sessionID,
-      agent,
-      toolName,
+    recorder.recordSkillCall(
+      part.sessionID,
+      skill,
       status === PartStatus.ERROR,
       durationMs,
     );
 
     if (status === PartStatus.ERROR) {
       recorder.pushError({
-        sessionID,
-        type: "tool_error",
+        sessionID: part.sessionID,
+        type: "skill_error",
         message: String(part.state?.error ?? ""),
         timestamp: Date.now(),
       });
