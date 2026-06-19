@@ -27,13 +27,19 @@ export class TraceHelper {
   writeTrace(event: Record<string, unknown>) {
     try {
       this.ensureDir();
-      appendFileSync(this.traceFilePath, JSON.stringify(event) + "\n", "utf-8");
+      const versionedEvent = { ...event, schemaVersion: 1 };
+      appendFileSync(
+        this.traceFilePath,
+        JSON.stringify(versionedEvent) + "\n",
+        "utf-8",
+      );
     } catch (err) {
       this.writeTraceError({
         type: TraceEventType.WRITE_TRACE_ERROR,
         originalEventType: event.type,
         error: String(err),
         timestamp: Date.now(),
+        schemaVersion: 1,
       });
     }
   }
@@ -41,9 +47,10 @@ export class TraceHelper {
   writeTraceError(event: Record<string, unknown>) {
     try {
       this.ensureDir();
+      const versionedEvent = { ...event, schemaVersion: 1 };
       appendFileSync(
         this.traceErrorsPath,
-        JSON.stringify(event) + "\n",
+        JSON.stringify(versionedEvent) + "\n",
         "utf-8",
       );
     } catch {

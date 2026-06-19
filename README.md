@@ -44,6 +44,14 @@ This adds the server plugin to `~/.config/opencode/opencode.json` and the TUI pl
 
 The trace directory is read from the same `traceDir` option used in the server plugin config (default: `~/.config/opencode/.tracing`).
 
+## Schema Evolution
+
+Events written to `trace.jsonl` include a `schemaVersion` field.
+
+- **Minor changes (Additive):** New fields can be added to existing events without bumping the major version.
+- **Major changes (Breaking):** If fields are renamed or removed, the `schemaVersion` will be incremented.
+- **Migration Policy:** The CLI and TUI are designed to handle multiple schema versions where feasible, but we recommend keeping the package updated to ensure full compatibility.
+
 ## CLI Usage
 
 ### Quick start (no install)

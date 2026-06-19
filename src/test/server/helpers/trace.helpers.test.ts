@@ -92,7 +92,10 @@ describe("TraceHelper", () => {
     assert.equal(mockAppend.mock.calls.length, 1);
     const [fp, ct] = mockAppend.mock.calls[0].arguments;
     assert.ok(fp.endsWith("trace.jsonl"));
-    assert.equal(ct, JSON.stringify(ev) + "\n");
+    const parsed = JSON.parse(ct);
+    assert.equal(parsed.type, ev.type);
+    assert.equal(parsed.value, ev.value);
+    assert.equal(parsed.schemaVersion, 1);
   });
 
   it("writeTrace calls writeTraceError when appendFileSync fails", () => {
@@ -123,6 +126,7 @@ describe("TraceHelper", () => {
     assert.equal(p.type, "write_trace_error");
     assert.equal(p.originalEventType, "boom");
     assert.ok(p.error.includes("disk full"));
+    assert.equal(p.schemaVersion, 1);
   });
 
   it("writeTraceError silently swallows write errors", () => {
