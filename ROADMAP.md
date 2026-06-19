@@ -6,8 +6,8 @@
 
 **Meta:** Proteger la integridad de los datos de los usuarios actuales y ofrecer ahorros directos.
 
-- **A.1 Comparativa de Costes (Model Simulation):**
-  - Implementar `agent-monitor compare`: herramienta que proyecta el gasto real sobre precios de otros modelos (ej. ¿Qué habría costado con GPT-4o-mini vs Claude 3.5?).
+- **A.1 Comparativa de Costes (Model Simulation):** ✅
+  - Implementado `agent-monitor compare`: herramienta que proyecta el gasto real sobre precios de otros modelos (ej. ¿Qué habría costado con GPT-4o-mini vs Claude 3.5?).
   - Ayuda a los usuarios a decidir si están usando el modelo más eficiente para su tarea.
 - **A.2 Esquema Versionado (Schema v1):** ✅
   - Implementado `schemaVersion: 1` en todos los eventos JSONL.
@@ -52,5 +52,6 @@
 - ✅ TUI Live Monitor (Sidebar + Fullscreen).
 - ✅ CLI funcional para estadísticas y exportación.
 - ✅ Distribución en npm (@alvarovfon/opencode-agent-monitor).
+- ✅ Fase A.1 (Comparativa de costes).
 - ✅ Fase A.2 (Esquema Versionado).
-- 🔜 Próximo hito: Fase A.1 (Comparativa de costes).
+- 🔜 Próximo hito: Fase A.3 (Log Rotation).
