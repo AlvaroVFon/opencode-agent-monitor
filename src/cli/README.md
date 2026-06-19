@@ -87,17 +87,24 @@ agent-monitor export --since 30d --format markdown
 
 ### compare — cost simulation
 
-Compare your real spending with what it would have costed on other models (GPT-4o, Claude 3.5 Sonnet, etc.).
+Compare your real spending with what it would have costed on other models (GPT-4o, GPT-4o-mini, Claude 3.5 Sonnet, Gemini, DeepSeek, etc.). Pricing is fetched dynamically from `opencode models` with a built-in static fallback.
 
 ```bash
 agent-monitor compare [options]
 ```
 
-| Flag                 | Default                       | Description                  |
-| -------------------- | ----------------------------- | ---------------------------- |
-| `--dir <path>`       | `~/.config/opencode/.tracing` | Trace directory              |
-| `--since <duration>` | `all`                         | Time filter                  |
-| `--session <id>`     | —                             | Filter to a specific session |
+| Flag                 | Default                       | Description                                             |
+| -------------------- | ----------------------------- | ------------------------------------------------------- |
+| `--dir <path>`       | `~/.config/opencode/.tracing` | Trace directory                                         |
+| `--since <duration>` | `all`                         | Time filter                                             |
+| `--session <id>`     | —                             | Filter to a specific session                            |
+| `--static-pricing`   | —                             | Skip opencode lookup, use the built-in pricing registry |
+
+Example:
+
+```bash
+agent-monitor compare --since 24h --static-pricing
+```
 
 ## Output Formats
 

@@ -76,7 +76,7 @@ export class CompareCommand {
       process.exit(1);
     }
 
-    const totalRealCost = llmCalls.reduce((sum, ev) => sum + (ev.cost || 0), 0);
+    const realCost = totalRealCost(llmCalls);
     const sessionIDs = new Set(llmCalls.map((ev) => ev.sessionID));
 
     const registry = await this.resolveRegistry(options.staticPricing === true);
@@ -87,7 +87,7 @@ export class CompareCommand {
     comparisons.sort((a, b) => a.cost - b.cost);
 
     this.printTable(
-      totalRealCost,
+      realCost,
       comparisons,
       options.staticPricing === true,
       llmCalls.length,
