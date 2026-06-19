@@ -83,6 +83,27 @@ Push the branch and tags:
 git push origin release/vX.Y.Z --tags
 ```
 
+## Resolve conflicts with main
+
+After pushing, merge `main` into the release branch to catch any conflicts early (they occur when both `main` and the release branch modify `package.json` and `CHANGELOG.md`):
+
+```bash
+git merge origin/main
+```
+
+If there are conflicts, they will be in `package.json` and `CHANGELOG.md`. Resolve them by keeping the release branch version:
+
+- **`package.json`**: keep `"version": "X.Y.Z"` from the release branch (HEAD).
+- **`CHANGELOG.md`**: keep the regenerated changelog from `prepare-release` (HEAD). Remove all conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`).
+
+Then stage and commit:
+
+```bash
+git add package.json CHANGELOG.md
+git commit -m "chore(release): resolve merge conflicts with main"
+git push origin release/vX.Y.Z
+```
+
 ## Local validation
 
 Run the same gates `prepublishOnly` will run during publish. **All four must pass before opening the release PR.**
