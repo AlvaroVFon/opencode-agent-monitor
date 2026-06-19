@@ -7,6 +7,7 @@ export class TraceHelper {
   private readonly traceDir: string;
   private readonly traceFilePath: string;
   private readonly traceErrorsPath: string;
+  private dirEnsured = false;
 
   constructor(traceDir?: string) {
     this.traceDir =
@@ -16,9 +17,11 @@ export class TraceHelper {
   }
 
   ensureDir() {
+    if (this.dirEnsured) return; // ← cache
     if (!existsSync(this.traceDir)) {
       mkdirSync(this.traceDir, { recursive: true });
     }
+    this.dirEnsured = true;
   }
 
   writeTrace(event: Record<string, unknown>) {
