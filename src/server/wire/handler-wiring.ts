@@ -21,14 +21,8 @@ export function createEventHandler(
     .register(EventType.SESSION_CREATED, new SessionCreatedHandler(traceHelper))
     .register(EventType.SESSION_ERROR, new SessionErrorHandler(traceHelper))
     .register(EventType.MESSAGE_UPDATED, new UserMessageHandler(currentAgent))
-    .register(
-      EventType.MESSAGE_UPDATED,
-      new LlmErrorHandler(traceHelper, currentAgent),
-    )
-    .register(
-      EventType.MESSAGE_UPDATED,
-      new LlmCallHandler(traceHelper, currentAgent),
-    )
+    .register(EventType.MESSAGE_UPDATED, new LlmErrorHandler(traceHelper))
+    .register(EventType.MESSAGE_UPDATED, new LlmCallHandler(traceHelper))
     .register(
       EventType.MESSAGE_PART_UPDATED,
       new AgentDelegationHandler(traceHelper),

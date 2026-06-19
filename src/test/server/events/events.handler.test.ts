@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { EventHandler } from "../../../server/events/events.handler";
 import { EventsRegistry } from "../../../server/events/events.registry";
 import { EventType } from "../../../server/enums";
-import type { Handler } from "../../../server/handler.interface";
+import type { Handler, GetAgent } from "../../../server/handler.interface";
 
 describe("EventHandler", () => {
   it("dispatches event properties to every registered handler", () => {
@@ -30,7 +30,10 @@ describe("EventHandler", () => {
 
     assert.equal(h1.handle.mock.calls.length, 1);
     assert.equal(h2.handle.mock.calls.length, 1);
-    assert.deepEqual(h1.handle.mock.calls[0].arguments, [{ foo: "bar" }]);
+    assert.deepEqual(h1.handle.mock.calls[0].arguments, [
+      { foo: "bar" },
+      undefined,
+    ]);
   });
 
   it("silently ignores unregistered event types", () => {
