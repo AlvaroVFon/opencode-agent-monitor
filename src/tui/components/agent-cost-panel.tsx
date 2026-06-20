@@ -1,4 +1,11 @@
-import { createMemo, createSignal, For, Show } from "solid-js";
+import {
+  createMemo,
+  createSignal,
+  For,
+  Show,
+  onMount,
+  onCleanup,
+} from "solid-js";
 import type { JSX } from "@opentui/solid";
 import type { TuiThemeCurrent } from "@opencode-ai/plugin/tui";
 import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types.js";
@@ -6,6 +13,7 @@ import { panelHeaderFormatter } from "../formatters/panel-header.formatter";
 import { totalsRowFormatter } from "../formatters/totals-row.formatter";
 import { agentNameFormatter } from "../formatters/agent-name.formatter";
 import { durationFormatter } from "../formatters/duration.formatter";
+import { sessionTimerFormatter } from "../formatters/session-timer.formatter.js";
 
 type ModelRow = {
   name: string;
@@ -118,6 +126,12 @@ export function AgentCostPanel(props: {
   theme: TuiThemeCurrent;
 }): JSX.Element {
   const [collapsed, setCollapsed] = createSignal(_collapsed);
+  const [now, setNow] = createSignal(Date.now());
+
+  onMount(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    onCleanup(() => clearInterval(id));
+  });
 
   const rows = createMemo(() =>
     buildAgentRows(props.snapshot.byAgent, props.snapshot.byAgentModel ?? {}),
@@ -169,6 +183,19 @@ export function AgentCostPanel(props: {
           </Show>
           <span style={{ fg: props.theme.textMuted }}> · </span>
           <span style={{ fg: props.theme.success }}>{header().totalCost}</span>
+        </text>
+      </box>
+
+      {/* Session timer — always visible */}
+      <box flexDirection="row" paddingLeft={1}>
+        <text>
+          <span style={{ fg: props.theme.textMuted }}>session </span>
+          <span style={{ fg: props.theme.text }}>
+            {sessionTimerFormatter.format(
+              props.snapshot.window.firstSeenAt,
+              now(),
+            )}
+          </span>
         </text>
       </box>
 
