@@ -99,6 +99,112 @@ describe("TraceHelper (Session-based)", () => {
     assert.doesNotThrow(() => helper.close());
   });
 
+  it("writeTrace routes child session events to parent file", async () => {
+    const { TraceHelper } =
+      await import("../../../server/helpers/trace.helpers");
+
+    const dir = mkdtempSync(join(tmpdir(), "trace-helper-test-"));
+    const helper = new TraceHelper(dir);
+
+    // Write SESSION_CREATED for child with parentID
+    helper.writeTrace({
+      type: "session_created",
+      sessionID: "child-1",
+      parentID: "parent-a",
+      timestamp: 100,
+    });
+
+    // Write child events — should go to parent file
+    helper.writeTrace({
+      type: "llm_call",
+      sessionID: "child-1",
+      agent: "explore",
+      timestamp: 200,
+    });
+
+    helper.writeTrace({
+      type: "tool_call",
+      sessionID: "child-1",
+      tool: "read_file",
+      timestamp: 300,
+    });
+
+    // Write a root session event — should go to its own file
+    helper.writeTrace({
+      type: "llm_call",
+      sessionID: "root-session",
+      agent: "coder",
+      timestamp: 400,
+    });
+
+    await new Promise((r) => setTimeout(r, 50));
+
+    // Only parent file and root file should exist — NOT a child file
+    const parentFile = join(dir, "parent-a.jsonl");
+    const rootFile = join(dir, "root-session.jsonl");
+    const childFile = join(dir, "child-1.jsonl");
+
+    assert.equal(
+      existsSync(parentFile),
+      true,
+      "parent file should exist with all child events",
+    );
+    assert.equal(
+      existsSync(rootFile),
+      true,
+      "root session should have its own file",
+    );
+    assert.equal(
+      existsSync(childFile),
+      false,
+      "child should NOT have its own file — events go through parent",
+    );
+
+    // Parent file should contain child events
+    const parentContent = (
+      await import("node:fs").then((fs) => fs.readFileSync(parentFile, "utf-8"))
+    ).trim();
+    const parentLines = parentContent.split("\n");
+    assert.equal(parentLines.length, 3, "parent file should have 3 events");
+    assert.equal(
+      JSON.parse(parentLines[0]).type,
+      "session_created",
+      "first event in parent is child SESSION_CREATED",
+    );
+    assert.equal(
+      JSON.parse(parentLines[0]).sessionID,
+      "child-1",
+      "SESSION_CREATED carries child sessionID",
+    );
+    assert.equal(
+      JSON.parse(parentLines[1]).type,
+      "llm_call",
+      "second event is child LLM call",
+    );
+    assert.equal(
+      JSON.parse(parentLines[2]).type,
+      "tool_call",
+      "third event is child tool call",
+    );
+
+    // Root file should have its own event
+    const rootContent = (
+      await import("node:fs").then((fs) => fs.readFileSync(rootFile, "utf-8"))
+    ).trim();
+    const rootLines = rootContent.split("\n");
+    assert.equal(rootLines.length, 1, "root file should have 1 event");
+    assert.equal(
+      JSON.parse(rootLines[0]).type,
+      "llm_call",
+      "root file has llm_call",
+    );
+    assert.equal(
+      JSON.parse(rootLines[0]).sessionID,
+      "root-session",
+      "root event carries its own sessionID",
+    );
+  });
+
   it("writeTrace handles events without sessionID gracefully (skips, doesn't crash)", async () => {
     const { TraceHelper } =
       await import("../../../server/helpers/trace.helpers");

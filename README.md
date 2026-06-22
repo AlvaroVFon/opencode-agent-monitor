@@ -40,13 +40,14 @@ This adds the server plugin to `~/.config/opencode/opencode.json` and the TUI pl
 
 - **Sidebar panel** — agents sorted by cost descending. Each row shows cost, per-model breakdown, context tokens (input/output), call count, cache hit rate, average cost per call, and error count. The currently active agent is marked with a dot.
 - **Fullscreen dialog** — press `Ctrl+A` to toggle an expanded table with totals and per-model breakdown.
-- **Persistent cursor** — the trace file cursor survives TUI restarts, so you never miss events between sessions.
+- **Per-session isolation** — each OpenCode session writes to its own `{sessionId}.jsonl` file. No single-file contention, natural log rotation.
+- **Per-session persistent cursor** — each session's file cursor survives TUI restarts via `api.kv`, so you never miss events between sessions.
 
-The trace directory is read from the same `traceDir` option used in the server plugin config (default: `~/.config/opencode/.tracing`).
+The trace directory is read from the same `traceDir` option used in the server plugin config (default: `~/.config/opencode/.tracing`). Each session produces one file named `{safeSessionId}.jsonl`.
 
 ## Schema Evolution
 
-Events written to `trace.jsonl` include a `schemaVersion` field.
+Every event includes a `schemaVersion` field.
 
 - **Minor changes (Additive):** New fields can be added to existing events without bumping the major version.
 - **Major changes (Breaking):** If fields are renamed or removed, the `schemaVersion` will be incremented.
@@ -75,7 +76,7 @@ Four subcommands (`stats`, `errors`, `export`, `compare`). Full reference in [`s
 
 ## Components
 
-The project ships three components that share the same `trace.jsonl` format:
+The project ships three components that share the same per-session `.jsonl` format:
 
 - **Server plugin** — traces OpenCode events to JSONL. Configuration, event tables, and output format in [`src/server/README.md`](src/server/README.md).
 - **TUI plugin** — live sidebar monitor with fullscreen dialog. Installation, keybindings, and architecture in [`src/tui/README.md`](src/tui/README.md).
