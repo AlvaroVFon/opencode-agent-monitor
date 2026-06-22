@@ -20,12 +20,10 @@ function makeErrorMsg(overrides: Record<string, unknown> = {}) {
 }
 
 describe("LlmErrorHandler", () => {
-  it("writes trace and traceError when assistant has an error", () => {
+  it("writes a trace when assistant has an error", () => {
     const writeTrace = mock.fn();
-    const writeTraceError = mock.fn();
     const handler = new LlmErrorHandler({
       writeTrace,
-      writeTraceError,
       ensureDir: () => {},
     } as any);
 
@@ -33,7 +31,6 @@ describe("LlmErrorHandler", () => {
     handler.handle(makeErrorMsg(), getAgent);
 
     assert.equal(writeTrace.mock.calls.length, 1);
-    assert.equal(writeTraceError.mock.calls.length, 1);
 
     const event = writeTrace.mock.calls[0].arguments[0];
     assert.equal(event.type, TraceEventType.LLM_ERROR);
@@ -48,7 +45,6 @@ describe("LlmErrorHandler", () => {
     const writeTrace = mock.fn();
     const handler = new LlmErrorHandler({
       writeTrace,
-      writeTraceError: mock.fn(),
       ensureDir: () => {},
     } as any);
 
@@ -60,7 +56,6 @@ describe("LlmErrorHandler", () => {
     const writeTrace = mock.fn();
     const handler = new LlmErrorHandler({
       writeTrace,
-      writeTraceError: mock.fn(),
       ensureDir: () => {},
     } as any);
 
@@ -72,7 +67,6 @@ describe("LlmErrorHandler", () => {
     const writeTrace = mock.fn();
     const handler = new LlmErrorHandler({
       writeTrace,
-      writeTraceError: mock.fn(),
       ensureDir: () => {},
     } as any);
 
@@ -84,7 +78,6 @@ describe("LlmErrorHandler", () => {
     const writeTrace = mock.fn();
     const handler = new LlmErrorHandler({
       writeTrace,
-      writeTraceError: mock.fn(),
       ensureDir: () => {},
     } as any);
 
