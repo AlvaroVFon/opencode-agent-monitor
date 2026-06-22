@@ -65,7 +65,7 @@ export class AggregatorStore {
     this.lastActiveAgent = null;
   }
 
-  ingest(event: TraceEvent): void {
+  ingest(event: TraceEvent, opts?: { silent?: boolean }): void {
     this.touch(event.timestamp);
 
     switch (event.type) {
@@ -158,6 +158,12 @@ export class AggregatorStore {
       }
     }
 
+    if (!opts?.silent) {
+      this.emitSnapshot();
+    }
+  }
+
+  flush(): void {
     this.emitSnapshot();
   }
 
