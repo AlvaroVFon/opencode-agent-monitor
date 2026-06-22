@@ -279,7 +279,7 @@ ${rows}
     if (data.isEmpty) return "";
 
     const costLabels = JSON.stringify(data.costs.map((c) => c.sessionID));
-    const costData = JSON.stringify(data.costs.map((c) => c.total));
+    const costData = JSON.stringify(data.costs);
 
     const tokenLabels = JSON.stringify(data.tokens.map((t) => t.sessionID));
     const tokenInput = JSON.stringify(data.tokens.map((t) => t.input));
@@ -292,25 +292,37 @@ ${rows}
 
     return `<script>
 (function() {
-  /* ── Cost chart ── */
+  var MODEL_COLORS = {
+    "gpt-4o": "rgba(59,130,246,0.8)", "gpt-4o-mini": "rgba(96,165,250,0.8)",
+    "gpt-4": "rgba(37,99,235,0.8)", "gpt-3.5-turbo": "rgba(147,197,253,0.8)",
+    "claude-3.5": "rgba(16,185,129,0.8)", "claude-3": "rgba(52,211,153,0.8)",
+    "claude-opus": "rgba(5,150,105,0.8)",
+    "deepseek": "rgba(245,158,11,0.8)", "deepseek-r1": "rgba(251,191,36,0.8)",
+    "default": "rgba(168,162,158,0.8)"
+  };
+  function modelColor(m) { return MODEL_COLORS[m] || MODEL_COLORS["default"]; }
+
+  /* ── Cost chart (stacked by model) ── */
   var costCtx = document.getElementById("costChart");
   if (costCtx) {
+    var costs = ${costData};
+    var models = [...new Set(costs.flatMap(function(c) { return Object.keys(c.byModel); }))];
+    if (models.length === 0) { models = ["(no data)"]; }
+    var datasets = models.map(function(m) {
+      return {
+        label: m,
+        data: costs.map(function(c) { return c.byModel[m] || 0; }),
+        backgroundColor: modelColor(m),
+        borderWidth: 1
+      };
+    });
     new Chart(costCtx, {
       type: "bar",
-      data: {
-        labels: ${costLabels},
-        datasets: [{
-          label: "Total Cost ($)",
-          data: ${costData},
-          backgroundColor: "rgba(59,130,246,0.7)",
-          borderColor: "rgba(59,130,246,1)",
-          borderWidth: 1
-        }]
-      },
+      data: { labels: ${costLabels}, datasets: datasets },
       options: {
         responsive: true,
-        scales: { y: { beginAtZero: true, ticks: { callback: function(v) { return "$" + v.toFixed(4); } } } },
-        plugins: { tooltip: { callbacks: { label: function(ctx) { return "$" + ctx.parsed.y.toFixed(4); } } } }
+        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { callback: function(v) { return "$" + v.toFixed(4); } } } },
+        plugins: { tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + ": $" + ctx.parsed.y.toFixed(4); } } } }
       }
     });
   }
