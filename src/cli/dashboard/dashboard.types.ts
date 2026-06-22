@@ -28,7 +28,8 @@ export type ToolRow = {
   calls: number;
   errors: number;
   durationMs: number;
-  cost: number;
+  /** ToolCallEvent / SkillCallEvent do not carry cost data — omitted when unavailable. */
+  cost?: number;
 };
 
 export type TimelineRow = {

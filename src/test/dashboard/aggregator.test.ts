@@ -10,7 +10,7 @@ import type {
   AgentDelegationEvent,
 } from "../../shared/trace-events.types";
 import type { MetricsSnapshot } from "../../shared/metrics.types";
-import { dashboardAggregator } from "../../dashboard/dashboard-aggregator";
+import { dashboardAggregator } from "../../cli/dashboard/dashboard-aggregator";
 
 function emptySnapshot(): MetricsSnapshot {
   return {
@@ -236,14 +236,14 @@ describe("DashboardAggregator", () => {
       assert.equal(readFile.calls, 3);
       assert.equal(readFile.errors, 1);
       assert.equal(readFile.durationMs, 600); // 100 + 200 + 300
-      assert.equal(readFile.cost, 0);
+      // cost is intentionally omitted — ToolCallEvent does not carry cost data
 
       const writeFile = data.tools.find((t) => t.name === "write_file");
       assert.ok(writeFile);
       assert.equal(writeFile.calls, 1);
       assert.equal(writeFile.errors, 1);
       assert.equal(writeFile.durationMs, 50);
-      assert.equal(writeFile.cost, 0);
+      // cost is intentionally omitted — ToolCallEvent does not carry cost data
     });
 
     it("groups SkillCallEvent into skill rows by name", () => {
@@ -284,14 +284,14 @@ describe("DashboardAggregator", () => {
       assert.equal(analyze.calls, 2);
       assert.equal(analyze.errors, 1);
       assert.equal(analyze.durationMs, 700);
-      assert.equal(analyze.cost, 0);
+      // cost is intentionally omitted — SkillCallEvent does not carry cost data
 
       const generate = data.skills.find((s) => s.name === "generate_docs");
       assert.ok(generate);
       assert.equal(generate.calls, 1);
       assert.equal(generate.errors, 0);
       assert.equal(generate.durationMs, 300);
-      assert.equal(generate.cost, 0);
+      // cost is intentionally omitted — SkillCallEvent does not carry cost data
     });
 
     it("builds chronologically sorted timeline from all event types", () => {
