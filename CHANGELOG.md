@@ -4,6 +4,18 @@
 
 * **trace:** route child session events to parent file ([#69](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/69)) ([03d772a](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/03d772ad95d753b06be0554a11795415f110e348))
 
+# [1.0.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/v0.3.0...v1.0.0) (2026-06-22)
+
+### ⚠ BREAKING CHANGES
+
+* Per-session tracing: `trace.jsonl` replaced with `{sessionId}.jsonl` files. Each session writes to its own file. Old `trace.jsonl` is no longer read by CLI or TUI.
+
+### Features
+
+* **tracing:** add session class and rewrite tracehelper with streams ([#63](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/63)) ([489053d](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/489053d349c52c89697310596d1b49cf569e1e64))
+* **tracing:** add session-fs helpers with oop singleton ([#62](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/62)) ([171cf73](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/171cf73178ea3fff4cb24ec3026d2764ed32347b))
+* **tracing:** add sessionwatcher, batch ingest, rewrite tui read path ([#64](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/64)) ([72c0325](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/72c0325e99073546732db690c4498596228fd785))
+* **tracing:** rewrite cli tracereader for per-session files ([#65](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/65)) ([c6e8ef5](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/c6e8ef5c3cfa6eebf0eb724a9c6a7e8cacff2156))
 # [0.3.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/v0.2.0...v0.3.0) (2026-06-19)
 
 > [!NOTE]
