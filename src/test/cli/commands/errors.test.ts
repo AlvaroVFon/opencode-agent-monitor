@@ -15,8 +15,16 @@ function makeTempDir(): string {
 }
 
 function writeTrace(dir: string, events: unknown[]): void {
-  const text = events.map((e) => JSON.stringify(e)).join("\n") + "\n";
-  fs.writeFileSync(path.join(dir, "trace.jsonl"), text);
+  const bySession = new Map<string, unknown[]>();
+  for (const ev of events) {
+    const sid = (ev as Record<string, unknown>).sessionID as string;
+    if (!bySession.has(sid)) bySession.set(sid, []);
+    bySession.get(sid)!.push(ev);
+  }
+  for (const [sid, evts] of bySession) {
+    const text = evts.map((e) => JSON.stringify(e)).join("\n") + "\n";
+    fs.writeFileSync(path.join(dir, `${sid}.jsonl`), text);
+  }
 }
 
 function runCli(

@@ -24,7 +24,9 @@ afterEach(() => {
     if (dir) {
       try {
         fs.rmSync(dir, { recursive: true, force: true });
-      } catch {}
+      } catch {
+        // temp dir cleanup must not throw
+      }
     }
   }
 });
@@ -32,13 +34,12 @@ afterEach(() => {
 describe("readEvents", () => {
   it("returns empty array for empty directory", () => {
     const dir = makeTempDir();
-    const events = traceReader.readEvents(dir);
-    assert.deepEqual(events, []);
+    assert.deepEqual(traceReader.readEvents(dir), []);
   });
 
-  it("reads trace.jsonl", () => {
+  it("reads events from a single session file", () => {
     const dir = makeTempDir();
-    writeJsonl("trace.jsonl", dir, [
+    writeJsonl("s1.jsonl", dir, [
       { type: "llm_call", agent: "a", sessionID: "s1", timestamp: 1 },
     ]);
     const events = traceReader.readEvents(dir);
@@ -46,23 +47,25 @@ describe("readEvents", () => {
     assert.equal(events[0].type, "llm_call");
   });
 
-  it("merges trace.jsonl and trace.errors.jsonl", () => {
+  it("merges multiple session files in chronological order", () => {
     const dir = makeTempDir();
-    writeJsonl("trace.jsonl", dir, [
-      { type: "llm_call", agent: "a", sessionID: "s1", timestamp: 1 },
+    writeJsonl("s1.jsonl", dir, [
+      { type: "llm_call", agent: "a", sessionID: "s1", timestamp: 10 },
+      { type: "tool_call", agent: "a", sessionID: "s1", timestamp: 20 },
     ]);
-    writeJsonl("trace.errors.jsonl", dir, [
-      { type: "session_error", sessionID: "s1", timestamp: 2 },
+    writeJsonl("s2.jsonl", dir, [
+      { type: "session_start", sessionID: "s2", timestamp: 5 },
     ]);
     const events = traceReader.readEvents(dir);
-    assert.equal(events.length, 2);
-    assert.equal(events[0].type, "llm_call");
-    assert.equal(events[1].type, "session_error");
+    assert.equal(events.length, 3);
+    assert.equal(events[0].timestamp, 5);
+    assert.equal(events[1].timestamp, 10);
+    assert.equal(events[2].timestamp, 20);
   });
 
   it("silently skips malformed JSON lines", () => {
     const dir = makeTempDir();
-    const filePath = path.join(dir, "trace.jsonl");
+    const filePath = path.join(dir, "s1.jsonl");
     fs.writeFileSync(
       filePath,
       '{valid: "no"}\n{"type":"llm_call","agent":"a","sessionID":"s1","timestamp":1}\nnot-json\n',
@@ -72,11 +75,24 @@ describe("readEvents", () => {
     assert.equal(events[0].type, "llm_call");
   });
 
-  it("returns empty array when both files are empty", () => {
+  it("does not read legacy trace.jsonl", () => {
     const dir = makeTempDir();
-    fs.writeFileSync(path.join(dir, "trace.jsonl"), "");
-    fs.writeFileSync(path.join(dir, "trace.errors.jsonl"), "");
+    writeJsonl("trace.jsonl", dir, [
+      { type: "llm_call", agent: "old", sessionID: "old", timestamp: 1 },
+    ]);
     const events = traceReader.readEvents(dir);
     assert.deepEqual(events, []);
+  });
+});
+
+describe("readJsonl", () => {
+  it("reads a JSONL file and returns typed array", () => {
+    const dir = makeTempDir();
+    writeJsonl("data.jsonl", dir, [{ a: 1 }, { b: 2 }]);
+    const result = traceReader.readJsonl<Record<string, number>>(
+      path.join(dir, "data.jsonl"),
+    );
+    assert.equal(result.length, 2);
+    assert.deepEqual(result[0], { a: 1 });
   });
 });

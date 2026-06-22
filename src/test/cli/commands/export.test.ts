@@ -21,8 +21,16 @@ function makeTempDir(): string {
 }
 
 function writeTrace(dir: string, events: unknown[]): void {
-  const text = events.map((e) => JSON.stringify(e)).join("\n") + "\n";
-  fs.writeFileSync(path.join(dir, "trace.jsonl"), text);
+  const bySession = new Map<string, unknown[]>();
+  for (const ev of events) {
+    const sid = (ev as Record<string, unknown>).sessionID as string;
+    if (!bySession.has(sid)) bySession.set(sid, []);
+    bySession.get(sid)!.push(ev);
+  }
+  for (const [sid, evts] of bySession) {
+    const text = evts.map((e) => JSON.stringify(e)).join("\n") + "\n";
+    fs.writeFileSync(path.join(dir, `${sid}.jsonl`), text);
+  }
 }
 
 function runCli(
@@ -153,7 +161,7 @@ describe("export command", () => {
 
   it("handles empty trace file with exit code 1", () => {
     const dir = makeTempDir();
-    fs.writeFileSync(path.join(dir, "trace.jsonl"), "");
+    fs.writeFileSync(path.join(dir, "empty.jsonl"), "");
     const { stderr, status } = runCli(["export"], dir);
     assert.equal(status, 1);
     assert.ok(stderr.includes("No events found"));
