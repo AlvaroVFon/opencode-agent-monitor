@@ -1,9 +1,12 @@
 import { readFileSync, statSync, watch } from "node:fs";
 import type { FSWatcher } from "node:fs";
+import { sessionFS } from "../shared/session-fs.js";
 
 const DEFAULT_POLL_INTERVAL_MS = 250;
 
-export class JsonlTailer {
+export class SessionWatcher {
+  private readonly traceDir: string;
+  private readonly sessionID: string;
   private readonly filePath: string;
   private readonly pollIntervalMs: number;
   private readonly onLine?: (line: unknown) => void;
@@ -18,14 +21,17 @@ export class JsonlTailer {
   private started = false;
 
   constructor(
-    filePath: string,
+    traceDir: string,
+    sessionID: string,
     opts?: {
       pollIntervalMs?: number;
       onLine?: (line: unknown) => void;
       onError?: (err: Error) => void;
     },
   ) {
-    this.filePath = filePath;
+    this.traceDir = traceDir;
+    this.sessionID = sessionID;
+    this.filePath = sessionFS.sessionFilePath(traceDir, sessionID);
     this.pollIntervalMs = opts?.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS;
     this.onLine = opts?.onLine;
     this.onError = opts?.onError;
@@ -182,7 +188,7 @@ export class JsonlTailer {
     try {
       this.onError?.(err);
     } catch {
-      // Consumer callbacks must not crash the tailer.
+      // Consumer callbacks must not crash the watcher.
     }
   }
 

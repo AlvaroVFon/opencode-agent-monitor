@@ -1,4 +1,4 @@
-import { createMemo, createSignal } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { PluginOptions } from "@opencode-ai/plugin";
@@ -11,7 +11,8 @@ import type {
 import type { TuiSlotPlugin } from "@opencode-ai/plugin/tui";
 import type { MetricsSnapshot } from "../shared/metrics.types.js";
 import { AggregatorStore, type TraceEvent } from "./aggregator-store.js";
-import { JsonlTailer } from "./jsonl-tailer.js";
+import { SessionWatcher } from "./session-watcher.js";
+import { sessionFS } from "../shared/session-fs.js";
 import { AgentCostPanel } from "./components/agent-cost-panel.js";
 import { FullscreenStatsDialog } from "./components/fullscreen-stats-dialog.js";
 
@@ -60,8 +61,38 @@ const tui: TuiPlugin = async (
   setSnapshot(() => store.snapshot());
 
   // 2. Register sidebar slot FIRST so the panel always appears,
-  //    even if tailer setup fails.
+  //    even if watcher setup fails.
   const theme = (): TuiThemeCurrent => api.theme.current;
+
+  // Resolve trace directory once.
+  const traceDir =
+    typeof options?.traceDir === "string"
+      ? options.traceDir
+      : typeof process.env.AGENT_MONITOR_DIR === "string"
+        ? process.env.AGENT_MONITOR_DIR
+        : join(homedir(), ".config", "opencode", ".tracing");
+
+  // Watcher state — managed by createEffect inside SidebarContentPanel.
+  let watcher: SessionWatcher | undefined;
+  let persistTimer: ReturnType<typeof setTimeout> | undefined;
+  let activeSessionId: string | undefined;
+
+  const persistCursorForSession = (sid: string): void => {
+    if (!watcher) return;
+    const safeId = sessionFS.sanitizeSessionId(sid);
+    api.kv.set(`agent_monitor_cursor_${safeId}`, watcher.cursor);
+  };
+
+  const schedulePersistCursor = (): void => {
+    if (persistTimer) return;
+    persistTimer = setTimeout(() => {
+      persistTimer = undefined;
+      if (activeSessionId && watcher) {
+        const safeId = sessionFS.sanitizeSessionId(activeSessionId);
+        api.kv.set(`agent_monitor_cursor_${safeId}`, watcher.cursor);
+      }
+    }, 1000);
+  };
 
   // Reactive wrapper so signal reads are tracked inside Solid's tree.
   function SidebarContentPanel(props: { sessionID?: string }) {
@@ -71,6 +102,68 @@ const tui: TuiPlugin = async (
         ? store.snapshot({ sessionID: props.sessionID })
         : fullSnap;
     });
+
+    // Reactively manage SessionWatcher lifecycle on sessionID change.
+    createEffect(() => {
+      const sid = props.sessionID;
+      if (!sid) return;
+
+      // Stop old watcher and persist its cursor before switching.
+      if (watcher && activeSessionId) {
+        persistCursorForSession(activeSessionId);
+        watcher.stop();
+        watcher = undefined;
+      }
+
+      // Retrieve stored cursor for the new session.
+      const safeId = sessionFS.sanitizeSessionId(sid);
+      const storedCursor = api.kv.get(`agent_monitor_cursor_${safeId}`, 0);
+      const cursor =
+        typeof storedCursor === "number"
+          ? storedCursor
+          : Number(storedCursor) || 0;
+
+      // Track whether this is an initial backfill (cursor === 0).
+      let backfillMode = cursor === 0;
+
+      watcher = new SessionWatcher(traceDir, sid, {
+        onLine: (line) => {
+          store.ingest(
+            line as TraceEvent,
+            backfillMode ? { silent: true } : undefined,
+          );
+          schedulePersistCursor();
+        },
+        onError: (err) => {
+          api.ui.toast({
+            variant: "error",
+            title: "Session watcher error",
+            message: err.message,
+          });
+        },
+      });
+
+      activeSessionId = sid;
+      watcher.start(cursor);
+
+      // Initial backfill completes synchronously in start().
+      // If we loaded from cursor 0, flush the accumulated silent batch.
+      if (backfillMode) {
+        backfillMode = false;
+        store.flush();
+      }
+    });
+
+    onCleanup(() => {
+      // If this component unmounts, stop the watcher and persist cursor.
+      if (watcher && activeSessionId) {
+        persistCursorForSession(activeSessionId);
+        watcher.stop();
+        watcher = undefined;
+        activeSessionId = undefined;
+      }
+    });
+
     return <AgentCostPanel snapshot={activeSnap()} theme={theme()} />;
   }
 
@@ -83,57 +176,7 @@ const tui: TuiPlugin = async (
     },
   } satisfies TuiSlotPlugin);
 
-  // 3. Tailer setup — guarded so an io error doesn't prevent the
-  //    sidebar panel from rendering.
-  let tailer: JsonlTailer | undefined;
-  let persistTimer: ReturnType<typeof setTimeout> | undefined;
-
-  try {
-    const traceDir =
-      typeof options?.traceDir === "string"
-        ? options.traceDir
-        : typeof process.env.AGENT_MONITOR_DIR === "string"
-          ? process.env.AGENT_MONITOR_DIR
-          : join(homedir(), ".config", "opencode", ".tracing");
-
-    const schedulePersistCursor = () => {
-      if (persistTimer) return;
-      persistTimer = setTimeout(() => {
-        persistTimer = undefined;
-        api.kv.set("agent_monitor_cursor", tailer!.cursor);
-      }, 1000);
-    };
-
-    tailer = new JsonlTailer(join(traceDir, "trace.jsonl"), {
-      onLine: (line) => {
-        store.ingest(line as TraceEvent);
-        schedulePersistCursor();
-      },
-      onError: (err) => {
-        api.ui.toast({
-          variant: "error",
-          title: "Agent monitor tailer error",
-          message: err.message,
-        });
-      },
-    });
-
-    const storedCursor = api.kv.get("agent_monitor_cursor", 0);
-    const cursor =
-      typeof storedCursor === "number"
-        ? storedCursor
-        : Number(storedCursor) || 0;
-
-    tailer.start(cursor);
-  } catch (err) {
-    api.ui.toast({
-      variant: "error",
-      title: "Agent monitor setup failed",
-      message: String(err),
-    });
-  }
-
-  // 4. Fullscreen dialog state.
+  // 3. Fullscreen dialog state.
   let dialogOpen = false;
 
   const closeDialog = () => {
@@ -158,7 +201,7 @@ const tui: TuiPlugin = async (
     );
   };
 
-  // 5. Register keymap layer.
+  // 4. Register keymap layer.
   const unregisterKeymap = api.keymap.registerLayer({
     commands: [
       {
@@ -183,15 +226,16 @@ const tui: TuiPlugin = async (
     ],
   });
 
-  // 6. Lifecycle cleanup.
+  // 5. Lifecycle cleanup.
   api.lifecycle.onDispose(() => {
-    tailer?.stop();
+    watcher?.stop();
     unregisterKeymap();
     if (persistTimer) {
       clearTimeout(persistTimer);
-      if (tailer) {
-        api.kv.set("agent_monitor_cursor", tailer.cursor);
-      }
+      persistTimer = undefined;
+    }
+    if (watcher && activeSessionId) {
+      persistCursorForSession(activeSessionId);
     }
   });
 };
