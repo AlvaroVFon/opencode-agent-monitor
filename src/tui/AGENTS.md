@@ -1,6 +1,6 @@
 # AGENTS.md — `src/tui/`
 
-TUI plugin for OpenCode. Reads `trace.jsonl` (written by the server plugin in `../server/`), aggregates events in memory, and renders a live sidebar panel + a fullscreen dialog (`Ctrl+A`).
+TUI plugin for OpenCode. Reads per-session `.jsonl` files (written by the server plugin in `../server/`), aggregates events in memory, and renders a live sidebar panel + a fullscreen dialog (`Ctrl+A`).
 
 ## Entry point
 
@@ -14,15 +14,15 @@ TUI plugin for OpenCode. Reads `trace.jsonl` (written by the server plugin in `.
 ## Architecture
 
 ```
-trace.jsonl → JsonlTailer → AggregatorStore.ingest(event) → emitSnapshot()
-                                                       → Solid signal
-                                                       → Components
-                                                       → TUI slots
+{sessionID}.jsonl → SessionWatcher → AggregatorStore.ingest(event) → emitSnapshot()
+                                                              → Solid signal
+                                                              → Components
+                                                              → TUI slots
 ```
 
-- `JsonlTailer` (`jsonl-tailer.ts`) — incremental file reader. `fs.watch` + 250ms polling fallback. Tracks byte cursor. Detects truncation/rotation. Silently skips malformed JSON lines.
-- `AggregatorStore` (`aggregator-store.ts`) — in-memory state machine. Maintains `byAgent`, `bySession`, `byModel`, `byAgentModel`. Calls `onSnapshot` callback on every `ingest()`. `snapshot()` returns a deep-cloned `MetricsSnapshot`.
-- Cursor is persisted via `api.kv.get("agent_monitor_cursor")` / `api.kv.set(...)`. Persistence is debounced (1s timer) and also flushed in `onDispose`.
+- `SessionWatcher` (`session-watcher.ts`) — per-session incremental file reader. Resolves file path from `traceDir` + `sessionID` via `sessionFS.sessionFilePath`. `fs.watch` + 250ms polling fallback. Tracks byte cursor. Detects truncation/rotation. Silently skips malformed JSON lines. Replaces `JsonlTailer`.
+- `AggregatorStore` (`aggregator-store.ts`) — in-memory state machine. Maintains `byAgent`, `bySession`, `byModel`, `byAgentModel`. Calls `onSnapshot` callback on every `ingest()`. Supports `ingest(event, { silent: true })` + `flush()` for batch loading. `snapshot()` returns a deep-cloned `MetricsSnapshot`.
+- Per-session cursor is persisted via `api.kv.get("agent_monitor_cursor_{safeSessionId}")` / `api.kv.set(...)`. Persistence is debounced (1s timer) and also flushed in `onDispose`.
 
 ## `@opentui/solid` JSX runtime
 
@@ -36,7 +36,7 @@ This is **not** DOM JSX and not standard Solid — it is the OpenTUI renderer. D
 
 ## ADR-003: Components are implementation-only
 
-**No unit tests for Solid components.** The TUI tests cover pure formatters, the JSONL tailer, the aggregator store, and a static-analysis test for `SIDEBAR_ORDER`. Components (`agent-cost-panel.tsx`, `fullscreen-stats-dialog.tsx`) are validated manually in the TUI host.
+**No unit tests for Solid components.** The TUI tests cover pure formatters, the session watcher, the aggregator store, and a static-analysis test for `SIDEBAR_ORDER`. Components (`agent-cost-panel.tsx`, `fullscreen-stats-dialog.tsx`) are validated manually in the TUI host.
 
 When adding a feature to a component:
 
@@ -67,14 +67,15 @@ All formatters are **pure functions** that take typed inputs and return either a
 - `reset()` clears all state including `lastActiveAgent`.
 - `onSnapshot` callback fires synchronously inside `ingest()`. The TUI entry wraps this in a Solid signal setter.
 
-## JsonlTailer details
+## SessionWatcher details
 
-- Constructor: `new JsonlTailer(filePath, { onLine, onError, pollIntervalMs? })`.
+- Constructor: `new SessionWatcher(traceDir, sessionID, { onLine, onError, pollIntervalMs? })`.
+- Resolves file path via `sessionFS.sessionFilePath(traceDir, sessionID)`.
 - `start(cursor?)` — if cursor is provided, skips to that byte position. Idempotent.
 - `stop()` — clears watcher and poll timer. Sets `_started = false` so `start()` can be called again.
 - Truncation/rotation detection: if `stats.size < _cursor` or the first line changes, treats it as a reset.
 - Malformed JSON lines are silently swallowed — do not add `console.warn` for them.
-- `onError` callbacks are wrapped in try/catch — a throw inside the callback does not crash the tailer.
+- `onError` callbacks are wrapped in try/catch — a throw inside the callback does not crash the watcher.
 
 ## Test patterns
 
@@ -103,13 +104,12 @@ All local imports in `src/tui/` use **`.js` extensions** (e.g. `import { ... } f
 
 ## Lifecycle and cleanup
 
-The TUI plugin registers three things and must clean up all three on `onDispose`:
+The TUI plugin registers and must clean up on `onDispose`:
 
 - `api.slots.register({...})` — returns nothing to unregister; slot lifecycle is managed by the TUI host.
 - `api.keymap.registerLayer({...})` — returns an `unregister` function; call it in `onDispose`.
-- `tailer.stop()` — clear watcher and poll timer; flush cursor to `api.kv` if there's a pending debounce.
-
-The TUI entry guards tailer setup in a try/catch so a failure to find the trace dir does not prevent the sidebar panel from rendering. Failures show a toast via `api.ui.toast`.
+- `watcher.stop()` — clear watcher and poll timer; flush per-session cursor to `api.kv` if there's a pending debounce.
+- The `SessionWatcher` lifecycle is managed reactively via `createEffect` in `SidebarContentPanel`, watching `props.sessionID`. On session switch: persist old cursor, stop old watcher, create new watcher at stored cursor, and batch-load initial events with `{ silent: true }` + `flush()`.
 
 ## Adding a new panel feature
 
