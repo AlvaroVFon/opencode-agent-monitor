@@ -11,3 +11,5 @@ dist
 .memory-bank/progress.md
 .opencode/*
 !.opencode/skills/
+.atl/
+openspec/
