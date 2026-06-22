@@ -18,7 +18,7 @@ export class SessionFS {
         .map((e) => join(dir, e))
         .sort();
     } catch (err: unknown) {
-      if (SessionFS.#isNodeError(err) && err.code === "ENOENT") {
+      if (SessionFS.isNodeError(err) && err.code === "ENOENT") {
         return [];
       }
       throw err;
@@ -30,7 +30,7 @@ export class SessionFS {
     try {
       content = readFileSync(path, "utf-8");
     } catch (err: unknown) {
-      if (SessionFS.#isNodeError(err) && err.code === "ENOENT") {
+      if (SessionFS.isNodeError(err) && err.code === "ENOENT") {
         return [];
       }
       throw err;
@@ -49,7 +49,7 @@ export class SessionFS {
     return events;
   }
 
-  static #isNodeError(err: unknown): err is NodeJS.ErrnoException {
+  private static isNodeError(err: unknown): err is NodeJS.ErrnoException {
     return err instanceof Error && "code" in err;
   }
 }

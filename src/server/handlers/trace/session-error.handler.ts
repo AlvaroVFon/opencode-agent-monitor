@@ -20,12 +20,5 @@ export class SessionErrorHandler implements Handler<SessionErrorProps> {
       errorMessage,
       timestamp: Date.now(),
     });
-
-    this.traceHelper.writeTraceError({
-      type: TraceEventType.SESSION_ERROR,
-      sessionID: sessionID ?? null,
-      error: `${errorName}: ${errorMessage}`,
-      timestamp: Date.now(),
-    });
   }
 }

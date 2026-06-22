@@ -12,6 +12,11 @@ export const AgentMonitor: Plugin = async (_input, options) => {
   const eventHandler = createEventHandler(traceHelper, currentAgent);
   const metricsAggregator = createMetricsAggregator();
 
+  // Graceful shutdown: close all session WriteStreams before the process exits.
+  // Note: this does NOT handle SIGKILL (process.on('exit') cannot run async work,
+  // and beforeExit is not called on SIGKILL or process.abort()).
+  process.on("beforeExit", () => traceHelper.close());
+
   return {
     "chat.params": async (input) => {
       currentAgent.set(input.sessionID, input.agent);
