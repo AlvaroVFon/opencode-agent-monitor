@@ -1,28 +1,26 @@
-import { readFileSync, existsSync } from "node:fs";
-import { join } from "node:path";
 import type { TraceEvent } from "../shared/trace-events.types";
+import { sessionFS } from "../shared/session-fs";
+
+const LEGACY_FILES = new Set(["trace.jsonl", "trace.errors.jsonl"]);
+
+function isNotLegacy(filePath: string): boolean {
+  const basename = filePath.split("/").pop() ?? "";
+  return !LEGACY_FILES.has(basename);
+}
 
 export class TraceReader {
   readEvents(dir: string): TraceEvent[] {
-    const tracePath = join(dir, "trace.jsonl");
-    const errorsPath = join(dir, "trace.errors.jsonl");
-    return [
-      ...this.readJsonl<TraceEvent>(tracePath),
-      ...this.readJsonl<TraceEvent>(errorsPath),
-    ];
+    const files = sessionFS.listSessionFiles(dir).filter(isNotLegacy);
+    const events: TraceEvent[] = [];
+    for (const file of files) {
+      events.push(...(sessionFS.readSessionFile(file) as TraceEvent[]));
+    }
+    events.sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+    return events;
   }
 
-  private readJsonl<T>(path: string): T[] {
-    if (!existsSync(path)) return [];
-    const out: T[] = [];
-    for (const line of readFileSync(path, "utf8").split("\n")) {
-      const t = line.trim();
-      if (t)
-        try {
-          out.push(JSON.parse(t) as T);
-        } catch {}
-    }
-    return out;
+  readJsonl<T>(path: string): T[] {
+    return sessionFS.readSessionFile(path) as T[];
   }
 }
 
