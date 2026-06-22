@@ -54,8 +54,8 @@ export type SessionErrorEvent = {
 
 export type AgentDelegationEvent = {
   type: TraceEventType.AGENT_DELEGATION;
+  sessionID: string;
   timestamp: number;
-  [key: string]: unknown;
 };
 
 export type TraceEvent =
