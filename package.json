@@ -1,6 +1,6 @@
 {
   "name": "@alvarovfon/opencode-agent-monitor",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "OpenCode plugin for tracing LLM calls, agent delegations, tool calls and session events to JSONL files",
   "type": "module",
   "main": "dist/agent-monitor.js",
@@ -35,6 +35,7 @@
     "metrics:stats": "tsx src/cli/main.ts stats",
     "metrics:errors": "tsx src/cli/main.ts errors",
     "metrics:export": "tsx src/cli/main.ts export",
+    "metrics:compare": "tsx src/cli/main.ts compare",
     "prepare-release": "tsx scripts/release.mts",
     "prepare": "husky",
     "prepack": "pnpm run build",

@@ -20,6 +20,12 @@ export interface MetricsRecorder {
     isError: boolean,
     durationMs: number,
   ): void;
+  recordSkillCall(
+    sessionID: string,
+    skill: string,
+    isError: boolean,
+    durationMs: number,
+  ): void;
   recordSessionCreated(sessionID: string): void;
   recordSessionError(sessionID: string, type: string, message: string): void;
   pushError(entry: ErrorEntry): void;

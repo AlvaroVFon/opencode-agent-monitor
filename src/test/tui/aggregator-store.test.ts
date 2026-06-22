@@ -317,6 +317,69 @@ describe("AggregatorStore", () => {
   });
 
   // -----------------------------------------------------------------------
+  // bySkill — skill call aggregation
+  // -----------------------------------------------------------------------
+
+  it("ingest_skill_call_updates_bySkill: ingesting a skill_call event updates bySkill and totals", () => {
+    const store = new AggregatorStore();
+
+    store.ingest({
+      type: "skill_call",
+      sessionID: "sess-1",
+      skill: "planner",
+      status: "completed",
+      durationMs: 300,
+      timestamp: 1_700_000_000_000,
+    });
+
+    const snap = store.snapshot();
+    assert.equal(snap.totals.skillCalls, 1, "totals.skillCalls");
+    assert.equal(snap.totals.skillErrors, 0, "totals.skillErrors");
+    assert.ok("planner" in snap.bySkill, "bySkill must contain planner");
+    assert.equal(snap.bySkill["planner"]!.calls, 1);
+    assert.equal(snap.bySkill["planner"]!.errors, 0);
+    assert.equal(snap.bySkill["planner"]!.avgDurationMs, 300);
+  });
+
+  it("ingest_skill_call_error_increments_errors: error status increments skillErrors", () => {
+    const store = new AggregatorStore();
+
+    store.ingest({
+      type: "skill_call",
+      sessionID: "sess-1",
+      skill: "planner",
+      status: "error",
+      durationMs: 100,
+      error: "fail",
+      timestamp: 1_700_000_000_000,
+    });
+
+    const snap = store.snapshot();
+    assert.equal(snap.totals.skillCalls, 1);
+    assert.equal(snap.totals.skillErrors, 1);
+    assert.equal(snap.bySkill["planner"]!.calls, 1);
+    assert.equal(snap.bySkill["planner"]!.errors, 1);
+  });
+
+  it("bySkill_reset_clears: reset() returns bySkill to empty", () => {
+    const store = new AggregatorStore();
+    store.ingest({
+      type: "skill_call",
+      sessionID: "sess-1",
+      skill: "planner",
+      status: "completed",
+      durationMs: 300,
+      timestamp: 1_700_000_000_000,
+    });
+    assert.equal(store.snapshot().totals.skillCalls, 1);
+
+    store.reset();
+
+    assert.deepEqual(store.snapshot().bySkill, {});
+    assert.equal(store.snapshot().totals.skillCalls, 0);
+  });
+
+  // -----------------------------------------------------------------------
   // snapshot({ sessionID }) — filter data to a single session.
   // -----------------------------------------------------------------------
 
@@ -525,6 +588,117 @@ describe("AggregatorStore", () => {
       filtered.totals.sessionsCreated,
       1,
       "totals.sessionsCreated is 1 for a single session",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// batch operations — silent ingest + flush
+// ---------------------------------------------------------------------------
+
+describe("batch operations", () => {
+  it("ingest_silent_does_not_emit_snapshot: ingest(event, { silent: true }) processes without emitting snapshot", () => {
+    let snapshotCallCount = 0;
+    const store = new AggregatorStore({
+      onSnapshot: () => {
+        snapshotCallCount++;
+      },
+    });
+
+    store.ingest(makeLlmCallEvent({ agent: "coder", cost: 0.001 }), {
+      silent: true,
+    });
+
+    assert.equal(
+      snapshotCallCount,
+      0,
+      "silent ingest must not call onSnapshot",
+    );
+    // Verify state was updated despite silent
+    const snap = store.snapshot();
+    assert.equal(snap.totals.llmCalls, 1, "event must be processed");
+    assert.equal(snap.totals.cost, 0.001);
+  });
+
+  it("flush_emits_accumulated_snapshot: flush() emits accumulated snapshot after silent ingests", () => {
+    const snapshots: MetricsSnapshot[] = [];
+    const store = new AggregatorStore({
+      onSnapshot: (s) => {
+        snapshots.push(s);
+      },
+    });
+
+    store.ingest(makeLlmCallEvent({ agent: "coder", cost: 0.001 }), {
+      silent: true,
+    });
+    store.ingest(makeLlmCallEvent({ agent: "reviewer", cost: 0.002 }), {
+      silent: true,
+    });
+    assert.equal(snapshots.length, 0, "no snapshot after silent ingests");
+
+    store.flush();
+    assert.equal(snapshots.length, 1, "flush must emit exactly one snapshot");
+    assert.equal(snapshots[0]!.totals.llmCalls, 2);
+    assert.equal(snapshots[0]!.totals.cost, 0.003);
+  });
+
+  it("flush_with_no_pending_changes_does_not_throw: flush() on empty store calls onSnapshot once", () => {
+    const snapshots: MetricsSnapshot[] = [];
+    const store = new AggregatorStore({
+      onSnapshot: (s) => {
+        snapshots.push(s);
+      },
+    });
+
+    store.flush();
+    assert.equal(
+      snapshots.length,
+      1,
+      "flush must emit snapshot even with no changes",
+    );
+  });
+
+  it("silent_flush_produces_same_result_as_individual_ingests: Multiple silent + flush produces same result as individual ingests", () => {
+    const events: TraceEvent[] = [
+      makeLlmCallEvent({ agent: "coder", cost: 0.001, timestamp: 1 }),
+      makeLlmCallEvent({
+        agent: "reviewer",
+        cost: 0.002,
+        timestamp: 2,
+      }),
+      makeToolCallEvent("bash", "completed", { timestamp: 3 }),
+    ];
+
+    // Stream: individual ingests
+    const streamStore = new AggregatorStore();
+    for (const e of events) streamStore.ingest(e);
+    const streamFinal = streamStore.snapshot();
+
+    // Batch: silent ingests + flush
+    const batchStore = new AggregatorStore();
+    for (const e of events) batchStore.ingest(e, { silent: true });
+    batchStore.flush();
+    const batchFinal = batchStore.snapshot();
+
+    assert.deepEqual(streamFinal, batchFinal);
+  });
+
+  it("default_ingest_still_emits_snapshot: Default ingest(event) still emits snapshot (backward compat)", () => {
+    let snapshotCallCount = 0;
+    const store = new AggregatorStore({
+      onSnapshot: () => {
+        snapshotCallCount++;
+      },
+    });
+
+    store.ingest(makeLlmCallEvent({ agent: "coder", cost: 0.001 }));
+    assert.equal(snapshotCallCount, 1, "default ingest must call onSnapshot");
+
+    store.ingest(makeLlmCallEvent({ agent: "reviewer", cost: 0.002 }));
+    assert.equal(
+      snapshotCallCount,
+      2,
+      "second default ingest must also call onSnapshot",
     );
   });
 });

@@ -14,6 +14,7 @@ export class SnapshotFilterHelper {
       byModel: {},
       byAgentModel: {},
       byTool: {},
+      bySkill: {},
       errors: [],
     };
   }
@@ -27,6 +28,7 @@ export class SnapshotFilterHelper {
       byModel: {},
       byAgentModel: {},
       byTool: {},
+      bySkill: {},
     };
   }
 
@@ -37,6 +39,7 @@ export class SnapshotFilterHelper {
       byAgent: group === "agent" ? base.byAgent : {},
       byModel: group === "model" ? base.byModel : {},
       byTool: group === "tool" ? base.byTool : {},
+      bySkill: group === "skill" ? base.bySkill : {},
       byAgentModel: {},
     };
   }

@@ -15,14 +15,3 @@ export enum Role {
   USER = "user",
   ASSISTANT = "assistant",
 }
-
-export enum PartType {
-  AGENT = "agent",
-  SUBTASK = "subtask",
-  TOOL = "tool",
-}
-
-export enum PartStatus {
-  COMPLETED = "completed",
-  ERROR = "error",
-}

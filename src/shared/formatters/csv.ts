@@ -18,6 +18,8 @@ export function formatCsv(snap: MetricsSnapshot): string {
   lines.push(`totals,,llmErrors,${t.llmErrors}`);
   lines.push(`totals,,toolCalls,${t.toolCalls}`);
   lines.push(`totals,,toolErrors,${t.toolErrors}`);
+  lines.push(`totals,,skillCalls,${t.skillCalls}`);
+  lines.push(`totals,,skillErrors,${t.skillErrors}`);
   lines.push(`totals,,cost,${t.cost}`);
   lines.push(`totals,,sessionsCreated,${t.sessionsCreated}`);
   lines.push(`totals,,sessionErrors,${t.sessionErrors}`);
@@ -31,6 +33,14 @@ export function formatCsv(snap: MetricsSnapshot): string {
     lines.push(`byTool,${escapeCsv(tool)},calls,${stats.calls}`);
     lines.push(`byTool,${escapeCsv(tool)},errors,${stats.errors}`);
     lines.push(`byTool,${escapeCsv(tool)},durationMs,${stats.durationMs}`);
+  }
+
+  for (const [skill, stats] of Object.entries(snap.bySkill)) {
+    lines.push(`bySkill,${escapeCsv(skill)},calls,${stats.calls}`);
+    lines.push(`bySkill,${escapeCsv(skill)},errors,${stats.errors}`);
+    lines.push(
+      `bySkill,${escapeCsv(skill)},avgDurationMs,${stats.avgDurationMs}`,
+    );
   }
 
   for (const err of snap.errors) {

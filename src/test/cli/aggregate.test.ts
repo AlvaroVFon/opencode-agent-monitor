@@ -83,6 +83,33 @@ describe("aggregate", () => {
     assert.equal(snap.totals.cost, 0.0015);
   });
 
+  it("aggregates skill_call events", () => {
+    const events: TraceEvent[] = [
+      {
+        type: "skill_call",
+        sessionID: "s1",
+        skill: "planner",
+        status: "completed",
+        durationMs: 300,
+        timestamp: 1000,
+      },
+      {
+        type: "skill_call",
+        sessionID: "s1",
+        skill: "planner",
+        status: "error",
+        durationMs: 100,
+        error: "fail",
+        timestamp: 2000,
+      },
+    ];
+    const snap = cliAggregator.aggregate(events);
+    assert.equal(snap.totals.skillCalls, 2);
+    assert.equal(snap.totals.skillErrors, 1);
+    assert.equal(snap.bySkill["planner"].calls, 2);
+    assert.equal(snap.bySkill["planner"].errors, 1);
+  });
+
   it("aggregates tool_call events", () => {
     const events: TraceEvent[] = [
       {

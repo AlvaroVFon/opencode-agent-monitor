@@ -1,23 +1,20 @@
-import { appendFileSync, existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
-import { TraceEventType } from "../enums";
+import { Session } from "../session";
 
 export class TraceHelper {
   private readonly traceDir: string;
-  private readonly traceFilePath: string;
-  private readonly traceErrorsPath: string;
+  private readonly sessions = new Map<string, Session>();
   private dirEnsured = false;
 
   constructor(traceDir?: string) {
     this.traceDir =
       traceDir ?? join(homedir(), ".config", "opencode", ".tracing");
-    this.traceFilePath = join(this.traceDir, "trace.jsonl");
-    this.traceErrorsPath = join(this.traceDir, "trace.errors.jsonl");
   }
 
   ensureDir() {
-    if (this.dirEnsured) return; // ← cache
+    if (this.dirEnsured) return;
     if (!existsSync(this.traceDir)) {
       mkdirSync(this.traceDir, { recursive: true });
     }
@@ -25,29 +22,23 @@ export class TraceHelper {
   }
 
   writeTrace(event: Record<string, unknown>) {
-    try {
+    const sessionID = event.sessionID as string | undefined;
+    if (typeof sessionID !== "string" || sessionID === "") return;
+
+    let session = this.sessions.get(sessionID);
+    if (session === undefined) {
       this.ensureDir();
-      appendFileSync(this.traceFilePath, JSON.stringify(event) + "\n", "utf-8");
-    } catch (err) {
-      this.writeTraceError({
-        type: TraceEventType.WRITE_TRACE_ERROR,
-        originalEventType: event.type,
-        error: String(err),
-        timestamp: Date.now(),
-      });
+      session = new Session(this.traceDir, sessionID);
+      this.sessions.set(sessionID, session);
     }
+
+    session.write(event);
   }
 
-  writeTraceError(event: Record<string, unknown>) {
-    try {
-      this.ensureDir();
-      appendFileSync(
-        this.traceErrorsPath,
-        JSON.stringify(event) + "\n",
-        "utf-8",
-      );
-    } catch {
-      // swallow error, we can't do anything about it
+  close() {
+    for (const session of this.sessions.values()) {
+      session.close();
     }
+    this.sessions.clear();
   }
 }
