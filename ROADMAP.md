@@ -12,9 +12,10 @@
 - **A.2 Esquema Versionado (Schema v1):** ✅
   - Implementado `schemaVersion: 1` en todos los eventos JSONL.
   - Documentada política de evolución en README.md.
-- **A.3 Gestión de Carga e Integridad (Log Rotation):** 🔜 (Próximo)
-  - Rotación automática de logs por tamaño (ej. cada 10MB) o días.
-  - Configuración de retención para evitar el llenado del disco del usuario.
+- **A.3 Gestión de Carga e Integridad (Log Rotation):** ✅
+  - Implementado per-session JSONL: cada sesión escribe a su propio archivo.
+  - Rotación natural por sesión — sin límite de tamaño, sin contención de archivo único.
+  - `Session` con `WriteStream` lazy, append mode para reanudación de sesión.
 
 ## Fase B: Deep Insights (Observabilidad)
 
@@ -52,6 +53,5 @@
 - ✅ TUI Live Monitor (Sidebar + Fullscreen).
 - ✅ CLI funcional para estadísticas y exportación.
 - ✅ Distribución en npm (@alvarovfon/opencode-agent-monitor).
-- ✅ Fase A.1 (Comparativa de costes).
-- ✅ Fase A.2 (Esquema Versionado).
-- 🔜 Próximo hito: Fase A.3 (Log Rotation).
+- ✅ Fase A.3 (Log Rotation / Per-Session).
+- 🔜 Próximo hito: Fase B (Deep Insights).
