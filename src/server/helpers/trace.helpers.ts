@@ -6,6 +6,7 @@ import { Session } from "../session";
 export class TraceHelper {
   private readonly traceDir: string;
   private readonly sessions = new Map<string, Session>();
+  private readonly parentMap = new Map<string, string>();
   private dirEnsured = false;
 
   constructor(traceDir?: string) {
@@ -25,11 +26,19 @@ export class TraceHelper {
     const sessionID = event.sessionID as string | undefined;
     if (typeof sessionID !== "string" || sessionID === "") return;
 
-    let session = this.sessions.get(sessionID);
+    // Track parent-child relationships so child events route to the parent file.
+    const parentID = event.parentID as string | undefined;
+    if (typeof parentID === "string" && parentID !== "") {
+      this.parentMap.set(sessionID, parentID);
+    }
+
+    const effectiveSessionID = this.parentMap.get(sessionID) ?? sessionID;
+
+    let session = this.sessions.get(effectiveSessionID);
     if (session === undefined) {
       this.ensureDir();
-      session = new Session(this.traceDir, sessionID);
-      this.sessions.set(sessionID, session);
+      session = new Session(this.traceDir, effectiveSessionID);
+      this.sessions.set(effectiveSessionID, session);
     }
 
     session.write(event);
