@@ -1,6 +1,6 @@
 # CLI
 
-Extract and analyze metrics from `trace.jsonl` files without running the TUI. Useful for CI pipelines, batch reports, and data exports.
+Extract and analyze metrics from per-session `.jsonl` trace files without running the TUI. Useful for CI pipelines, batch reports, and data exports.
 
 ## Usage
 

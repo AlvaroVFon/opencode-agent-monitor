@@ -1,6 +1,6 @@
 # Server Plugin
 
-Traces OpenCode events to newline-delimited JSON files for monitoring, analysis, and the TUI monitor.
+Traces OpenCode events to per-session newline-delimited JSON files for monitoring, analysis, and the TUI monitor.
 
 ## Configuration
 
@@ -36,25 +36,33 @@ In `~/.config/opencode/opencode.json`:
 
 ## Output Format
 
-Events are written as newline-delimited JSON to two files inside the trace directory:
+Each session produces a single JSONL file at `{traceDir}/{safeSessionId}.jsonl`. All events from that session (including session errors) go to the same file — no separate error file.
 
-- **`trace.jsonl`** — all traced events
-- **`trace.errors.jsonl`** — LLM errors and session errors (duplicated for easier error monitoring)
+File naming uses `sanitizeSessionId()` to ensure filesystem-safe names: non-alphanumeric characters (except `.`, `-`, `_`) are replaced with `_`.
 
-Each line has a `type` field identifying the event kind and a `timestamp` field in milliseconds.
+Each line has a `type` field identifying the event kind and a `timestamp` field in milliseconds. Every event includes `schemaVersion: 1`.
 
 ```json
-{"type":"session_created","sessionID":"sess-abc","parentID":null,"timestamp":1718000000000}
-{"type":"llm_call","sessionID":"sess-abc","agent":"planner","model":"openai/gpt-4o","finish":"stop","inputTokens":450,"outputTokens":120,"reasoningTokens":0,"cacheRead":0,"cost":0.003,"durationMs":3200,"timestamp":1718000003200}
-{"type":"llm_error","sessionID":"sess-abc","agent":"planner","model":"openai/gpt-4o","errorType":"rate_limit","errorMessage":"Rate limit exceeded","timestamp":1718000004000}
-{"type":"tool_call","sessionID":"sess-abc","tool":"bash","callID":"call-1","status":"completed","durationMs":1500,"timestamp":1718000005000}
-{"type":"agent_delegation","sessionID":"sess-abc","childAgent":"test-writer","timestamp":1718000006000}
-{"type":"session_error","sessionID":"sess-abc","errorType":"timeout","errorMessage":"Session timed out after 5 minutes","timestamp":1718000007000}
+{"type":"session_created","sessionID":"sess-abc","parentID":null,"timestamp":1718000000000,"schemaVersion":1}
+{"type":"llm_call","sessionID":"sess-abc","agent":"planner","model":"openai/gpt-4o","finish":"stop","inputTokens":450,"outputTokens":120,"reasoningTokens":0,"cacheRead":0,"cost":0.003,"durationMs":3200,"timestamp":1718000003200,"schemaVersion":1}
+{"type":"tool_call","sessionID":"sess-abc","tool":"bash","callID":"call-1","status":"completed","durationMs":1500,"timestamp":1718000005000,"schemaVersion":1}
+{"type":"agent_delegation","sessionID":"sess-abc","childAgent":"test-writer","timestamp":1718000006000,"schemaVersion":1}
+{"type":"session_error","sessionID":"sess-abc","errorType":"timeout","errorMessage":"Session timed out after 5 minutes","timestamp":1718000007000,"schemaVersion":1}
 ```
+
+## Architecture
+
+Events are written via `WriteStream` (async non-blocking) through a `Session` class that owns one stream per active session:
+
+```
+SDK event → handler → traceHelper.write → Session.write → {dir}/{sessionId}.jsonl
+```
+
+- Streams are created lazily on the first write for each session.
+- Append mode (`{ flags: "a" }`) supports session resume: if the file already exists, new events are appended.
+- On process exit, `beforeExit` flushes and closes all streams gracefully.
 
 ## Error Tracking
 
-- `errors[]` — detailed error entries with `sessionID`, `type`, `message`, `timestamp`
-- `totals.sessionErrors` — count of `session.error` events
-- Errors captured from: `llm_error`, `tool_call` errors, `session_error`
-- Capped at 1000 entries (oldest evicted first)
+- All errors (LLM errors, tool errors, session errors) are written to the session's JSONL file alongside normal events — single source of truth.
+- The CLI and TUI aggregate errors from all session files when building reports.
