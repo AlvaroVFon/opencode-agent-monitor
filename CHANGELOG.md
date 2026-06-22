@@ -1,3 +1,9 @@
+# [1.0.3](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/v1.0.2...v1.0.3) (2026-06-22)
+
+### Bug Fixes
+
+* **trace:** route child session events to parent file ([#69](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/69)) ([03d772a](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/03d772ad95d753b06be0554a11795415f110e348))
+
 # [0.3.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/v0.2.0...v0.3.0) (2026-06-19)
 
 > [!NOTE]
