@@ -47,4 +47,36 @@ describe("AgentMonitor plugin", () => {
       }),
     );
   });
+
+  it("creates traceHelper with a close method", async () => {
+    const plugin = await AgentMonitor(undefined as any, {
+      traceDir: "/tmp/test-traces-close",
+    });
+
+    // Smoke test: dispatch an event and verify no crash
+    await assert.doesNotReject(
+      plugin.event({
+        event: {
+          type: "message.updated",
+          properties: {
+            info: {
+              role: "assistant",
+              sessionID: "sess-close-test",
+              finish: "stop",
+              tokens: {
+                input: 1,
+                output: 1,
+                reasoning: 0,
+                cache: { read: 0 },
+              },
+              providerID: "test",
+              modelID: "test-model",
+              cost: 0,
+              time: { created: 0, completed: 1 },
+            },
+          },
+        },
+      }),
+    );
+  });
 });

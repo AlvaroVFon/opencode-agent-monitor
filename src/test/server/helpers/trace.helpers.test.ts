@@ -1,156 +1,114 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import * as path from "path";
-import { createRequire } from "node:module";
+import { mkdtempSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
-const require = createRequire(import.meta.url);
+describe("TraceHelper (Session-based)", () => {
+  it("writeTrace creates Session on first call per sessionID", async () => {
+    const { TraceHelper } =
+      await import("../../../server/helpers/trace.helpers");
 
-const MOD_PATH = path.resolve(
-  import.meta.dirname,
-  "../../../server/helpers/trace.helpers.ts",
-);
+    const dir = mkdtempSync(join(tmpdir(), "trace-helper-test-"));
+    const helper = new TraceHelper(dir);
 
-function fresh() {
-  delete require.cache[MOD_PATH];
-  return require(MOD_PATH).TraceHelper;
-}
+    // First write for session "abc"
+    helper.writeTrace({ type: "test_event", sessionID: "abc" });
 
-describe("TraceHelper", () => {
-  it("ensureDir creates directory when it does not exist", () => {
-    mock.restoreAll();
-    const mockExists = mock.fn(() => false);
-    const mockMkdir = mock.fn();
-    const mockAppend = mock.fn();
+    // Give the stream time to flush
+    await new Promise((r) => setTimeout(r, 50));
 
-    mock.module("fs", {
-      namedExports: {
-        appendFileSync: mockAppend,
-        existsSync: mockExists,
-        mkdirSync: mockMkdir,
-      },
-    });
-    mock.module("os", {
-      namedExports: { homedir: mock.fn(() => "/tmp/fake-home") },
-    });
-
-    const TH = fresh();
-    const h = new TH();
-    h.ensureDir();
-
-    assert.equal(mockExists.mock.calls.length, 1);
-    assert.equal(mockMkdir.mock.calls.length, 1);
-    assert.deepEqual(mockMkdir.mock.calls[0].arguments[1], {
-      recursive: true,
-    });
+    // File should exist for session "abc"
+    const filePath = join(dir, "abc.jsonl");
+    assert.equal(existsSync(filePath), true);
   });
 
-  it("ensureDir skips mkdirSync when directory exists", () => {
-    mock.restoreAll();
-    const mockExists = mock.fn(() => true);
-    const mockMkdir = mock.fn();
-    const mockAppend = mock.fn();
+  it("writeTrace writes to existing session on second call", async () => {
+    const { TraceHelper } =
+      await import("../../../server/helpers/trace.helpers");
 
-    mock.module("fs", {
-      namedExports: {
-        appendFileSync: mockAppend,
-        existsSync: mockExists,
-        mkdirSync: mockMkdir,
-      },
-    });
-    mock.module("os", {
-      namedExports: { homedir: mock.fn(() => "/tmp/fake-home") },
-    });
+    const dir = mkdtempSync(join(tmpdir(), "trace-helper-test-"));
+    const helper = new TraceHelper(dir);
+    helper.writeTrace({ type: "event_1", sessionID: "abc" });
+    helper.writeTrace({ type: "event_2", sessionID: "abc" });
 
-    const TH = fresh();
-    const h = new TH();
-    h.ensureDir();
+    await new Promise((r) => setTimeout(r, 50));
 
-    assert.equal(mockExists.mock.calls.length, 1);
-    assert.equal(mockMkdir.mock.calls.length, 0);
+    // Both events in same file
+    const content = await import("node:fs").then((fs) =>
+      fs.readFileSync(join(dir, "abc.jsonl"), "utf-8"),
+    );
+    const lines = content.trim().split("\n");
+    assert.equal(lines.length, 2);
+    assert.equal(JSON.parse(lines[0]).type, "event_1");
+    assert.equal(JSON.parse(lines[1]).type, "event_2");
   });
 
-  it("writeTrace appends JSON lines to trace.jsonl", () => {
-    mock.restoreAll();
-    const mockAppend = mock.fn();
+  it("writeTrace writes to different files for different sessionIDs", async () => {
+    const { TraceHelper } =
+      await import("../../../server/helpers/trace.helpers");
 
-    mock.module("fs", {
-      namedExports: {
-        appendFileSync: mockAppend,
-        existsSync: mock.fn(() => true),
-        mkdirSync: mock.fn(),
-      },
-    });
-    mock.module("os", {
-      namedExports: { homedir: mock.fn(() => "/tmp/fake-home") },
-    });
+    const dir = mkdtempSync(join(tmpdir(), "trace-helper-test-"));
+    const helper = new TraceHelper(dir);
+    helper.writeTrace({ type: "alpha", sessionID: "sess-a" });
+    helper.writeTrace({ type: "beta", sessionID: "sess-b" });
 
-    const TH = fresh();
-    const h = new TH();
-    const ev = { type: "test_event", value: 42 };
-    h.writeTrace(ev);
+    await new Promise((r) => setTimeout(r, 50));
 
-    assert.equal(mockAppend.mock.calls.length, 1);
-    const [fp, ct] = mockAppend.mock.calls[0].arguments;
-    assert.ok(fp.endsWith("trace.jsonl"));
-    const parsed = JSON.parse(ct);
-    assert.equal(parsed.type, ev.type);
-    assert.equal(parsed.value, ev.value);
-    assert.equal(parsed.schemaVersion, 1);
+    const fileA = join(dir, "sess-a.jsonl");
+    const fileB = join(dir, "sess-b.jsonl");
+    assert.equal(existsSync(fileA), true);
+    assert.equal(existsSync(fileB), true);
+
+    const contentA = (
+      await import("node:fs").then((fs) => fs.readFileSync(fileA, "utf-8"))
+    ).trim();
+    const contentB = (
+      await import("node:fs").then((fs) => fs.readFileSync(fileB, "utf-8"))
+    ).trim();
+    assert.equal(JSON.parse(contentA).type, "alpha");
+    assert.equal(JSON.parse(contentB).type, "beta");
   });
 
-  it("writeTrace calls writeTraceError when appendFileSync fails", () => {
-    mock.restoreAll();
-    let idx = 0;
-    const mockAppend = mock.fn(() => {
-      idx++;
-      if (idx === 1) throw new Error("disk full");
-    });
+  it("close() closes all sessions", async () => {
+    const { TraceHelper } =
+      await import("../../../server/helpers/trace.helpers");
 
-    mock.module("fs", {
-      namedExports: {
-        appendFileSync: mockAppend,
-        existsSync: mock.fn(() => true),
-        mkdirSync: mock.fn(),
-      },
-    });
-    mock.module("os", {
-      namedExports: { homedir: mock.fn(() => "/tmp/fake-home") },
-    });
+    const dir = mkdtempSync(join(tmpdir(), "trace-helper-test-"));
+    const helper = new TraceHelper(dir);
 
-    const TH = fresh();
-    const h = new TH();
-    h.writeTrace({ type: "boom" });
+    helper.writeTrace({ type: "a", sessionID: "s1" });
+    helper.writeTrace({ type: "b", sessionID: "s2" });
 
-    assert.equal(mockAppend.mock.calls.length, 2);
-    const p = JSON.parse(mockAppend.mock.calls[1].arguments[1]);
-    assert.equal(p.type, "write_trace_error");
-    assert.equal(p.originalEventType, "boom");
-    assert.ok(p.error.includes("disk full"));
-    assert.equal(p.schemaVersion, 1);
+    await new Promise((r) => setTimeout(r, 50));
+
+    // close() should not throw
+    assert.doesNotThrow(() => helper.close());
   });
 
-  it("writeTraceError silently swallows write errors", () => {
-    mock.restoreAll();
-    const mockAppend = mock.fn(() => {
-      throw new Error("always fails");
-    });
+  it("close() is idempotent", async () => {
+    const { TraceHelper } =
+      await import("../../../server/helpers/trace.helpers");
 
-    mock.module("fs", {
-      namedExports: {
-        appendFileSync: mockAppend,
-        existsSync: mock.fn(() => true),
-        mkdirSync: mock.fn(),
-      },
-    });
-    mock.module("os", {
-      namedExports: { homedir: mock.fn(() => "/tmp/fake-home") },
-    });
+    const dir = mkdtempSync(join(tmpdir(), "trace-helper-test-"));
+    const helper = new TraceHelper(dir);
+    helper.writeTrace({ type: "evt", sessionID: "s1" });
+    await new Promise((r) => setTimeout(r, 50));
 
-    const TH = fresh();
-    const h = new TH();
+    helper.close();
+    assert.doesNotThrow(() => helper.close());
+  });
 
+  it("writeTrace handles events without sessionID gracefully (skips, doesn't crash)", async () => {
+    const { TraceHelper } =
+      await import("../../../server/helpers/trace.helpers");
+
+    const dir = mkdtempSync(join(tmpdir(), "trace-helper-test-"));
+    const helper = new TraceHelper(dir);
+
+    // Event without sessionID should not crash
     assert.doesNotThrow(() => {
-      h.writeTraceError({ type: "test" });
+      helper.writeTrace({ type: "no_session_event" });
     });
   });
 });

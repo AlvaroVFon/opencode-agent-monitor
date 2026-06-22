@@ -25,15 +25,5 @@ export class LlmErrorHandler implements Handler<MessageUpdatedProps> {
       errorMessage: extractErrorMessage(data),
       timestamp: Date.now(),
     });
-
-    this.traceHelper.writeTraceError({
-      type: TraceEventType.LLM_ERROR,
-      sessionID: msg.sessionID,
-      agent,
-      model,
-      errorType: errorName,
-      errorMessage: extractErrorMessage(data),
-      timestamp: Date.now(),
-    });
   }
 }
