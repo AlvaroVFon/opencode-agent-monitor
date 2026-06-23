@@ -15,17 +15,25 @@ export class DashboardCommand {
       .command("dashboard [output]")
       .description("generate a self-contained HTML dashboard from trace data")
       .option("--dir <path>", "trace directory", this.defaultDir)
-      .action((output: string | undefined, options: { dir: string }) => {
-        const dir = options.dir ?? this.defaultDir;
-        const outputPath = output ?? "./dashboard.html";
+      .option("--theme <name>", "theme: light or dark", "light")
+      .action(
+        (
+          output: string | undefined,
+          options: { dir: string; theme: string },
+        ) => {
+          const dir = options.dir ?? this.defaultDir;
+          const outputPath = output ?? "./dashboard.html";
+          const theme =
+            options.theme === "dark" ? ("dark" as const) : ("light" as const);
 
-        const events = traceReader.readEvents(dir);
-        const snap = cliAggregator.aggregate(events);
-        const data = dashboardAggregator.build(snap, events);
-        const html = dashboardRenderer.render(data);
+          const events = traceReader.readEvents(dir);
+          const snap = cliAggregator.aggregate(events);
+          const data = dashboardAggregator.build(snap, events);
+          const html = dashboardRenderer.render(data, { theme });
 
-        writeFileSync(outputPath, html, "utf-8");
-        console.log(`Dashboard written to ${outputPath}`);
-      });
+          writeFileSync(outputPath, html, "utf-8");
+          console.log(`Dashboard written to ${outputPath}`);
+        },
+      );
   }
 }

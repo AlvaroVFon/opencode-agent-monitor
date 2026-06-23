@@ -125,6 +125,47 @@ describe("dashboard command", () => {
     assert.ok(stdout.includes("Dashboard written to"));
   });
 
+  it("--theme dark injects dark palette CSS vars in output", () => {
+    const traceDir = makeTempDir();
+    const outDir = makeTempDir();
+    const outPath = path.join(outDir, "dark.html");
+    writeTrace(traceDir, [
+      {
+        type: "llm_call",
+        sessionID: "s1",
+        agent: "coder",
+        model: "gpt-4",
+        finish: "stop",
+        inputTokens: 10,
+        outputTokens: 20,
+        reasoningTokens: 0,
+        cacheRead: 5,
+        cost: 0.002,
+        durationMs: 800,
+        timestamp: 1000,
+      },
+    ]);
+    const { stdout, stderr, status } = runCli([
+      "dashboard",
+      outPath,
+      "--dir",
+      traceDir,
+      "--theme",
+      "dark",
+    ]);
+    assert.equal(status, 0, `stderr: ${stderr}`);
+    const content = fs.readFileSync(outPath, "utf-8");
+    // Dark theme CSS vars
+    assert.ok(content.includes("#111827"), "dark bg color present");
+    assert.ok(content.includes("#f9fafb"), "dark text color present");
+    // Theme toggle script should be present
+    assert.ok(
+      content.includes("dashboard-theme"),
+      "theme toggle localStorage key in output",
+    );
+    assert.ok(stdout.includes("Dashboard written to"));
+  });
+
   it("handles empty trace directory — exit 0 with 'No session data'", () => {
     const traceDir = makeTempDir();
     const outDir = makeTempDir();
