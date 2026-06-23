@@ -1,3 +1,5 @@
+import type Handlebars from "handlebars";
+
 /**
  * Dashboard HTML Export — type contracts.
  *
@@ -55,4 +57,47 @@ export type DashboardData = {
   timeline: TimelineRow[];
   errors: ErrorRow[];
   isEmpty: boolean;
+};
+
+// ── Theme types ────────────────────────────────────────────────────────────
+
+export type DashboardTheme = {
+  name: "light" | "dark";
+  cssVars: Record<string, string>;
+  chartPalette: {
+    primary: string;
+    input: string;
+    output: string;
+    reasoning: string;
+    categories: string[];
+  };
+};
+
+export type PanelContext<T> = {
+  data: T;
+  theme: DashboardTheme;
+  helpers: {
+    fmt: (n: number) => string;
+    fmtCost: (n: number) => string;
+    escapeHtml: (s: string) => string;
+  };
+};
+
+export type DashboardPanel<T> = {
+  id: string;
+  title: string;
+  dataProvider: (data: DashboardData) => T;
+  templateSource: string;
+  gridClass: string;
+  scripts?: (ctx: PanelContext<T>) => string;
+};
+
+export type ChartConfig = {
+  labels: string[];
+  datasets: {
+    label: string;
+    data: number[];
+    backgroundColor: string | string[];
+    borderColor?: string | string[];
+  }[];
 };

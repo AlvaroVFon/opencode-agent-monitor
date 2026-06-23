@@ -36,6 +36,7 @@
     "metrics:errors": "tsx src/cli/main.ts errors",
     "metrics:export": "tsx src/cli/main.ts export",
     "metrics:compare": "tsx src/cli/main.ts compare",
+    "metrics:dashboard": "tsx src/cli/main.ts dashboard",
     "prepare-release": "tsx scripts/release.mts",
     "prepare": "husky",
     "prepack": "pnpm run build",
@@ -49,6 +50,7 @@
     "@opencode-ai/plugin": "^1.14.50",
     "@opencode-ai/sdk": "^1.x",
     "commander": "^15.0.0",
+    "handlebars": "^4.7.9",
     "solid-js": "^1.9.0"
   },
   "peerDependencies": {

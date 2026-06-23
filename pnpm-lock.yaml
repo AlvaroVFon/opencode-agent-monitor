@@ -26,6 +26,9 @@ importers:
       commander:
         specifier: ^15.0.0
         version: 15.0.0
+      handlebars:
+        specifier: ^4.7.9
+        version: 4.7.9
       solid-js:
         specifier: ^1.9.0
         version: 1.9.13
