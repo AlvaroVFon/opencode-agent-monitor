@@ -177,6 +177,30 @@ npm view @alvarovfon/opencode-agent-monitor version
 
 Both should report `X.Y.Z`.
 
+## Post-release: sync main back to develop
+
+After the release PR merges, `main` has commits that `develop` doesn't (the release commit and merge commit). **Sync `main` back to `develop` via a PR** — never by merging locally, because local merges produce unsigned commits that get rejected by `develop`'s branch protection rules (signed commits required).
+
+```bash
+# Ensure develop is up to date with the remote
+git fetch origin
+git branch -D develop
+git checkout -b develop origin/develop
+
+# Create a PR from main → develop. This creates signed commits via GitHub.
+gh pr create \
+  --base develop \
+  --head main \
+  --title "chore: sync main back to develop after vX.Y.Z" \
+  --body "Sync release vX.Y.Z changes back to develop.
+
+This PR is the post-release sync step to keep branches aligned."
+```
+
+After creating the PR, paste the URL and ask the user to merge it (same policy — the agent does not merge PRs into protected branches).
+
+**Why a PR and not a local merge**: `develop` requires signed commits and PR-based changes (GH013 rule). A local `git merge main` creates unsigned commits that get rejected on push. A GitHub PR creates a signed merge commit automatically.
+
 ## Forbidden
 
 - Direct push to `main`. No exceptions.
