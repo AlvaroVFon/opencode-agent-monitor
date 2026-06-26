@@ -2,6 +2,12 @@ node_modules
 dist
 .tracing
 *.jsonl
+
+# Generated reports
+\# Cost Comparison Report.md
+dashboard.html
+metrics.csv
+metrics.json
 .husky/_
 .husky/.gitignore
 .memory-bank/spec/*
@@ -11,3 +17,5 @@ dist
 .memory-bank/progress.md
 .opencode/*
 !.opencode/skills/
+.atl/
+openspec/

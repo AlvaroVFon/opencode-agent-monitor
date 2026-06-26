@@ -4,6 +4,7 @@ import { StatsCommand } from "./commands/stats.command";
 import { ErrorsCommand } from "./commands/errors.command";
 import { ExportCommand } from "./commands/export.command";
 import { CompareCommand } from "./commands/compare.command";
+import { DashboardCommand } from "./commands/dashboard.command";
 
 export class CliApp {
   private program: Command;
@@ -20,6 +21,7 @@ export class CliApp {
     new ErrorsCommand().register(this.program);
     new ExportCommand().register(this.program);
     new CompareCommand().register(this.program);
+    new DashboardCommand().register(this.program);
     this.program.parse(argv);
   }
 }

@@ -33,8 +33,10 @@
 
 **Meta:** Hacer los datos accesibles fuera de la terminal.
 
-- **C.1 Dashboard HTML (Self-contained):**
-  - Exportación a un único archivo `.html` con UI moderna (Tailwind/Chart.js) para compartir reportes de sesión.
+- **C.1 Dashboard HTML (Self-contained):** ✅
+  - Exportación a un único archivo `.html` con UI moderna (Tailwind/Chart.js, 6 paneles, theming light/dark) para compartir reportes de sesión.
+  - `agent-monitor dashboard [output]` con flags `--dir` y `--theme`.
+  - Arquitectura componentizada: `DashboardEngine` + panel registry + Handlebars partials.
 - **C.2 Persistencia Híbrida (JSONL + SQLite):**
   - Indexación automática en SQLite para consultas instantáneas en el CLI y reportes históricos masivos.
 - **C.3 Alertas Proactivas (Anomaly Detection):**
@@ -47,11 +49,13 @@
 
 ---
 
-## Estado Actual (Snapshot 2026-06-19)
+## Estado Actual (Snapshot 2026-06-26)
 
 - ✅ Tracing de eventos base (LLM, Tools, Sessions).
 - ✅ TUI Live Monitor (Sidebar + Fullscreen).
-- ✅ CLI funcional para estadísticas y exportación.
-- ✅ Distribución en npm (@alvarovfon/opencode-agent-monitor).
+- ✅ CLI funcional: `stats`, `errors`, `export`, `compare`, `dashboard`.
+- ✅ Dashboard HTML autónomo (C.1): 6 paneles, theming light/dark, Handlebars + panel registry.
+- ✅ Distribución en npm (@alvarovfon/opencode-agent-monitor) — última v1.0.3.
 - ✅ Fase A.3 (Log Rotation / Per-Session).
-- 🔜 Próximo hito: Fase B (Deep Insights).
+- ✅ Fase C.1 (Dashboard HTML).
+- 🔜 Próximo hito: Fase B (Deep Insights) — Skill/Tool analytics, latencia p95/p99, buffer seguro.
