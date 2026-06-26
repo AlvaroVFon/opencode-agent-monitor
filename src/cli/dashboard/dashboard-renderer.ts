@@ -28,25 +28,25 @@ import type { DashboardData } from "./dashboard.types";
  * `render(data, opts)` delegates to `engine.render(data, opts)`.
  */
 export const dashboardRenderer = new (class {
-  #engine: DashboardEngine;
+  readonly engine: DashboardEngine;
 
   constructor() {
-    this.#engine = new DashboardEngine();
+    this.engine = new DashboardEngine();
 
-    this.#engine.compilePartials({
+    this.engine.compilePartials({
       card: CARD_TEMPLATE,
       table: TABLE_TEMPLATE,
       "empty-state": EMPTY_STATE_TEMPLATE,
     });
 
-    this.#engine.chartScriptSource = CHART_SCRIPT_TEMPLATE;
+    this.engine.chartScriptSource = CHART_SCRIPT_TEMPLATE;
 
     for (const panel of defaultPanels) {
-      this.#engine.registerPanel(panel);
+      this.engine.registerPanel(panel);
     }
   }
 
   render(data: DashboardData, opts?: { theme?: "light" | "dark" }): string {
-    return this.#engine.render(data, opts);
+    return this.engine.render(data, opts);
   }
 })();
