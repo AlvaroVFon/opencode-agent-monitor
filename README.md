@@ -40,6 +40,7 @@ This adds the server plugin to `~/.config/opencode/opencode.json` and the TUI pl
 
 - **Sidebar panel** — agents sorted by cost descending. Each row shows cost, per-model breakdown, context tokens (input/output), call count, cache hit rate, average cost per call, and error count. The currently active agent is marked with a dot.
 - **Fullscreen dialog** — press `Ctrl+A` to toggle an expanded table with totals and per-model breakdown.
+- **HTML Dashboard export** — generate a self-contained HTML report with cost, tokens, tools/skills, timeline, errors, and event metrics panels, with light/dark theming.
 - **Per-session isolation** — each OpenCode session writes to its own `{sessionId}.jsonl` file. No single-file contention, natural log rotation.
 - **Per-session persistent cursor** — each session's file cursor survives TUI restarts via `api.kv`, so you never miss events between sessions.
 
@@ -72,7 +73,7 @@ npm install -g @alvarovfon/opencode-agent-monitor
 agent-monitor stats
 ```
 
-Four subcommands (`stats`, `errors`, `export`, `compare`). Full reference in [`src/cli/README.md`](src/cli/README.md).
+Five subcommands (`stats`, `errors`, `export`, `compare`, `dashboard`). Full reference in [`src/cli/README.md`](src/cli/README.md).
 
 ## Components
 

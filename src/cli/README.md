@@ -85,6 +85,27 @@ Example:
 agent-monitor export --since 30d --format markdown
 ```
 
+### dashboard — HTML dashboard export
+
+Generate a self-contained HTML dashboard with cost bar chart, token usage, tools/skills distribution, timeline, errors table, and event metrics panels. Includes Chart.js for interactive charts and CSS custom properties for theming.
+
+```bash
+agent-monitor dashboard [output] [options]
+```
+
+| Flag             | Default                       | Description                            |
+| ---------------- | ----------------------------- | -------------------------------------- |
+| `output`         | `./dashboard.html`            | Output file path (positional argument) |
+| `--dir <path>`   | `~/.config/opencode/.tracing` | Trace directory                        |
+| `--theme <name>` | `light`                       | Theme: `light` or `dark`               |
+
+Example:
+
+```bash
+agent-monitor dashboard
+agent-monitor dashboard ~/report.html --theme dark
+```
+
 ### compare — cost simulation
 
 Compare your real spending with what it would have costed on other models (GPT-4o, GPT-4o-mini, Claude 3.5 Sonnet, Gemini, DeepSeek, etc.). Pricing is fetched dynamically from `opencode models` with a built-in static fallback.
