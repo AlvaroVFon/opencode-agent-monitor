@@ -77,7 +77,7 @@
     "@commitlint/config-conventional": "19.8.1",
     "@types/js-yaml": "4.0.9",
     "@types/node": "22.19.21",
-    "conventional-changelog": "8.1.0",
+    "conventional-changelog-cli": "5.0.0",
     "conventional-recommended-bump": "11.2.0",
     "esbuild-plugin-solid": "0.6.0",
     "husky": "9.1.7",
@@ -93,9 +93,6 @@
     "@opentui/core": "0.3.4",
     "@opentui/keymap": "0.3.4",
     "@opentui/solid": "0.3.4"
-  },
-  "lint-staged": {
-    "*.{ts,tsx,js,jsx,cjs,mjs,json,md,yml,yaml}": "oxfmt && oxlint"
   },
   "engines": {
     "node": ">=24"
