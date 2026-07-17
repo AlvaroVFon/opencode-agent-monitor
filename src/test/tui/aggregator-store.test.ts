@@ -1,7 +1,7 @@
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { AggregatorStore } from "../../tui/aggregator-store";
-import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types";
+import type { MetricsSnapshot } from "../../shared/metrics.types";
 import type {
   LlmCallEvent,
   ToolCallEvent,

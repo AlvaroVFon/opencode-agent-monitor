@@ -1,5 +1,4 @@
 import type { GetAgent } from "../handler.interface";
-import { TraceEventType } from "../enums";
 import { EventsRegistry } from "./events.registry";
 import { TraceHelper } from "../helpers/trace.helpers";
 

@@ -1,6 +1,4 @@
-import type { DashboardPanel } from "../dashboard.types";
-import type { DashboardData } from "../dashboard.types";
-import { escapeHtml } from "../dashboard-helpers";
+import type { DashboardPanel, DashboardData } from "../dashboard.types";
 import { COST_PANEL_TEMPLATE } from "../templates/panels/cost";
 
 type CostPanelData = {

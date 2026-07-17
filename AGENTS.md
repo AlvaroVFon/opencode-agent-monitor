@@ -5,10 +5,11 @@
 ```bash
 pnpm install --ignore-scripts
 pnpm build          # tsup → dist/{agent-monitor,tui}.js
-pnpm lint           # tsc --noEmit (does NOT check src/test/)
-pnpm format:check   # prettier --check .
+pnpm lint           # oxlint src
+pnpm format:check   # oxfmt --check .
 pnpm test           # node --import tsx --experimental-test-module-mocks --test 'src/test/**/*.test.ts'
-pnpm format         # prettier --write .
+pnpm format         # oxfmt .
+pnpm check          # oxlint + oxfmt --check + build + test (global state)
 pnpm metrics        # tsx src/cli/main.ts stats (aggregate trace.jsonl → markdown/json)
 pnpm test:prod      # tsx scripts/test-prod.mts
 ```
@@ -29,11 +30,11 @@ pnpm test:prod      # tsx scripts/test-prod.mts
 | Rule                                                          | Source                                       |
 | ------------------------------------------------------------- | -------------------------------------------- |
 | Commits must follow conventional commits (lower-case subject) | `commitlint.config.cjs` + husky `commit-msg` |
-| Pre-commit runs `lint-staged` then `prettier --write .`       | `.husky/pre-commit`                          |
+| Pre-commit runs `lint-staged` (→ `oxfmt && oxlint` on staged) | `.husky/pre-commit`                          |
 | `develop` is default branch; `main` is release-only           | `ROADMAP.md`, CI workflows                   |
 | PR to `develop` triggers CI (lint → format:check → test)      | `.github/workflows/ci.yml`                   |
 | Push to `main` triggers semantic-release → npm publish        | `.github/workflows/release.yml`              |
-| `prepublishOnly` runs build → lint → format:check → test      | `package.json`                               |
+| `pnpm check` runs lint + format:check + build + test          | `package.json` (scripts.check)               |
 
 ## Test quirks
 
@@ -61,7 +62,7 @@ TUI trace dir resolution order: `options.traceDir` → `AGENT_MONITOR_DIR` env �
 ## Constraints
 
 - Node >=24, pnpm 11.7.0
-- No ESLint — `tsc --noEmit` is the only linter
+- `tsc --noEmit` for type-checking (does NOT check `src/test/`); `oxlint` for linting; `oxfmt` for formatting
 - No `zod` — tool hook was removed (Phase 3)
 - Peer deps: `@opentui/{core,keymap,solid}` (not auto-installed; set `.npmrc` `auto-install-peers=true`)
 

@@ -1,2 +1,1 @@
 npx --no-install lint-staged
-npx --no-install prettier --write .

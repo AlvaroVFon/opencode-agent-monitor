@@ -1,9 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type {
-  DashboardData,
-  PanelContext,
-} from "../../cli/dashboard/dashboard.types";
+import type { PanelContext } from "../../cli/dashboard/dashboard.types";
 
 describe("Dashboard types", () => {
   describe("PanelContext<T> shape", () => {

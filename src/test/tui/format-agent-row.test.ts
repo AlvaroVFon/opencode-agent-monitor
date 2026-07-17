@@ -19,7 +19,6 @@ function makeAggregate(overrides: Partial<Aggregate> = {}): Aggregate {
     llmErrors: 0,
     toolCalls: 0,
     toolErrors: 0,
-    tokens: { input: 0, output: 0, reasoning: 0, cacheRead: 0 },
     cost: 0,
     workDurationMs: 0,
     ...overrides,

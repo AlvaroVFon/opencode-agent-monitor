@@ -29,7 +29,7 @@ If a release is needed, open a PR. The release workflow in `.github/workflows/re
 ## Why a PR, not a direct push
 
 1. **Auditability** — every release is a merge commit with a clear diff and reviews.
-2. **CI parity** — `prepublishOnly` runs build → lint → format:check → test locally, and again in CI before publish.
+2. **CI parity** — `pnpm check` runs lint → format:check → build → test locally, and again in CI before publish.
 3. **Recovery** — a bad release can be reverted with a single revert PR; a bad push cannot.
 
 ## Release process overview
@@ -106,17 +106,14 @@ git push origin release/vX.Y.Z
 
 ## Local validation
 
-Run the same gates `prepublishOnly` will run during publish. **All four must pass before opening the release PR.**
+Run the same gates `pnpm check` will run during publish. **All four must pass before opening the release PR.**
 
 ```bash
 pnpm install --frozen-lockfile
-pnpm run build
-pnpm run lint
-pnpm run format:check
-pnpm test
+pnpm check
 ```
 
-If any step fails, fix it on the release branch, amend the release commit (only if local-only), and re-run all four. Do not bypass with `--no-verify` or by editing `prepublishOnly`.
+If any step fails, fix it on the release branch, amend the release commit (only if local-only), and re-run `pnpm check`. Do not bypass with `--no-verify`.
 
 ## Opening the release PR
 
@@ -135,7 +132,7 @@ gh pr create \
 
 Merging this PR will trigger the release workflow, which will:
 
-1. Run `pnpm publish` (via `prepublishOnly`: build → lint → format:check → test).
+1. Run `pnpm check` (lint → format:check → build → test), then `pnpm publish`.
 2. Publish `@alvarovfon/opencode-agent-monitor@X.Y.Z` to npm.
 3. Create a GitHub Release with auto-generated notes.
 
@@ -165,7 +162,7 @@ After the merge, the release workflow in `.github/workflows/release.yml` will:
 
 1. Check out the code with full history (`fetch-depth: 0`).
 2. Install dependencies (`pnpm install --frozen-lockfile`).
-3. Run `pnpm publish`, which first triggers `prepublishOnly` (build → lint → format:check → test).
+3. Run `pnpm check`, then `pnpm publish`.
 4. Create a GitHub Release via `gh release create vX.Y.Z --generate-notes`.
 
 To confirm the publish:
@@ -177,6 +174,30 @@ npm view @alvarovfon/opencode-agent-monitor version
 
 Both should report `X.Y.Z`.
 
+## Post-release: sync main back to develop
+
+After the release PR merges, `main` has commits that `develop` doesn't (the release commit and merge commit). **Sync `main` back to `develop` via a PR** — never by merging locally, because local merges produce unsigned commits that get rejected by `develop`'s branch protection rules (signed commits required).
+
+```bash
+# Ensure develop is up to date with the remote
+git fetch origin
+git branch -D develop
+git checkout -b develop origin/develop
+
+# Create a PR from main → develop. This creates signed commits via GitHub.
+gh pr create \
+  --base develop \
+  --head main \
+  --title "chore: sync main back to develop after vX.Y.Z" \
+  --body "Sync release vX.Y.Z changes back to develop.
+
+This PR is the post-release sync step to keep branches aligned."
+```
+
+After creating the PR, paste the URL and ask the user to merge it (same policy — the agent does not merge PRs into protected branches).
+
+**Why a PR and not a local merge**: `develop` requires signed commits and PR-based changes (GH013 rule). A local `git merge main` creates unsigned commits that get rejected on push. A GitHub PR creates a signed merge commit automatically.
+
 ## Forbidden
 
 - Direct push to `main`. No exceptions.
@@ -185,7 +206,7 @@ Both should report `X.Y.Z`.
 - Editing `package.json` version manually — `prepare-release` owns the version bump.
 - Editing `CHANGELOG.md` manually — `prepare-release` regenerates it.
 - Running `npm publish` locally. Publication is CI-only via the release workflow.
-- Skipping `prepublishOnly` or any of its four steps.
+- Skipping `pnpm check` or any of its steps.
 - Running `pnpm prepare-release` after the PR is already open (version must be final before).
 
 ## If something goes wrong
