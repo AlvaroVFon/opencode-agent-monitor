@@ -1,3 +1,12 @@
+## [1.2.1](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/v1.1.0...v1.2.1) (2026-07-17)
+
+
+### Chores
+
+* sync main back to develop after v1.1.0 ([#82](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/82)) ([8ac7892](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/8ac7892e0f6e1f71fa9db7db3658dc2bdb2eab95))
+* add post-release sync step to create-release skill ([#83](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/83)) ([e5a1250](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/e5a125072aabec2c83d63a3880db1a75e63a7961))
+* migrate from prettier to oxfmt, remove unused vars, consolidate check script ([#84](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/84)) ([6df479d](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/6df479ddac8e42fced9df0856d66c117a96a395a))
+* update pnpm workspace configuration and clean up imports ([#85](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/85)) ([4a97dce](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/4a97dce5de1f135e161ea5d9be6d4787f34c80e8))
 # [1.1.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/v0.0.1...v1.1.0) (2026-06-26)
 
 
