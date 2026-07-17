@@ -1,4 +1,4 @@
-## [1.1.1](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/v1.1.0...v1.1.1) (2026-07-17)
+## [1.2.1](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/v1.1.0...v1.2.1) (2026-07-17)
 
 
 ### Chores
