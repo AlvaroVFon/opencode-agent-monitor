@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { EventHandler } from "../../../server/events/events.handler";
 import { EventsRegistry } from "../../../server/events/events.registry";
 import { EventType } from "../../../server/enums";
-import type { Handler, GetAgent } from "../../../server/handler.interface";
+import type { Handler } from "../../../server/handler.interface";
 
 describe("EventHandler", () => {
   it("dispatches event properties to every registered handler", () => {

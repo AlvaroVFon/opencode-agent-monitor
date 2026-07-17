@@ -1,5 +1,3 @@
-import type Handlebars from "handlebars";
-
 /**
  * Dashboard HTML Export — type contracts.
  *

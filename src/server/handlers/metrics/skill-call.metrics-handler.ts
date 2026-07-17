@@ -11,7 +11,7 @@ export class SkillCallMetricsHandler implements MetricsHandler<MessagePartUpdate
   handle(
     props: MessagePartUpdatedProps,
     recorder: MetricsRecorder,
-    getAgent?: GetAgent,
+    _getAgent?: GetAgent,
   ): void {
     const part = props.part as {
       type?: string;
