@@ -4,3 +4,7 @@ packages:
 allowBuilds:
   esbuild: true
   msgpackr-extract: true
+
+minimumReleaseAgeExclude:
+  - esbuild@0.28.1
+  - "@babel/core@7.29.1"

@@ -55,7 +55,7 @@ function makeMockSnapshot(
   return {
     ...base,
     ...overrides,
-    totals: { ...base.totals, ...(overrides.totals ?? {}) },
+    totals: { ...base.totals, ...overrides.totals },
   };
 }
 

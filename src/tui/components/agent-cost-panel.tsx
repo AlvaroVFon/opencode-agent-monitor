@@ -10,7 +10,6 @@ import type { JSX } from "@opentui/solid";
 import type { TuiThemeCurrent } from "@opencode-ai/plugin/tui";
 import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types.js";
 import { panelHeaderFormatter } from "../formatters/panel-header.formatter";
-import { totalsRowFormatter } from "../formatters/totals-row.formatter";
 import { agentNameFormatter } from "../formatters/agent-name.formatter";
 import { durationFormatter } from "../formatters/duration.formatter";
 import { sessionTimerFormatter } from "../formatters/session-timer.formatter.js";
@@ -151,12 +150,7 @@ export function AgentCostPanel(props: {
   const header = createMemo(() =>
     panelHeaderFormatter.format(collapsed(), totalCost(), agentCount()),
   );
-  const totals = createMemo(() => totalsRowFormatter.format(props.snapshot));
   const activeAgent = createMemo(() => props.snapshot.lastActiveAgent);
-  const hasTotalsErrors = createMemo(() => {
-    const t = props.snapshot.totals;
-    return t.llmErrors + t.toolErrors + (t.sessionErrors ?? 0) > 0;
-  });
 
   return (
     <box flexDirection="column" padding={1}>

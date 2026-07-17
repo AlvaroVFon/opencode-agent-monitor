@@ -2,6 +2,29 @@
   "name": "@alvarovfon/opencode-agent-monitor",
   "version": "1.1.0",
   "description": "OpenCode plugin for tracing LLM calls, agent delegations, tool calls and session events to JSONL files",
+  "keywords": [
+    "opencode",
+    "plugin",
+    "telemetry",
+    "tracing"
+  ],
+  "license": "MIT",
+  "author": "Alvaro Villamarin <alvaro.vfon@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlvaroVFon/opencode-agent-monitor.git"
+  },
+  "bin": {
+    "agent-monitor": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "package.json",
+    "tsconfig.json",
+    "LICENSE",
+    "CHANGELOG.md",
+    "README.md"
+  ],
   "type": "module",
   "main": "dist/agent-monitor.js",
   "types": "dist/agent-monitor.d.ts",
@@ -19,16 +42,16 @@
       "import": "./dist/cli.js"
     }
   },
-  "bin": {
-    "agent-monitor": "dist/cli.js"
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsup",
     "test": "node --import tsx --experimental-test-module-mocks --test 'src/test/**/*.test.ts'",
     "test:coverage": "node --import tsx --experimental-test-coverage --experimental-test-module-mocks --test 'src/test/**/*.test.ts'",
-    "lint": "tsc --noEmit",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "lint": "oxlint src",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
     "test:prod": "tsx scripts/test-prod.mts",
     "commitlint": "commitlint --edit",
     "metrics": "tsx src/cli/main.ts stats",
@@ -40,64 +63,42 @@
     "prepare-release": "tsx scripts/release.mts",
     "prepare": "husky",
     "prepack": "pnpm run build",
-    "prepublishOnly": "pnpm run build && pnpm run lint && pnpm run format:check && pnpm test"
+    "check": "pnpm lint && pnpm format:check && rm -rf ./dist && pnpm build && pnpm t"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "1.17.7",
+    "@opencode-ai/sdk": "1.17.7",
+    "commander": "15.0.0",
+    "handlebars": "4.7.9",
+    "solid-js": "1.9.13"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "19.8.1",
+    "@commitlint/config-conventional": "19.8.1",
+    "@types/js-yaml": "4.0.9",
+    "@types/node": "22.19.21",
+    "conventional-changelog": "8.1.0",
+    "conventional-recommended-bump": "11.2.0",
+    "esbuild-plugin-solid": "0.6.0",
+    "husky": "9.1.7",
+    "js-yaml": "4.2.0",
+    "lint-staged": "17.0.7",
+    "oxfmt": "0.59.0",
+    "oxlint": "1.74.0",
+    "tsup": "8.5.1",
+    "tsx": "4.22.4",
+    "typescript": "~5.8.3"
+  },
+  "peerDependencies": {
+    "@opentui/core": "0.3.4",
+    "@opentui/keymap": "0.3.4",
+    "@opentui/solid": "0.3.4"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,cjs,mjs,json,md,yml,yaml}": "oxfmt && oxlint"
   },
   "engines": {
     "node": ">=24"
   },
-  "packageManager": "pnpm@11.7.0",
-  "dependencies": {
-    "@opencode-ai/plugin": "^1.14.50",
-    "@opencode-ai/sdk": "^1.x",
-    "commander": "^15.0.0",
-    "handlebars": "^4.7.9",
-    "solid-js": "^1.9.0"
-  },
-  "peerDependencies": {
-    "@opentui/core": "^0.3.4",
-    "@opentui/keymap": "^0.3.4",
-    "@opentui/solid": "^0.3.4"
-  },
-  "devDependencies": {
-    "@commitlint/cli": "^19",
-    "@commitlint/config-conventional": "^19",
-    "@types/js-yaml": "^4.0.9",
-    "@types/node": "^22",
-    "conventional-changelog-cli": "^5",
-    "conventional-recommended-bump": "^11",
-    "esbuild-plugin-solid": "^0.6.0",
-    "husky": "^9",
-    "js-yaml": "^4.2.0",
-    "lint-staged": "^17.0.7",
-    "prettier": "^3.8.4",
-    "tsup": "^8.5.0",
-    "tsx": "^4",
-    "typescript": "~5.8.3"
-  },
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "dist",
-    "package.json",
-    "tsconfig.json",
-    "LICENSE",
-    "CHANGELOG.md",
-    "README.md"
-  ],
-  "lint-staged": {
-    "*.{ts,tsx,js,jsx,cjs,mjs,json,md,yml,yaml}": "prettier --write"
-  },
-  "license": "MIT",
-  "author": "Alvaro Villamarin <alvaro.vfon@gmail.com>",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/AlvaroVFon/opencode-agent-monitor.git"
-  },
-  "keywords": [
-    "opencode",
-    "plugin",
-    "tracing",
-    "telemetry"
-  ]
+  "packageManager": "pnpm@11.7.0"
 }

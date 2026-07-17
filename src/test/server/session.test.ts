@@ -10,7 +10,7 @@ describe("Session (real WriteStream)", () => {
   it("constructor does NOT create a WriteStream", async () => {
     const { Session } = await import(SESSION_MODULE);
     const dir = mkdtempSync(join(tmpdir(), "session-test-"));
-    const session = new Session(dir, "no-write-yet");
+    new Session(dir, "no-write-yet");
     // No file should exist since write() was never called
     const files = await import("node:fs").then((fs) =>
       fs.readdirSync(dir).filter((f) => f.endsWith(".jsonl")),
