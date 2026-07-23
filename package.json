@@ -70,7 +70,7 @@
     "@opencode-ai/sdk": "1.17.7",
     "commander": "15.0.0",
     "handlebars": "4.7.9",
-    "solid-js": "1.9.13"
+    "solid-js": "1.9.12"
   },
   "devDependencies": {
     "@commitlint/cli": "19.8.1",
