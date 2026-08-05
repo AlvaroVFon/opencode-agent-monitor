@@ -81,7 +81,7 @@
     "conventional-recommended-bump": "11.2.0",
     "esbuild-plugin-solid": "0.6.0",
     "husky": "9.1.7",
-    "js-yaml": "4.2.0",
+    "js-yaml": "4.3.1",
     "lint-staged": "17.0.7",
     "oxfmt": "0.59.0",
     "oxlint": "1.74.0",
