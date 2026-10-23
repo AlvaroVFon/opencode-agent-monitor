@@ -15,41 +15,57 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 
 const rootURL = `file://${root}`;
-const globalConfigDir = join(homedir(), ".config", "opencode");
+const globalConfigDir = process.env.XDG_CONFIG_HOME
+  ? join(process.env.XDG_CONFIG_HOME, "opencode")
+  : join(homedir(), ".config", "opencode");
 const prodDir = join(globalConfigDir, ".agent-monitor-prod");
+const pluginDir = join(prodDir, "agent-monitor");
+
+const configPath = resolve(globalConfigDir, "opencode.json");
+const backupPath = `${configPath}.dev`;
+const legacyCliConfig = resolve(globalConfigDir, "cli.json");
+const legacyTuiEntry = join(root, "dist", "tui.js");
+
+const devEntry = "@alvarovfon/opencode-agent-monitor";
 
 /**
- * OpenCode V2 requires configured local plugins to be **directories**, so this
- * script generates one wrapper directory per entrypoint and points the configs
- * at them:
+ * OpenCode V2 resolves a plugin as a *package*: one directory that exposes both
+ * the server entrypoint (`exports["."]`) and the TUI entrypoint (`exports["./tui"]`).
+ * The CLI reads the active plugin list from the server and loads the matching
+ * `./tui` export by itself, so only `opencode.json` needs to be rewritten.
  *
- * - `opencode.json` (`plugins`) loads the server plugin.
- * - `cli.json` (`plugins`) loads the TUI plugin.
+ * A bare file path in `cli.json` is silently ignored by the V2 CLI, and a
+ * wrapper directory that only exposes the server entry gives the CLI nothing
+ * to render, so this script always generates the full package layout.
  */
-interface Config {
-  path: string;
-  devPath: string;
-  prodPath: string;
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-const configs: Config[] = [
-  {
-    path: resolve(globalConfigDir, "opencode.json"),
-    devPath: "@alvarovfon/opencode-agent-monitor",
-    prodPath: join(prodDir, "server"),
-  },
-  {
-    path: resolve(globalConfigDir, "cli.json"),
-    devPath: "@alvarovfon/opencode-agent-monitor",
-    prodPath: join(prodDir, "tui"),
-  },
-];
-
-function writeWrapper(directory: string, entry: string): void {
+function writePluginDir(directory: string): void {
   mkdirSync(directory, { recursive: true });
   writeFileSync(
+    join(directory, "package.json"),
+    JSON.stringify(
+      {
+        name: "opencode-agent-monitor-local",
+        private: true,
+        type: "module",
+        exports: { ".": "./index.js", "./tui": "./tui.js" },
+      },
+      null,
+      2,
+    ) + "\n",
+    "utf-8",
+  );
+  writeFileSync(
     join(directory, "index.js"),
-    `export { default } from ${JSON.stringify(`${rootURL}/${entry}`)};\n`,
+    `export { default } from ${JSON.stringify(`${rootURL}/dist/agent-monitor.js`)};\n`,
+    "utf-8",
+  );
+  writeFileSync(
+    join(directory, "tui.js"),
+    `export { default } from ${JSON.stringify(`${rootURL}/dist/tui.js`)};\n`,
     "utf-8",
   );
 }
@@ -58,76 +74,93 @@ const shouldRestore =
   process.argv.includes("--restore") || process.argv.includes("-r");
 
 if (shouldRestore) {
-  let allRestored = true;
-  for (const config of configs) {
-    const backupPath = config.path + ".dev";
-    if (!existsSync(backupPath)) {
-      console.log(`No backup found at ${backupPath}, skipping`);
-      continue;
-    }
+  if (!existsSync(backupPath)) {
+    console.log(`No backup found at ${backupPath}, skipping`);
+  } else {
     const content = readFileSync(backupPath, "utf-8");
-    writeFileSync(config.path, content, "utf-8");
+    if (content.includes(prodDir)) {
+      console.warn(
+        `Warning: ${basename(backupPath)} already pointed at ${prodDir}.`,
+      );
+      console.warn(
+        `Restoring it would break plugin loading; writing ${devEntry} instead.`,
+      );
+      writeFileSync(
+        configPath,
+        JSON.stringify({ plugins: [devEntry] }, null, 2) + "\n",
+        "utf-8",
+      );
+    } else {
+      writeFileSync(configPath, content, "utf-8");
+    }
     unlinkSync(backupPath);
-    console.log(`Restored ${basename(config.path)} to dev config`);
+    console.log(`Restored ${basename(configPath)} to dev config`);
   }
   rmSync(prodDir, { recursive: true, force: true });
-  if (allRestored) {
-    console.log("\nDev configs restored. Run `opencode` to verify.");
-  }
+  console.log("\nDev config restored. Run `opencode` to verify.");
   process.exit(0);
 }
 
 console.log("Building production bundle...");
 execSync("pnpm build", { stdio: "inherit", cwd: root });
 
-console.log("\nCreating plugin wrapper directories...");
-writeWrapper(join(prodDir, "server"), "dist/agent-monitor.js");
-console.log(`  ${join(prodDir, "server")}`);
-writeWrapper(join(prodDir, "tui"), "dist/tui.js");
-console.log(`  ${join(prodDir, "tui")}`);
+console.log("\nCreating local plugin package...");
+writePluginDir(pluginDir);
+console.log(`  ${pluginDir}`);
+console.log(`    index.js -> ${join(root, "dist", "agent-monitor.js")}`);
+console.log(`    tui.js   -> ${join(root, "dist", "tui.js")}`);
 
-console.log("\nBacking up global configs...");
-for (const config of configs) {
-  if (!existsSync(config.path)) {
-    console.log(`  ${basename(config.path)} does not exist, will create it`);
-    continue;
-  }
-  const backupPath = config.path + ".dev";
-  if (existsSync(backupPath)) {
-    console.log(`  Backup already exists at ${backupPath}, skipping`);
-    continue;
-  }
-  const content = readFileSync(config.path, "utf-8");
-  writeFileSync(backupPath, content, "utf-8");
-  console.log(`  Backed up ${basename(config.path)}`);
+console.log("\nBacking up global config...");
+if (existsSync(backupPath)) {
+  console.log(`  Backup already exists at ${backupPath}, skipping`);
+} else if (!existsSync(configPath)) {
+  console.log(`  ${basename(configPath)} does not exist, will create it`);
+} else {
+  writeFileSync(backupPath, readFileSync(configPath, "utf-8"), "utf-8");
+  console.log(`  Backed up ${basename(configPath)}`);
 }
 
-console.log("\nSwitching to production build paths...");
-for (const config of configs) {
-  if (!existsSync(config.path)) {
-    writeFileSync(
-      config.path,
-      JSON.stringify({ plugins: [config.prodPath] }, null, 2) + "\n",
-      "utf-8",
-    );
-    console.log(`  ${basename(config.path)}: created with ${config.prodPath}`);
-    continue;
-  }
-
-  const content = readFileSync(config.path, "utf-8");
-  if (!content.includes(config.devPath)) {
-    console.log(
-      `  ${basename(config.path)}: ${config.devPath} not found, leaving untouched`,
-    );
-    continue;
-  }
-  const updated = content.replace(config.devPath, config.prodPath);
-  writeFileSync(config.path, updated, "utf-8");
-  console.log(
-    `  ${basename(config.path)}: ${config.devPath} -> ${config.prodPath}`,
+console.log("\nSwitching to production build...");
+if (!existsSync(configPath)) {
+  writeFileSync(
+    configPath,
+    JSON.stringify({ plugins: [pluginDir] }, null, 2) + "\n",
+    "utf-8",
   );
+  console.log(`  ${basename(configPath)}: created with ${pluginDir}`);
+} else {
+  let content = readFileSync(configPath, "utf-8");
+  const original = content;
+
+  // Older runs of this script generated per-surface wrappers
+  // (`.agent-monitor-prod/server` and `.agent-monitor-prod/tui`); migrate those
+  // paths to the single package layout.
+  content = content.replace(
+    new RegExp(`${escapeRegExp(prodDir)}(?:/[a-z]+)?`, "g"),
+    pluginDir,
+  );
+  content = content.replace(devEntry, pluginDir);
+
+  if (content === original) {
+    console.log(
+      `  ${basename(configPath)}: neither ${devEntry} nor an old wrapper found, leaving untouched`,
+    );
+  } else {
+    writeFileSync(configPath, content, "utf-8");
+    console.log(`  ${basename(configPath)}: -> ${pluginDir}`);
+  }
+}
+
+if (existsSync(legacyCliConfig)) {
+  const legacy = readFileSync(legacyCliConfig, "utf-8");
+  if (legacy.includes(legacyTuiEntry)) {
+    console.warn(`\nWarning: ${legacyCliConfig} points at ${legacyTuiEntry}.`);
+    console.warn(
+      "V2 ignores bare file paths in cli.json; remove that entry to avoid confusion.",
+    );
+  }
 }
 
 console.log("\n=== Production build ready for testing ===");
 console.log("Run `opencode` to verify the plugin loads correctly.");
-console.log("Run `pnpm test:prod --restore` to restore the dev configs.");
+console.log("Run `pnpm test:prod --restore` to restore the dev config.");
