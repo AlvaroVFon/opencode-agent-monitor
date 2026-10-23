@@ -277,14 +277,15 @@ describe("parseDuration", () => {
     assert.notEqual(result, null);
     assert.ok(typeof result === "number");
     assert.ok(result > 0);
-    assert.equal(result, Date.now() - 24 * 3_600_000);
+    // Allow a few ms of clock drift between the call and the assertion.
+    assert.ok(Math.abs(result - (Date.now() - 24 * 3_600_000)) < 50);
   });
 
   it("parses days", () => {
     const result = cliAggregator.parseDuration("7d");
     assert.notEqual(result, null);
     assert.ok(typeof result === "number");
-    assert.equal(result, Date.now() - 7 * 86_400_000);
+    assert.ok(Math.abs(result - (Date.now() - 7 * 86_400_000)) < 50);
   });
 
   it("returns null for invalid format", () => {
