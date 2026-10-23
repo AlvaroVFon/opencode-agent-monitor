@@ -1,34 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { agentNameFormatter } from "../../tui/formatters/agent-name.formatter";
+import {
+  AGENT_PALETTE_SIZE,
+  agentNameFormatter,
+} from "../../tui/formatters/agent-name.formatter";
 
 // ---------------------------------------------------------------------------
-// Reference data
-// ---------------------------------------------------------------------------
-//
-// The palette domain is fixed by the spec (acceptance criterion #2): exactly
-// five theme color keys. We centralize it in a single `Set` so every test
-// that needs to assert "output is a documented palette key" uses the same
-// authoritative value.
-//
-// The list is intentionally frozen as a `const` (not a `Set` of expected
-// values) so we can re-construct identical `Set`s in any test without
-// worrying about shared mutable state.
-
-const PALETTE_KEYS = [
-  "accent",
-  "secondary",
-  "info",
-  "success",
-  "warning",
-] as const;
-
-type PaletteKey = (typeof PALETTE_KEYS)[number];
-
-const PALETTE_SET: ReadonlySet<PaletteKey> = new Set(PALETTE_KEYS);
-
-// ---------------------------------------------------------------------------
-// capitalizeName — first character uppercased, rest unchanged
+// capitalize — first character uppercased, rest unchanged
 // ---------------------------------------------------------------------------
 //
 // The spec is intentionally narrow: only the FIRST character is transformed.
@@ -146,26 +124,18 @@ describe("capitalizeName", () => {
 });
 
 // ---------------------------------------------------------------------------
-// getAgentColor — deterministic, pure, well-spread, 5-color domain
+// colorIndex — deterministic palette index in [0, AGENT_PALETTE_SIZE)
 // ---------------------------------------------------------------------------
 //
-// The contract is two-fold:
-//   1. The output must be one of the 5 documented palette keys.
-//   2. The output must be a pure function of the input (deterministic,
-//      no wall-clock time, no PRNG, no process state).
-//
-// These two properties are what we test. We do NOT pin a specific input
-// → color mapping, because the spec leaves the hashing strategy to the
-// implementer. We DO assert that 100 distinct inputs produce at least 4
-// distinct outputs, to catch implementations that collapse the entire
-// palette down to 1–2 colors (which would be visually useless).
+// The V2 theme exposes an array of categorical colors, so the formatter
+// returns an index instead of a V1 token name. The contract is:
+//   1. Output is an integer in [0, AGENT_PALETTE_SIZE).
+//   2. Output is a pure function of the input.
+//   3. 100 distinct names spread across at least 4 indexes.
 
-describe("getAgentColor", () => {
-  it("return value is one of the five palette keys (table-driven, 20 names)", () => {
-    // A representative sample of plausible agent names. The test only
-    // cares that every output is in the documented domain — not which
-    // specific color any particular name gets.
-    const names: string[] = [
+describe("colorIndex", () => {
+  it("returns an in-range integer for 20 representative names", () => {
+    const names = [
       "coder",
       "reviewer",
       "scout",
@@ -189,106 +159,43 @@ describe("getAgentColor", () => {
     ];
 
     for (const name of names) {
-      const color = agentNameFormatter.color(name);
+      const index = agentNameFormatter.colorIndex(name);
+      assert.ok(Number.isInteger(index), `${name} must map to an integer`);
       assert.ok(
-        PALETTE_SET.has(color as PaletteKey),
-        `agentNameFormatter.color(${JSON.stringify(name)}) must be one of ${JSON.stringify(
-          PALETTE_KEYS,
-        )}; got: ${JSON.stringify(color)}`,
+        index >= 0 && index < AGENT_PALETTE_SIZE,
+        `${name} must map inside [0, ${AGENT_PALETTE_SIZE}); got ${index}`,
       );
     }
   });
 
-  it("is deterministic: same input returns same output across 1000 calls", () => {
-    // Sanity: a pure function called 1000 times with the same input must
-    // return the same output 1000 times. We compare against the FIRST
-    // call, so the assertion is robust to any correct implementation
-    // (we don't pin a specific color, only equality across calls).
-    const name = "coder";
-    const expected = agentNameFormatter.color(name);
+  it("is deterministic across 1000 calls", () => {
+    const expected = agentNameFormatter.colorIndex("coder");
 
     for (let i = 0; i < 1000; i++) {
-      assert.equal(
-        agentNameFormatter.color(name),
-        expected,
-        `agentNameFormatter.color(${JSON.stringify(name)}) must be deterministic on call #${i + 1}`,
-      );
+      assert.equal(agentNameFormatter.colorIndex("coder"), expected);
     }
   });
 
-  it("is pure: result is identical across two calls separated by a short delay", async () => {
-    // Catch implementations that accidentally use wall-clock time
-    // (e.g. Date.now() as a hash seed) or a non-seeded PRNG
-    // (e.g. Math.random() to pick a color). Both would produce
-    // different outputs across time.
-    //
-    // We sleep for 5ms (well below the millisecond-resolution noise
-    // floor) and re-call. A correct implementation must produce the
-    // exact same value.
-    const name = "coder";
-    const before = agentNameFormatter.color(name);
-
+  it("is pure across a short delay", async () => {
+    const before = agentNameFormatter.colorIndex("coder");
     await new Promise<void>((resolve) => setTimeout(resolve, 5));
-
-    const after = agentNameFormatter.color(name);
-
-    assert.equal(
-      after,
-      before,
-      `agentNameFormatter.color(${JSON.stringify(name)}) must not depend on wall-clock time; ` +
-        `before=${JSON.stringify(before)}, after=${JSON.stringify(after)}`,
-    );
+    assert.equal(agentNameFormatter.colorIndex("coder"), before);
   });
 
-  it("spreads 100 distinct names across at least 4 distinct colors", () => {
-    // Acceptance criterion: "for 100 distinct, realistic agent names, at
-    // least 4 distinct colors are returned." An implementation that
-    // collapses the palette to 1–2 colors is functionally useless (the
-    // whole point of the helper is visual distinguishability), so we
-    // explicitly forbid that.
-    const names: string[] = Array.from({ length: 100 }, (_, i) => `agent-${i}`);
-
-    const uniqueColors = new Set<string>(
-      names.map((n) => agentNameFormatter.color(n)),
+  it("spreads 100 distinct names across at least 4 indexes", () => {
+    const names = Array.from({ length: 100 }, (_, i) => `agent-${i}`);
+    const unique = new Set(
+      names.map((name) => agentNameFormatter.colorIndex(name)),
     );
 
     assert.ok(
-      uniqueColors.size >= 4,
-      `100 distinct names must spread across >= 4 colors; got ${uniqueColors.size}: ` +
-        JSON.stringify([...uniqueColors]),
+      unique.size >= 4,
+      `100 distinct names must spread across >= 4 indexes; got ${unique.size}`,
     );
   });
 
-  it("domain keys are exactly the documented five (subset check over 100 names)", () => {
-    // The output type is the 5 documented palette keys, full stop. We
-    // assert the SUBSET relationship: every output must be one of the 5
-    // documented keys. (We intentionally do not assert equality between
-    // the output set and the palette set — the spec does not require all
-    // 5 colors to be hit by any particular input set.)
-    const names: string[] = Array.from({ length: 100 }, (_, i) => `agent-${i}`);
-
-    for (const name of names) {
-      const color = agentNameFormatter.color(name);
-      assert.ok(
-        PALETTE_SET.has(color as PaletteKey),
-        `agentNameFormatter.color(${JSON.stringify(name)}) must be a documented palette key; ` +
-          `got: ${JSON.stringify(color)}`,
-      );
-    }
-  });
-
-  it("known input maps to a value in the documented domain: 'coder' returns a palette key", () => {
-    // We do NOT pin a specific color for "coder" because the spec leaves
-    // the hashing strategy to the implementer. What we DO pin is the
-    // contract: the return value must be a string AND must be one of the
-    // five documented palette keys. This is a focused, single-input
-    // sanity check that complements the table-driven test above.
-    const result = agentNameFormatter.color("coder");
-
-    assert.equal(typeof result, "string", "getAgentColor must return a string");
-    assert.ok(
-      PALETTE_SET.has(result as PaletteKey),
-      `agentNameFormatter.color('coder') must be a documented palette key; got: ${JSON.stringify(result)}`,
-    );
+  it("empty name maps to an in-range index", () => {
+    const index = agentNameFormatter.colorIndex("");
+    assert.ok(index >= 0 && index < AGENT_PALETTE_SIZE);
   });
 });

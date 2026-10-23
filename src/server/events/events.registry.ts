@@ -1,30 +1,24 @@
 import { EventType } from "../enums";
 import { Handler } from "../handler.interface";
-import type {
-  MessagePartUpdatedProps,
-  MessageUpdatedProps,
-  SessionCreatedProps,
-  SessionErrorProps,
-} from "../types";
 
-export type HandlerMap = {
-  [EventType.SESSION_CREATED]: Handler<SessionCreatedProps>;
-  [EventType.SESSION_ERROR]: Handler<SessionErrorProps>;
-  [EventType.MESSAGE_UPDATED]: Handler<MessageUpdatedProps>;
-  [EventType.MESSAGE_PART_UPDATED]: Handler<MessagePartUpdatedProps>;
-};
+/**
+ * Registry entry. Handlers are stored behind `Handler<never>` because the
+ * dispatcher only invokes them with events matching their registration key;
+ * `never` keeps the untyped slot assignable from every concrete handler.
+ */
+export type RegisteredHandler = Handler<never>;
 
 export class EventsRegistry {
-  private readonly handlers = new Map<string, Handler[]>();
+  private readonly handlers = new Map<string, RegisteredHandler[]>();
 
-  register<E extends EventType>(eventType: E, handler: HandlerMap[E]): this {
+  register(eventType: EventType, handler: RegisteredHandler): this {
     const handlers = this.handlers.get(eventType) ?? [];
-    handlers.push(handler as Handler);
+    handlers.push(handler);
     this.handlers.set(eventType, handlers);
     return this;
   }
 
-  get(eventType: string): Handler[] | undefined {
+  get(eventType: string): RegisteredHandler[] | undefined {
     return this.handlers.get(eventType);
   }
 }

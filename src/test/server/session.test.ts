@@ -41,7 +41,7 @@ describe("Session (real WriteStream)", () => {
     const filePath = join(dir, "schema-test.jsonl");
     const content = readFileSync(filePath, "utf-8").trim();
     const parsed = JSON.parse(content);
-    assert.equal(parsed.schemaVersion, 1);
+    assert.equal(parsed.schemaVersion, 2);
     assert.equal(parsed.type, "my_event");
     assert.equal(parsed.data, "hello");
   });
@@ -75,7 +75,7 @@ describe("Session (real WriteStream)", () => {
     const content = readFileSync(filePath, "utf-8").trim();
     const parsed = JSON.parse(content);
     assert.equal(parsed.type, "pre_close");
-    assert.equal(parsed.schemaVersion, 1);
+    assert.equal(parsed.schemaVersion, 2);
   });
 
   it("close() is idempotent — calling twice does not throw", async () => {
@@ -155,6 +155,6 @@ describe("Session (real WriteStream)", () => {
     assert.equal(JSON.parse(lines[0]).type, "old_event");
     assert.equal(JSON.parse(lines[1]).seq, 1);
     assert.equal(JSON.parse(lines[1]).type, "new_event");
-    assert.equal(JSON.parse(lines[1]).schemaVersion, 1);
+    assert.equal(JSON.parse(lines[1]).schemaVersion, 2);
   });
 });

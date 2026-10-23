@@ -1,21 +1,28 @@
 import { TraceHelper } from "../../helpers/trace.helpers";
-import { TraceEventType, PartType } from "../../../shared/enums";
+import { TraceEventType } from "../../enums";
 import { Handler } from "../../handler.interface";
-import type { MessagePartUpdatedProps } from "../../types";
+import type { SessionCreatedEvent } from "../../types";
 
-export class AgentDelegationHandler implements Handler<MessagePartUpdatedProps> {
+/**
+ * V2 models delegation as a child session. `session.created` with a parent is
+ * the authoritative delegation signal and replaces the V1 `agent`/`subtask`
+ * message-part handlers.
+ */
+export class AgentDelegationHandler implements Handler<SessionCreatedEvent> {
   constructor(private readonly traceHelper: TraceHelper) {}
 
-  handle(properties: MessagePartUpdatedProps): void {
-    const part = properties.part;
-
-    if (part.type !== PartType.AGENT) return;
+  handle(event: SessionCreatedEvent): void {
+    const { sessionID, parentID, agent, title } = event.data;
+    if (!parentID) return;
 
     this.traceHelper.writeTrace({
       type: TraceEventType.AGENT_DELEGATION,
-      sessionID: part.sessionID,
-      childAgent: part.name,
-      timestamp: Date.now(),
+      sessionID,
+      parentID,
+      childSessionID: sessionID,
+      ...(agent ? { childAgent: agent } : {}),
+      ...(title ? { description: title } : {}),
+      timestamp: event.created,
     });
   }
 }

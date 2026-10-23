@@ -7,6 +7,7 @@ import type {
 } from "../shared/metrics.types";
 import type {
   LlmCallEvent,
+  LlmErrorEvent,
   SkillCallEvent,
   ToolCallEvent,
   TraceEvent,
@@ -100,6 +101,29 @@ export class AggregatorStore {
             timestamp: event.timestamp,
           });
         }
+        break;
+      }
+
+      case TraceEventType.LLM_ERROR: {
+        this.addLlmError(this.totals, event);
+        this.addLlmError(this.getAgent(event.agent), event);
+        this.addLlmError(this.getSession(event.sessionID), event);
+        this.addLlmError(this.getModel(event.model), event);
+        this.addLlmError(this.getAgentModel(event.agent, event.model), event);
+        this.addLlmError(
+          this.getSessionAgent(event.sessionID, event.agent),
+          event,
+        );
+        this.addLlmError(
+          this.getSessionAgentModel(event.sessionID, event.agent, event.model),
+          event,
+        );
+        this.pushError({
+          sessionID: event.sessionID,
+          type: event.errorType,
+          message: event.errorMessage,
+          timestamp: event.timestamp,
+        });
         break;
       }
 
@@ -353,6 +377,15 @@ export class AggregatorStore {
     aggregate.tokens.cacheRead += event.cacheRead;
     aggregate.cost += event.cost;
     aggregate.workDurationMs += event.durationMs;
+  }
+
+  private addLlmError(aggregate: Aggregate, event: LlmErrorEvent): void {
+    aggregate.llmErrors += 1;
+    aggregate.tokens.input += event.inputTokens ?? 0;
+    aggregate.tokens.output += event.outputTokens ?? 0;
+    aggregate.tokens.reasoning += event.reasoningTokens ?? 0;
+    aggregate.tokens.cacheRead += event.cacheRead ?? 0;
+    aggregate.cost += event.cost ?? 0;
   }
 
   private addTool(aggregate: Aggregate, event: ToolCallEvent): void {
