@@ -47,15 +47,22 @@
 - **D.1 Budget Guard:** Barra de progreso de presupuesto en tiempo real en el sidebar del TUI.
 - **D.2 CI/CD Integration:** Modo "headless" que falla el pipeline si el ratio de errores o coste supera los límites en pruebas automatizadas.
 
+## Fase E: OpenCode V2
+
+- **E.1 Migración del plugin de servidor:** `Plugin.define` + `ctx.event.subscribe()` + tool hooks, eventos `session.step.*`, `session.skill.activated`, `session.compaction.*`.
+- **E.2 Migración del plugin de TUI:** slots `sidebar.content`/`session.panel`, keymap layers, `context.storage.store` y `ResolvedTheme`.
+- **E.3 Esquema v2:** `schemaVersion: 2` con campos aditivos (`kind`, `messageID`, `cacheWrite`, `skillID`), CLI compatible con archivos v1 y v2.
+
 ---
 
-## Estado Actual (Snapshot 2026-06-26)
+## Estado Actual (Snapshot 2026-10-23)
 
 - ✅ Tracing de eventos base (LLM, Tools, Sessions).
-- ✅ TUI Live Monitor (Sidebar + Fullscreen).
+- ✅ TUI Live Monitor (Sidebar + Fullscreen panel).
 - ✅ CLI funcional: `stats`, `errors`, `export`, `compare`, `dashboard`.
 - ✅ Dashboard HTML autónomo (C.1): 6 paneles, theming light/dark, Handlebars + panel registry.
-- ✅ Distribución en npm (@alvarovfon/opencode-agent-monitor) — última v1.0.3.
+- ✅ Distribución en npm (@alvarovfon/opencode-agent-monitor) — v2.0.0.
 - ✅ Fase A.3 (Log Rotation / Per-Session).
 - ✅ Fase C.1 (Dashboard HTML).
+- ✅ Fase E (OpenCode V2): server plugin, TUI plugin y esquema v2.
 - 🔜 Próximo hito: Fase B (Deep Insights) — Skill/Tool analytics, latencia p95/p99, buffer seguro.

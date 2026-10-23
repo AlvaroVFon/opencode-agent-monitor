@@ -26,7 +26,7 @@ export class Session {
       });
     }
 
-    const versionedEvent = { ...event, schemaVersion: 1 };
+    const versionedEvent = { ...event, schemaVersion: 2 };
     this.stream.write(JSON.stringify(versionedEvent) + "\n");
   }
 

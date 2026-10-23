@@ -2,36 +2,47 @@ import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import { SessionCreatedHandler } from "../../../server/handlers/trace/session-created.handler";
 import { TraceEventType } from "../../../server/enums";
+import { makeSessionCreated } from "../fixtures/v2-events";
 
-describe("SessionCreatedHandler", () => {
-  it("writes a trace with sessionID and parentID", () => {
-    const writeTrace = mock.fn();
-    const handler = new SessionCreatedHandler({
+function setup() {
+  const writeTrace = mock.fn();
+  return {
+    writeTrace,
+    handler: new SessionCreatedHandler({
       writeTrace,
-      writeTraceError: mock.fn(),
       ensureDir: () => {},
-    } as any);
+    } as any),
+  };
+}
 
-    handler.handle({ info: { id: "sess-1", parentID: "parent-1" } });
+describe("SessionCreatedHandler (V2)", () => {
+  it("writes sessionID, parentID, agent and title", () => {
+    const { writeTrace, handler } = setup();
 
-    assert.equal(writeTrace.mock.calls.length, 1);
+    handler.handle(
+      makeSessionCreated({
+        parentID: "parent-1",
+        agent: "worker",
+        title: "Investigate",
+      }),
+    );
+
     const event = writeTrace.mock.calls[0].arguments[0];
     assert.equal(event.type, TraceEventType.SESSION_CREATED);
     assert.equal(event.sessionID, "sess-1");
     assert.equal(event.parentID, "parent-1");
+    assert.equal(event.agent, "worker");
+    assert.equal(event.title, "Investigate");
+    assert.equal(event.timestamp, 1_000);
   });
 
-  it("writes parentID as null when not provided", () => {
-    const writeTrace = mock.fn();
-    const handler = new SessionCreatedHandler({
-      writeTrace,
-      writeTraceError: mock.fn(),
-      ensureDir: () => {},
-    } as any);
+  it("writes parentID as null for root sessions", () => {
+    const { writeTrace, handler } = setup();
 
-    handler.handle({ info: { id: "sess-2" } });
+    handler.handle(makeSessionCreated());
 
     const event = writeTrace.mock.calls[0].arguments[0];
     assert.equal(event.parentID, null);
+    assert.equal(event.agent, "coder");
   });
 });

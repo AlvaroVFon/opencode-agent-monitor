@@ -6,6 +6,7 @@ import type {
 } from "../../shared/metrics.types";
 import type {
   LlmCallEvent,
+  LlmErrorEvent,
   ToolCallEvent,
   SkillCallEvent,
   SessionCreatedEvent,
@@ -76,6 +77,48 @@ export class EventAggregatorHelper {
     );
   }
 
+  buildLlmErrorIncrement(event: LlmErrorEvent): Aggregate {
+    return {
+      llmCalls: 0,
+      llmErrors: 1,
+      toolCalls: 0,
+      toolErrors: 0,
+      skillCalls: 0,
+      skillErrors: 0,
+      tokens: {
+        input: event.inputTokens ?? 0,
+        output: event.outputTokens ?? 0,
+        reasoning: event.reasoningTokens ?? 0,
+        cacheRead: event.cacheRead ?? 0,
+      },
+      cost: event.cost ?? 0,
+      workDurationMs: 0,
+    };
+  }
+
+  applyLlmError(state: AggregationState, event: LlmErrorEvent): void {
+    const inc = this.buildLlmErrorIncrement(event);
+    aggregateHelper.addToAggregate(state.totals, inc);
+    aggregateHelper.addToAggregate(
+      aggregateHelper.getOrCreate(state.byAgent, event.agent, () =>
+        aggregateHelper.empty(),
+      ),
+      inc,
+    );
+    aggregateHelper.addToAggregate(
+      aggregateHelper.getOrCreate(state.bySession, event.sessionID, () =>
+        aggregateHelper.empty(),
+      ),
+      inc,
+    );
+    state.errors.push({
+      sessionID: event.sessionID,
+      type: event.errorType,
+      message: event.errorMessage,
+      timestamp: event.timestamp,
+    });
+  }
+
   applyToolCall(state: AggregationState, event: ToolCallEvent): void {
     state.totals.toolCalls++;
     if (event.status === "error") state.totals.toolErrors++;
@@ -125,6 +168,8 @@ export class EventAggregatorHelper {
   apply(state: AggregationState, event: TraceEvent): void {
     if (event.type === TraceEventType.LLM_CALL) {
       this.applyLlmCall(state, event);
+    } else if (event.type === TraceEventType.LLM_ERROR) {
+      this.applyLlmError(state, event);
     } else if (event.type === TraceEventType.TOOL_CALL) {
       this.applyToolCall(state, event);
     } else if (event.type === TraceEventType.SKILL_CALL) {

@@ -20,9 +20,9 @@ describe("EventsRegistry", () => {
     const registry = new EventsRegistry();
     const h1 = dummy();
     const h2 = dummy();
-    registry.register(EventType.MESSAGE_UPDATED, h1);
-    registry.register(EventType.MESSAGE_UPDATED, h2);
-    assert.deepEqual(registry.get(EventType.MESSAGE_UPDATED), [h1, h2]);
+    registry.register(EventType.SESSION_STEP_ENDED, h1);
+    registry.register(EventType.SESSION_STEP_ENDED, h2);
+    assert.deepEqual(registry.get(EventType.SESSION_STEP_ENDED), [h1, h2]);
   });
 
   it("supports multiple event types independently", () => {
@@ -30,9 +30,9 @@ describe("EventsRegistry", () => {
     const h1 = dummy();
     const h2 = dummy();
     registry.register(EventType.SESSION_CREATED, h1);
-    registry.register(EventType.SESSION_ERROR, h2);
+    registry.register(EventType.SESSION_EXECUTION_FAILED, h2);
     assert.deepEqual(registry.get(EventType.SESSION_CREATED), [h1]);
-    assert.deepEqual(registry.get(EventType.SESSION_ERROR), [h2]);
+    assert.deepEqual(registry.get(EventType.SESSION_EXECUTION_FAILED), [h2]);
   });
 
   it("returns undefined for an unregistered event type", () => {
@@ -43,9 +43,9 @@ describe("EventsRegistry", () => {
     const registry = new EventsRegistry();
     const result = registry
       .register(EventType.SESSION_CREATED, dummy())
-      .register(EventType.SESSION_ERROR, dummy());
+      .register(EventType.SESSION_EXECUTION_FAILED, dummy());
     assert(result instanceof EventsRegistry);
     assert.equal(registry.get(EventType.SESSION_CREATED)!.length, 1);
-    assert.equal(registry.get(EventType.SESSION_ERROR)!.length, 1);
+    assert.equal(registry.get(EventType.SESSION_EXECUTION_FAILED)!.length, 1);
   });
 });

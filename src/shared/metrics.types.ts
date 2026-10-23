@@ -1,17 +1,13 @@
 /**
  * Shared metrics types.
  *
- * These types are the contract between the server plugin's
- * `MetricsAggregator` and the TUI plugin's `AggregatorStore`. Per
- * ADR-002, the two implementations do NOT share runtime code — each
- * ingests events from its own source (OpenCode SDK events vs JSONL
- * trace events). They do share this shape so consumers (TUI
- * components, formatters) can render either snapshot without
- * knowing its origin.
+ * These types are the contract between the JSONL trace events and the
+ * consumers that render metrics (the TUI's `AggregatorStore`, the CLI's
+ * `EventAggregatorHelper`, and the HTML dashboard). The TUI and CLI ingest
+ * different inputs but share this shape so components and formatters can
+ * render either snapshot without knowing its origin.
  *
- * If a new field is needed by both implementations, add it here.
- * Internal helpers (e.g. `LlmAssistantMessage`) live in the
- * server's private types.
+ * If a new field is needed by several consumers, add it here.
  */
 export type TokenUsage = {
   input: number;

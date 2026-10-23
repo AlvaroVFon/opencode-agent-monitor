@@ -1,37 +1,41 @@
 import { TraceHelper } from "../../helpers/trace.helpers";
-import { TraceEventType, UNKNOWN, Role } from "../../enums";
-import { Handler, type GetAgent } from "../../handler.interface";
-import type { MessageUpdatedProps } from "../../types";
+import { UNKNOWN, TraceEventType } from "../../enums";
+import { Handler } from "../../handler.interface";
+import { AgentTracker } from "../../state/agent-tracker";
+import { StepTracker } from "../../state/step-tracker";
+import type { SessionStepEndedEvent } from "../../types";
 
-export class LlmCallHandler implements Handler<MessageUpdatedProps> {
-  constructor(private readonly traceHelper: TraceHelper) {}
+export class LlmCallHandler implements Handler<SessionStepEndedEvent> {
+  constructor(
+    private readonly traceHelper: TraceHelper,
+    private readonly stepTracker: StepTracker,
+    private readonly agentTracker: AgentTracker,
+  ) {}
 
-  handle(properties: MessageUpdatedProps, getAgent?: GetAgent): void {
-    const msg = properties.info;
-
-    if (msg.role !== Role.ASSISTANT || !msg.finish || !msg.tokens) return;
-    if (!msg.time?.completed) return;
-
-    const agent = getAgent?.(msg.sessionID) ?? UNKNOWN;
-    const model = `${msg.providerID}/${msg.modelID}`;
-    const durationMs =
-      msg.time?.completed && msg.time?.created
-        ? msg.time.completed - msg.time.created
-        : null;
+  handle(event: SessionStepEndedEvent): void {
+    const { sessionID, assistantMessageID, finish, cost, tokens } = event.data;
+    const step = this.stepTracker.take(assistantMessageID);
+    const agent =
+      step?.agent ?? this.agentTracker.agentForSession(sessionID) ?? UNKNOWN;
+    const model = step?.model ?? UNKNOWN;
+    const durationMs = step ? Math.max(0, event.created - step.startedAt) : 0;
 
     this.traceHelper.writeTrace({
       type: TraceEventType.LLM_CALL,
-      sessionID: msg.sessionID,
+      sessionID,
       agent,
       model,
-      finish: msg.finish,
-      inputTokens: msg.tokens.input,
-      outputTokens: msg.tokens.output,
-      reasoningTokens: msg.tokens.reasoning,
-      cacheRead: msg.tokens.cache.read,
-      cost: msg.cost,
+      finish: finish ?? UNKNOWN,
+      inputTokens: tokens?.input ?? 0,
+      outputTokens: tokens?.output ?? 0,
+      reasoningTokens: tokens?.reasoning ?? 0,
+      cacheRead: tokens?.cache?.read ?? 0,
+      cacheWrite: tokens?.cache?.write ?? 0,
+      cost: cost ?? 0,
       durationMs,
-      timestamp: Date.now(),
+      messageID: assistantMessageID,
+      kind: "step",
+      timestamp: event.created,
     });
   }
 }

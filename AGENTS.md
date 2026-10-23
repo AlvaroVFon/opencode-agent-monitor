@@ -16,8 +16,9 @@ pnpm test:prod      # tsx scripts/test-prod.mts
 
 ## Architecture
 
-- **Dual-plugin**, file-communicating: server plugin (`src/server/agent-monitor.ts`, `export .`) writes per-session `{sessionId}.jsonl` files; TUI plugin (`src/tui/agent-monitor-tui.tsx`, `export ./tui`) reads them incrementally via `SessionWatcher`. No in-memory sharing. Cross-product contracts in `src/shared/metrics.types.ts`.
-- **Dual aggregation**: `MetricsAggregator` (server, ingests SDK events) and `AggregatorStore` (TUI, ingests JSONL events) produce compatible `MetricsSnapshot` / `Aggregate` shapes but handle different input formats.
+- **OpenCode V2 dual plugin**, file-communicating: server plugin (`src/server/agent-monitor.ts`, `export .`) subscribes to `ctx.event.subscribe()` + tool hooks and writes per-session `{sessionId}.jsonl` files; TUI plugin (`src/tui/agent-monitor-tui.tsx`, `export ./tui`) reads them incrementally via `SessionWatcher`. No in-memory sharing. Cross-product contracts in `src/shared/metrics.types.ts`.
+- **Single aggregation**: `AggregatorStore` (TUI, ingests JSONL events) feeds the TUI and the CLI. The V1 server-side `MetricsAggregator` was removed in 2.0.0.
+- **Event mapping**: V2 events are translated by handlers in `src/server/handlers/`; the authoritative mapping lives in `src/server/README.md`.
 
 ## Conventions
 
@@ -50,7 +51,10 @@ pnpm test:prod      # tsx scripts/test-prod.mts
 
 ## Local development
 
-Plugin config in `.opencode/opencode.json` and `.opencode/tui.json` point to source files in `src/`. For production testing, use absolute paths to `dist/` files in your `~/.config/opencode/` configs.
+`pnpm test:prod` rewrites `~/.config/opencode/opencode.json` (server plugin) and
+`~/.config/opencode/cli.json` (TUI plugin) to the built `dist/` files and backs
+the originals up. There is no project-local `.opencode/opencode.json` in this
+repo.
 
 ```bash
 pnpm install --ignore-scripts
@@ -63,9 +67,9 @@ TUI trace dir resolution order: `options.traceDir` → `AGENT_MONITOR_DIR` env �
 
 - Node >=24, pnpm 11.7.0
 - `tsc --noEmit` for type-checking (does NOT check `src/test/`); `oxlint` for linting; `oxfmt` for formatting
+- Peer deps: OpenCode V2 plugin API (`@opencode/plugin` 2.1.x) and `@opentui/{core,solid} >=0.6.8`
 - No `zod` — tool hook was removed (Phase 3)
-- Peer deps: `@opentui/{core,keymap,solid}` (not auto-installed; set `.npmrc` `auto-install-peers=true`)
 
-## Project status (as of 2026-06-26)
+## Project status (as of 2026-10-23)
 
-v1.0.3 published (latest). A.3 (per-session files), A.2 (schema v1), and C.1 (HTML dashboard) completed. Next: Phase B (Deep Insights — skill/tool analytics, p95 latency, write buffer).
+v2.0.0 targets OpenCode V2. A.3 (per-session files), A.2 (schema v1), C.1 (HTML dashboard), and the V2 plugin migration are completed. Next: Phase B (Deep Insights — skill/tool analytics, p95 latency, write buffer).

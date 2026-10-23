@@ -1,46 +1,23 @@
 import { TraceHelper } from "../../helpers/trace.helpers";
-import { PartStatus, PartType, TraceEventType } from "../../../shared/enums";
+import { TraceEventType } from "../../enums";
 import { Handler } from "../../handler.interface";
-import type { MessagePartUpdatedProps } from "../../types";
+import type { SessionSkillActivatedEvent } from "../../types";
 
-export class SkillCallHandler implements Handler<MessagePartUpdatedProps> {
+export class SkillCallHandler implements Handler<SessionSkillActivatedEvent> {
   constructor(private readonly traceHelper: TraceHelper) {}
 
-  handle(properties: MessagePartUpdatedProps): void {
-    const part = properties.part as {
-      type?: string;
-      sessionID?: string;
-      name?: string;
-      tool?: string;
-      state?: {
-        status?: string;
-        time?: { start?: number; end?: number };
-        error?: unknown;
-      };
-    };
-
-    if (part.type !== PartType.SKILL) return;
-    if (
-      part.state?.status !== PartStatus.COMPLETED &&
-      part.state?.status !== PartStatus.ERROR
-    )
-      return;
-
-    const durationMs =
-      part.state?.time?.end && part.state?.time?.start
-        ? part.state.time.end - part.state.time.start
-        : 0;
+  handle(event: SessionSkillActivatedEvent): void {
+    const { sessionID, id, name } = event.data;
 
     this.traceHelper.writeTrace({
       type: TraceEventType.SKILL_CALL,
-      sessionID: part.sessionID ?? "unknown",
-      skill: part.name ?? part.tool ?? "unknown",
-      status: part.state.status,
-      durationMs,
-      ...(part.state.status === PartStatus.ERROR
-        ? { error: part.state.error }
-        : {}),
-      timestamp: Date.now(),
+      sessionID,
+      skill: name || id,
+      skillID: id,
+      status: "completed",
+      // V2 activation has no duration; keep the field for schema stability.
+      durationMs: 0,
+      timestamp: event.created,
     });
   }
 }

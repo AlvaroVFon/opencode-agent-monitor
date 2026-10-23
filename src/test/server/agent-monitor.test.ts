@@ -1,82 +1,108 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { AgentMonitor } from "../../server/agent-monitor";
+import { makeSessionCreated } from "./fixtures/v2-events";
 
-describe("AgentMonitor plugin", () => {
-  it("returns chat.params and event hooks", async () => {
-    const plugin = await AgentMonitor(undefined as any);
+type AnyFn = (...args: any[]) => any;
 
-    assert.equal(typeof plugin["chat.params"], "function");
-    assert.equal(typeof plugin.event, "function");
+function makeContext(
+  options: Record<string, unknown>,
+  directory: string,
+  events: unknown[] = [],
+) {
+  const hooks = new Map<string, AnyFn>();
+
+  return {
+    hooks,
+    ctx: {
+      options,
+      location: { directory },
+      tool: {
+        hook: async (name: string, callback: AnyFn) => {
+          hooks.set(name, callback);
+          return { dispose: async () => {} };
+        },
+      },
+      event: {
+        subscribe: () =>
+          (async function* () {
+            for (const event of events) yield event;
+          })(),
+      },
+    },
+  };
+}
+
+function delay(ms = 50) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+describe("AgentMonitor plugin (V2)", () => {
+  it("exposes a stable plugin id", () => {
+    assert.equal(AgentMonitor.id, "agent-monitor");
   });
 
-  it("does not throw when storing agent and dispatching event", async () => {
-    const plugin = await AgentMonitor(undefined as any, {
-      traceDir: "/tmp/test-traces",
-    });
+  it("registers both tool hooks during setup", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "agent-monitor-setup-"));
+    const { ctx, hooks } = makeContext({ traceDir: dir }, dir);
 
-    await assert.doesNotReject(
-      plugin["chat.params"](
-        { sessionID: "sess-1", agent: "planner" } as any,
-        {} as any,
-      ),
-    );
+    const cleanup = await AgentMonitor.setup(ctx as any);
 
-    await assert.doesNotReject(
-      plugin.event({
-        event: {
-          type: "message.updated",
-          properties: {
-            info: {
-              role: "assistant",
-              sessionID: "sess-1",
-              finish: "stop",
-              tokens: {
-                input: 1,
-                output: 1,
-                reasoning: 0,
-                cache: { read: 0 },
-              },
-              providerID: "test",
-              modelID: "test-model",
-              cost: 0,
-              time: { created: 0, completed: 1 },
-            },
-          },
-        },
-      }),
-    );
+    assert.equal(typeof hooks.get("execute.before"), "function");
+    assert.equal(typeof hooks.get("execute.after"), "function");
+    await cleanup?.();
   });
 
-  it("creates traceHelper with a close method", async () => {
-    const plugin = await AgentMonitor(undefined as any, {
-      traceDir: "/tmp/test-traces-close",
-    });
-
-    // Smoke test: dispatch an event and verify no crash
-    await assert.doesNotReject(
-      plugin.event({
-        event: {
-          type: "message.updated",
-          properties: {
-            info: {
-              role: "assistant",
-              sessionID: "sess-close-test",
-              finish: "stop",
-              tokens: {
-                input: 1,
-                output: 1,
-                reasoning: 0,
-                cache: { read: 0 },
-              },
-              providerID: "test",
-              modelID: "test-model",
-              cost: 0,
-              time: { created: 0, completed: 1 },
-            },
-          },
-        },
-      }),
+  it("writes session.created events from the stream", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "agent-monitor-stream-"));
+    const event = makeSessionCreated(
+      { sessionID: "sess-live" },
+      { location: { directory: dir } },
     );
+    const { ctx } = makeContext({ traceDir: dir }, dir, [event]);
+
+    const cleanup = await AgentMonitor.setup(ctx as any);
+    await delay();
+    await cleanup?.();
+
+    const content = readFileSync(join(dir, "sess-live.jsonl"), "utf-8").trim();
+    const parsed = JSON.parse(content);
+    assert.equal(parsed.type, "session_created");
+    assert.equal(parsed.schemaVersion, 2);
+  });
+
+  it("ignores events belonging to another location", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "agent-monitor-location-"));
+    const event = makeSessionCreated(
+      { sessionID: "sess-other" },
+      { location: { directory: join(dir, "other-project") } },
+    );
+    const { ctx } = makeContext({ traceDir: dir }, dir, [event]);
+
+    const cleanup = await AgentMonitor.setup(ctx as any);
+    await delay();
+    await cleanup?.();
+
+    assert.equal(existsSync(join(dir, "sess-other.jsonl")), false);
+  });
+
+  it("processes every event when locationFilter is all", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "agent-monitor-all-"));
+    const event = makeSessionCreated(
+      { sessionID: "sess-other" },
+      { location: { directory: join(dir, "other-project") } },
+    );
+    const { ctx } = makeContext({ traceDir: dir, locationFilter: "all" }, dir, [
+      event,
+    ]);
+
+    const cleanup = await AgentMonitor.setup(ctx as any);
+    await delay();
+    await cleanup?.();
+
+    assert.equal(existsSync(join(dir, "sess-other.jsonl")), true);
   });
 });

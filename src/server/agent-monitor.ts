@@ -1,34 +1,77 @@
-import type { Plugin } from "@opencode-ai/plugin";
-import { UNKNOWN } from "./enums";
+import { Plugin } from "@opencode/plugin";
 import { TraceHelper } from "./helpers/trace.helpers";
+import { LocationFilter } from "./helpers/location.helper";
+import { ToolHookHandler } from "./hooks/tool.hooks";
 import { createEventHandler } from "./wire/handler-wiring";
-import { createMetricsAggregator } from "./wire/aggregator-wiring";
 
-export const AgentMonitor: Plugin = async (_input, options) => {
-  const currentAgent = new Map<string, string>();
-  const traceDir =
-    typeof options?.traceDir === "string" ? options.traceDir : undefined;
-  const traceHelper = new TraceHelper(traceDir);
-  const eventHandler = createEventHandler(traceHelper, currentAgent);
-  const metricsAggregator = createMetricsAggregator();
+/**
+ * OpenCode V2 server plugin.
+ *
+ * Subscribes to the server event stream and the tool hooks, turning them into
+ * the versioned JSONL trace consumed by the CLI and the TUI plugin.
+ */
+export const AgentMonitor = Plugin.define({
+  id: "agent-monitor",
+  async setup(ctx) {
+    const traceDir =
+      typeof ctx.options.traceDir === "string"
+        ? ctx.options.traceDir
+        : typeof process.env.AGENT_MONITOR_DIR === "string"
+          ? process.env.AGENT_MONITOR_DIR
+          : undefined;
+    const traceHelper = new TraceHelper(traceDir);
+    const eventHandler = createEventHandler(traceHelper);
+    const toolHandler = new ToolHookHandler(traceHelper);
+    const locationFilter = new LocationFilter(
+      ctx.location?.directory,
+      ctx.options.locationFilter ?? process.env.AGENT_MONITOR_LOCATION_FILTER,
+    );
 
-  // Graceful shutdown: close all session WriteStreams before the process exits.
-  // Note: this does NOT handle SIGKILL (process.on('exit') cannot run async work,
-  // and beforeExit is not called on SIGKILL or process.abort()).
-  process.on("beforeExit", () => traceHelper.close());
+    await ctx.tool.hook("execute.before", (event) => toolHandler.before(event));
+    await ctx.tool.hook("execute.after", (event) => toolHandler.after(event));
 
-  return {
-    "chat.params": async (input) => {
-      currentAgent.set(input.sessionID, input.agent);
-    },
+    const controller = new AbortController();
+    const onBeforeExit = () => traceHelper.close();
+    const debug = process.env.AGENT_MONITOR_DEBUG === "1";
+    process.on("beforeExit", onBeforeExit);
 
-    event: async ({ event }) => {
-      const snapshot = new Map(currentAgent);
-      const getAgent = (sessionID: string) =>
-        snapshot.get(sessionID) ?? UNKNOWN;
+    void (async () => {
+      try {
+        for await (const event of ctx.event.subscribe({
+          signal: controller.signal,
+        })) {
+          const matches = locationFilter.matches(event);
+          if (debug) {
+            process.stderr.write(
+              `[AgentMonitor] ${event.type}${matches ? "" : " (filtered)"}\n`,
+            );
+          }
+          if (!matches) continue;
+          try {
+            eventHandler.handle(event);
+          } catch (error) {
+            reportError("failed to handle event", error);
+          }
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          reportError("event stream terminated", error);
+        }
+      }
+    })();
 
-      eventHandler.handle(event, getAgent);
-      metricsAggregator.ingest(event, getAgent);
-    },
-  };
-};
+    return () => {
+      controller.abort();
+      process.off("beforeExit", onBeforeExit);
+      toolHandler.clear();
+      traceHelper.close();
+    };
+  },
+});
+
+function reportError(context: string, error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`[AgentMonitor] ${context}: ${message}\n`);
+}
+
+export default AgentMonitor;

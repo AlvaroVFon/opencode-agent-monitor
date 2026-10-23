@@ -7,7 +7,7 @@ import {
   onCleanup,
 } from "solid-js";
 import type { JSX } from "@opentui/solid";
-import type { TuiThemeCurrent } from "@opencode-ai/plugin/tui";
+import type { PanelTheme } from "../theme.adapter";
 import type { Aggregate, MetricsSnapshot } from "../../shared/metrics.types.js";
 import { panelHeaderFormatter } from "../formatters/panel-header.formatter";
 import { agentNameFormatter } from "../formatters/agent-name.formatter";
@@ -122,7 +122,7 @@ let _collapsed = false;
 
 export function AgentCostPanel(props: {
   snapshot: MetricsSnapshot;
-  theme: TuiThemeCurrent;
+  theme: PanelTheme;
 }): JSX.Element {
   const [collapsed, setCollapsed] = createSignal(_collapsed);
   const [now, setNow] = createSignal(Date.now());
@@ -163,9 +163,7 @@ export function AgentCostPanel(props: {
         }}
       >
         <text>
-          <span style={{ fg: props.theme.textMuted }}>
-            {header().indicator}{" "}
-          </span>
+          <span style={{ fg: props.theme.muted }}>{header().indicator} </span>
           <span style={{ fg: props.theme.warning, bold: true }}>
             {header().title}
           </span>
@@ -175,7 +173,7 @@ export function AgentCostPanel(props: {
               {header().agentCount}
             </span>
           </Show>
-          <span style={{ fg: props.theme.textMuted }}> · </span>
+          <span style={{ fg: props.theme.muted }}> · </span>
           <span style={{ fg: props.theme.success }}>{header().totalCost}</span>
         </text>
       </box>
@@ -183,7 +181,7 @@ export function AgentCostPanel(props: {
       {/* Session timer — always visible */}
       <box flexDirection="row" paddingLeft={1}>
         <text>
-          <span style={{ fg: props.theme.textMuted }}>session </span>
+          <span style={{ fg: props.theme.muted }}>session </span>
           <span style={{ fg: props.theme.text }}>
             {sessionTimerFormatter.format(
               props.snapshot.window.firstSeenAt,
@@ -196,10 +194,10 @@ export function AgentCostPanel(props: {
       {/* Token totals — always visible */}
       <box flexDirection="row" paddingLeft={1}>
         <text>
-          <span style={{ fg: props.theme.textMuted }}>in </span>
+          <span style={{ fg: props.theme.muted }}>in </span>
           <span style={{ fg: props.theme.text }}>{tokenTotals().input}</span>
-          <span style={{ fg: props.theme.textMuted }}>{"  ·  "}</span>
-          <span style={{ fg: props.theme.textMuted }}> out </span>
+          <span style={{ fg: props.theme.muted }}>{"  ·  "}</span>
+          <span style={{ fg: props.theme.muted }}> out </span>
           <span style={{ fg: props.theme.text }}>{tokenTotals().output}</span>
         </text>
       </box>
@@ -215,14 +213,14 @@ export function AgentCostPanel(props: {
           when={rows().length > 0}
           fallback={
             <box paddingTop={1}>
-              <text style={{ fg: props.theme.textMuted }}>No data yet</text>
+              <text style={{ fg: props.theme.muted }}>No data yet</text>
             </box>
           }
         >
           <For each={rows()}>
             {(row) => {
               const isActive = activeAgent()?.name === row.name;
-              const colorKey = agentNameFormatter.color(row.name);
+              const colorIndex = agentNameFormatter.colorIndex(row.name);
               return (
                 <box flexDirection="column" paddingTop={1}>
                   {/* Agent subtitle */}
@@ -232,14 +230,14 @@ export function AgentCostPanel(props: {
                     </Show>
                     <span
                       style={{
-                        fg: props.theme[colorKey],
+                        fg: props.theme.categorical(colorIndex),
                         ...(isActive ? {} : { dim: true }),
                       }}
                     >
                       {agentNameFormatter.capitalize(row.name)}
                     </span>
                     <Show when={row.workDurationMs > 0}>
-                      <span style={{ fg: props.theme.textMuted }}>
+                      <span style={{ fg: props.theme.muted }}>
                         {" "}
                         {durationFormatter.format(row.workDurationMs)}
                       </span>
@@ -252,7 +250,7 @@ export function AgentCostPanel(props: {
                     <box flexDirection="column" paddingTop={0}>
                       <For each={row.models}>
                         {(model) => (
-                          <text style={{ fg: props.theme.secondary }}>
+                          <text style={{ fg: props.theme.muted }}>
                             {model.name}
                           </text>
                         )}
@@ -263,7 +261,7 @@ export function AgentCostPanel(props: {
                   {/* Per-model sub-separator */}
                   <Show when={row.models.length > 0}>
                     <box paddingLeft={1} paddingTop={0}>
-                      <text style={{ fg: props.theme.borderSubtle }}>
+                      <text style={{ fg: props.theme.faint }}>
                         {"─".repeat(30)}
                       </text>
                     </box>
@@ -273,40 +271,38 @@ export function AgentCostPanel(props: {
                   <box flexDirection="row" paddingLeft={1} paddingTop={0}>
                     <box flexDirection="column">
                       <text>
-                        <span style={{ fg: props.theme.textMuted }}>ctx </span>
+                        <span style={{ fg: props.theme.muted }}>ctx </span>
                         <span style={{ fg: props.theme.text }}>{row.ctx}</span>
                       </text>
                       <text>
-                        <span style={{ fg: props.theme.textMuted }}>in </span>
+                        <span style={{ fg: props.theme.muted }}>in </span>
                         <span style={{ fg: props.theme.text }}>
                           {row.input}
                         </span>
                       </text>
                       <text>
-                        <span style={{ fg: props.theme.textMuted }}>avg </span>
+                        <span style={{ fg: props.theme.muted }}>avg </span>
                         <span style={{ fg: props.theme.text }}>
                           {row.avgCostPerCall}
                         </span>
-                        <span style={{ fg: props.theme.textMuted }}>/call</span>
+                        <span style={{ fg: props.theme.muted }}>/call</span>
                       </text>
                     </box>
                     <box flexDirection="column" paddingLeft={3}>
                       <text>
-                        <span style={{ fg: props.theme.textMuted }}>out </span>
+                        <span style={{ fg: props.theme.muted }}>out </span>
                         <span style={{ fg: props.theme.text }}>
                           {row.output}
                         </span>
                       </text>
                       <text>
-                        <span style={{ fg: props.theme.textMuted }}>call </span>
+                        <span style={{ fg: props.theme.muted }}>call </span>
                         <span style={{ fg: props.theme.text }}>
                           {row.calls}
                         </span>
                       </text>
                       <text>
-                        <span style={{ fg: props.theme.textMuted }}>
-                          cache{" "}
-                        </span>
+                        <span style={{ fg: props.theme.muted }}>cache </span>
                         <span style={{ fg: props.theme.info }}>
                           {row.cacheHitRate}
                         </span>
