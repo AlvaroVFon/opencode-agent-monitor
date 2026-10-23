@@ -1,87 +1,74 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import { LlmErrorHandler } from "../../../server/handlers/trace/llm-error.handler";
+import { StepTracker } from "../../../server/state/step-tracker";
+import { AgentTracker } from "../../../server/state/agent-tracker";
 import { TraceEventType } from "../../../server/enums";
+import { makeStepFailed, makeStepStarted } from "../fixtures/v2-events";
 
-function makeErrorMsg(overrides: Record<string, unknown> = {}) {
-  return {
-    info: {
-      role: "assistant",
-      sessionID: "sess-1",
-      error: {
-        name: "RateLimitError",
-        data: { message: "too many requests" },
-      },
-      providerID: "openai",
-      modelID: "gpt-4",
-      ...overrides,
-    },
-  };
+function setup() {
+  const writeTrace = mock.fn();
+  const stepTracker = new StepTracker();
+  const agentTracker = new AgentTracker();
+  const handler = new LlmErrorHandler(
+    { writeTrace, ensureDir: () => {} } as any,
+    stepTracker,
+    agentTracker,
+  );
+  return { writeTrace, stepTracker, agentTracker, handler };
 }
 
-describe("LlmErrorHandler", () => {
-  it("writes a trace when assistant has an error", () => {
-    const writeTrace = mock.fn();
-    const handler = new LlmErrorHandler({
-      writeTrace,
-      ensureDir: () => {},
-    } as any);
+describe("LlmErrorHandler (V2 step.failed)", () => {
+  it("writes an llm_error with agent, model and error details", () => {
+    const { writeTrace, stepTracker, agentTracker, handler } = setup();
+    const started = makeStepStarted();
+    stepTracker.start("msg-1", {
+      sessionID: "sess-1",
+      agent: started.data.agent,
+      model: "anthropic/claude-sonnet-4-5",
+      startedAt: 900,
+    });
+    agentTracker.recordSessionAgent("sess-1", started.data.agent);
 
-    const getAgent = (sID: string) => (sID === "sess-1" ? "coder" : "unknown");
-    handler.handle(makeErrorMsg(), getAgent);
+    handler.handle(makeStepFailed());
 
     assert.equal(writeTrace.mock.calls.length, 1);
-
     const event = writeTrace.mock.calls[0].arguments[0];
     assert.equal(event.type, TraceEventType.LLM_ERROR);
-    assert.equal(event.sessionID, "sess-1");
     assert.equal(event.agent, "coder");
-    assert.equal(event.model, "openai/gpt-4");
-    assert.equal(event.errorType, "RateLimitError");
+    assert.equal(event.model, "anthropic/claude-sonnet-4-5");
+    assert.equal(event.errorType, "rate-limit");
     assert.equal(event.errorMessage, "too many requests");
+    assert.equal(event.kind, "step");
+    assert.equal(event.messageID, "msg-1");
   });
 
-  it("ignores non-assistant messages", () => {
-    const writeTrace = mock.fn();
-    const handler = new LlmErrorHandler({
-      writeTrace,
-      ensureDir: () => {},
-    } as any);
+  it("includes usage when the failed step reported it", () => {
+    const { writeTrace, handler } = setup();
+    handler.handle(
+      makeStepFailed({
+        cost: 0.0005,
+        tokens: {
+          input: 7,
+          output: 1,
+          reasoning: 0,
+          cache: { read: 2, write: 0 },
+        },
+      }),
+    );
 
-    handler.handle(makeErrorMsg({ role: "user" }));
-    assert.equal(writeTrace.mock.calls.length, 0);
+    const event = writeTrace.mock.calls[0].arguments[0];
+    assert.equal(event.cost, 0.0005);
+    assert.equal(event.inputTokens, 7);
+    assert.equal(event.cacheRead, 2);
   });
 
-  it("ignores assistant messages without error", () => {
-    const writeTrace = mock.fn();
-    const handler = new LlmErrorHandler({
-      writeTrace,
-      ensureDir: () => {},
-    } as any);
+  it("uses unknown when the error is missing", () => {
+    const { writeTrace, handler } = setup();
+    handler.handle(makeStepFailed({ error: undefined }));
 
-    handler.handle(makeErrorMsg({ error: undefined }));
-    assert.equal(writeTrace.mock.calls.length, 0);
-  });
-
-  it("ignores assistant messages that have tokens", () => {
-    const writeTrace = mock.fn();
-    const handler = new LlmErrorHandler({
-      writeTrace,
-      ensureDir: () => {},
-    } as any);
-
-    handler.handle(makeErrorMsg({ tokens: { input: 5, output: 10 } }));
-    assert.equal(writeTrace.mock.calls.length, 0);
-  });
-
-  it("uses UNKNOWN agent when sessionID not resolved", () => {
-    const writeTrace = mock.fn();
-    const handler = new LlmErrorHandler({
-      writeTrace,
-      ensureDir: () => {},
-    } as any);
-
-    handler.handle(makeErrorMsg());
-    assert.equal(writeTrace.mock.calls[0].arguments[0].agent, "unknown");
+    const event = writeTrace.mock.calls[0].arguments[0];
+    assert.equal(event.errorType, "unknown");
+    assert.equal(event.errorMessage, "unknown");
   });
 });

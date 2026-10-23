@@ -1,3 +1,14 @@
+# [2.0.0](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/v1.2.1...v2.0.0) (2026-10-23)
+
+
+* feat!: migrate plugin to opencode v2 (#95) ([a732c93](https://github.com/AlvaroVFon/opencode-agent-monitor/commit/a732c9342f690097fe474b3cb9a18f80926cfda4)), closes [#95](https://github.com/AlvaroVFon/opencode-agent-monitor/issues/95)
+
+
+### BREAKING CHANGES
+
+* V1 plugin implementations do not run in OpenCode V2. Users on
+OpenCode V1 must stay on the 1.x release line.
+
 ## [1.2.1](https://github.com/AlvaroVFon/opencode-agent-monitor/compare/v1.1.0...v1.2.1) (2026-07-17)
 
 

@@ -8,15 +8,3 @@ export enum TraceEventType {
   AGENT_DELEGATION = "agent_delegation",
   WRITE_TRACE_ERROR = "write_trace_error",
 }
-
-export enum PartType {
-  AGENT = "agent",
-  SUBTASK = "subtask",
-  TOOL = "tool",
-  SKILL = "skill",
-}
-
-export enum PartStatus {
-  COMPLETED = "completed",
-  ERROR = "error",
-}

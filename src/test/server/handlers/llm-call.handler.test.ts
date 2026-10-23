@@ -1,105 +1,82 @@
 import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import { LlmCallHandler } from "../../../server/handlers/trace/llm-call.handler";
+import { StepTracker } from "../../../server/state/step-tracker";
+import { AgentTracker } from "../../../server/state/agent-tracker";
 import { TraceEventType } from "../../../server/enums";
+import { makeStepEnded, makeStepStarted } from "../fixtures/v2-events";
 
-function makeMsg(overrides: Record<string, unknown> = {}) {
-  return {
-    info: {
-      role: "assistant",
-      sessionID: "sess-1",
-      finish: "stop",
-      tokens: { input: 10, output: 20, reasoning: 0, cache: { read: 0 } },
-      providerID: "openai",
-      modelID: "gpt-4",
-      cost: 0.002,
-      time: { created: 1000, completed: 1050 },
-      ...overrides,
-    },
-  };
+function setup() {
+  const writeTrace = mock.fn();
+  const stepTracker = new StepTracker();
+  const agentTracker = new AgentTracker();
+  const handler = new LlmCallHandler(
+    { writeTrace, ensureDir: () => {} } as any,
+    stepTracker,
+    agentTracker,
+  );
+  return { writeTrace, stepTracker, agentTracker, handler };
 }
 
-describe("LlmCallHandler", () => {
-  it("writes a trace when assistant finishes with tokens", () => {
-    const writeTrace = mock.fn();
-    const handler = new LlmCallHandler({
-      writeTrace,
-      writeTraceError: mock.fn(),
-      ensureDir: () => {},
-    } as any);
+describe("LlmCallHandler (V2 step.ended)", () => {
+  it("writes a trace with agent, model, usage and duration from the step", () => {
+    const { writeTrace, stepTracker, agentTracker, handler } = setup();
+    const started = makeStepStarted();
+    stepTracker.start("msg-1", {
+      sessionID: "sess-1",
+      agent: started.data.agent,
+      model: "anthropic/claude-sonnet-4-5",
+      startedAt: 900,
+    });
+    agentTracker.recordSessionAgent("sess-1", started.data.agent);
 
-    const getAgent = (sID: string) => (sID === "sess-1" ? "coder" : "unknown");
-    handler.handle(makeMsg(), getAgent);
+    handler.handle(makeStepEnded());
 
     assert.equal(writeTrace.mock.calls.length, 1);
     const event = writeTrace.mock.calls[0].arguments[0];
     assert.equal(event.type, TraceEventType.LLM_CALL);
     assert.equal(event.sessionID, "sess-1");
     assert.equal(event.agent, "coder");
-    assert.equal(event.model, "openai/gpt-4");
+    assert.equal(event.model, "anthropic/claude-sonnet-4-5");
     assert.equal(event.finish, "stop");
     assert.equal(event.inputTokens, 10);
     assert.equal(event.outputTokens, 20);
-    assert.equal(event.durationMs, 50);
+    assert.equal(event.reasoningTokens, 3);
+    assert.equal(event.cacheRead, 4);
+    assert.equal(event.cacheWrite, 5);
+    assert.equal(event.cost, 0.002);
+    assert.equal(event.durationMs, 100);
+    assert.equal(event.messageID, "msg-1");
+    assert.equal(event.kind, "step");
+    assert.equal(event.timestamp, 1_000);
   });
 
-  it("uses UNKNOWN agent when no getAgent provided", () => {
-    const writeTrace = mock.fn();
-    const handler = new LlmCallHandler({
-      writeTrace,
-      writeTraceError: mock.fn(),
-      ensureDir: () => {},
-    } as any);
+  it("falls back to the session agent when the step start was missed", () => {
+    const { writeTrace, agentTracker, handler } = setup();
+    agentTracker.recordSessionAgent("sess-1", "planner");
 
-    handler.handle(makeMsg());
-    assert.equal(writeTrace.mock.calls[0].arguments[0].agent, "unknown");
+    handler.handle(makeStepEnded());
+
+    const event = writeTrace.mock.calls[0].arguments[0];
+    assert.equal(event.agent, "planner");
+    assert.equal(event.model, "unknown");
+    assert.equal(event.durationMs, 0);
   });
 
-  it("ignores non-assistant messages", () => {
-    const writeTrace = mock.fn();
-    const handler = new LlmCallHandler({
-      writeTrace,
-      writeTraceError: mock.fn(),
-      ensureDir: () => {},
-    } as any);
+  it("defaults missing usage to zero", () => {
+    const { writeTrace, handler } = setup();
+    handler.handle(makeStepEnded({ tokens: undefined, cost: undefined }));
 
-    handler.handle(makeMsg({ role: "user" }));
-    assert.equal(writeTrace.mock.calls.length, 0);
+    const event = writeTrace.mock.calls[0].arguments[0];
+    assert.equal(event.inputTokens, 0);
+    assert.equal(event.cost, 0);
+    assert.equal(event.cacheRead, 0);
   });
 
-  it("ignores assistant messages without finish", () => {
-    const writeTrace = mock.fn();
-    const handler = new LlmCallHandler({
-      writeTrace,
-      writeTraceError: mock.fn(),
-      ensureDir: () => {},
-    } as any);
+  it("defaults a missing finish to unknown", () => {
+    const { writeTrace, handler } = setup();
+    handler.handle(makeStepEnded({ finish: undefined }));
 
-    handler.handle(makeMsg({ finish: undefined }));
-    assert.equal(writeTrace.mock.calls.length, 0);
-  });
-
-  it("ignores assistant messages without tokens", () => {
-    const writeTrace = mock.fn();
-    const handler = new LlmCallHandler({
-      writeTrace,
-      writeTraceError: mock.fn(),
-      ensureDir: () => {},
-    } as any);
-
-    handler.handle(makeMsg({ tokens: undefined }));
-    assert.equal(writeTrace.mock.calls.length, 0);
-  });
-
-  it("skips trace when time.completed is missing", () => {
-    const writeTrace = mock.fn();
-    const handler = new LlmCallHandler({
-      writeTrace,
-      writeTraceError: mock.fn(),
-      ensureDir: () => {},
-    } as any);
-
-    handler.handle(makeMsg({ time: undefined }));
-    assert.equal(writeTrace.mock.calls.length, 0);
+    assert.equal(writeTrace.mock.calls[0].arguments[0].finish, "unknown");
   });
 });

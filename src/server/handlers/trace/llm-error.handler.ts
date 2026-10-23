@@ -1,29 +1,51 @@
 import { TraceHelper } from "../../helpers/trace.helpers";
-import { extractErrorMessage } from "../../helpers/error.helpers";
-import { TraceEventType, UNKNOWN, Role } from "../../enums";
-import { Handler, type GetAgent } from "../../handler.interface";
-import type { MessageUpdatedProps } from "../../types";
+import { UNKNOWN, TraceEventType } from "../../enums";
+import { Handler } from "../../handler.interface";
+import { AgentTracker } from "../../state/agent-tracker";
+import { StepTracker } from "../../state/step-tracker";
+import type { SessionStepFailedEvent } from "../../types";
 
-export class LlmErrorHandler implements Handler<MessageUpdatedProps> {
-  constructor(private readonly traceHelper: TraceHelper) {}
+export class LlmErrorHandler implements Handler<SessionStepFailedEvent> {
+  constructor(
+    private readonly traceHelper: TraceHelper,
+    private readonly stepTracker: StepTracker,
+    private readonly agentTracker: AgentTracker,
+  ) {}
 
-  handle(properties: MessageUpdatedProps, getAgent?: GetAgent): void {
-    const msg = properties.info;
-
-    if (msg.role !== Role.ASSISTANT || !msg.error || msg.tokens) return;
-
-    const agent = getAgent?.(msg.sessionID) ?? UNKNOWN;
-    const model = `${msg.providerID}/${msg.modelID}`;
-    const { name: errorName, data } = msg.error;
+  handle(event: SessionStepFailedEvent): void {
+    const { sessionID, assistantMessageID, error, cost, tokens } = event.data;
+    const step = this.stepTracker.take(assistantMessageID);
+    const agent =
+      step?.agent ?? this.agentTracker.agentForSession(sessionID) ?? UNKNOWN;
+    const model = step?.model ?? UNKNOWN;
 
     this.traceHelper.writeTrace({
       type: TraceEventType.LLM_ERROR,
-      sessionID: msg.sessionID,
+      sessionID,
       agent,
       model,
-      errorType: errorName,
-      errorMessage: extractErrorMessage(data),
-      timestamp: Date.now(),
+      errorType: error?.type ?? UNKNOWN,
+      errorMessage: error?.message ?? UNKNOWN,
+      ...(cost !== undefined ? { cost } : {}),
+      ...(tokens ? this.tokens(tokens) : {}),
+      messageID: assistantMessageID,
+      kind: "step",
+      timestamp: event.created,
     });
+  }
+
+  private tokens(tokens: {
+    input?: number;
+    output?: number;
+    reasoning?: number;
+    cache?: { read?: number; write?: number };
+  }): Record<string, number> {
+    return {
+      inputTokens: tokens.input ?? 0,
+      outputTokens: tokens.output ?? 0,
+      reasoningTokens: tokens.reasoning ?? 0,
+      cacheRead: tokens.cache?.read ?? 0,
+      cacheWrite: tokens.cache?.write ?? 0,
+    };
   }
 }

@@ -3,50 +3,32 @@ import assert from "node:assert/strict";
 import { EventHandler } from "../../../server/events/events.handler";
 import { EventsRegistry } from "../../../server/events/events.registry";
 import { EventType } from "../../../server/enums";
-import type { Handler } from "../../../server/handler.interface";
+import { makeSessionCreated } from "../fixtures/v2-events";
 
-describe("EventHandler", () => {
-  it("dispatches event properties to every registered handler", () => {
+describe("EventHandler (V2)", () => {
+  it("dispatches the event to every handler registered for its type", () => {
     const registry = new EventsRegistry();
-    const h1 = { handle: mock.fn<Handler["handle"]>() };
-    const h2 = { handle: mock.fn<Handler["handle"]>() };
+    const h1 = { handle: mock.fn() };
+    const h2 = { handle: mock.fn() };
 
     registry.register(EventType.SESSION_CREATED, h1);
     registry.register(EventType.SESSION_CREATED, h2);
 
-    const eventHandler = new EventHandler(
-      {
-        writeTrace: mock.fn(),
-        writeTraceError: mock.fn(),
-        ensureDir: () => {},
-      } as any,
-      registry,
-    );
+    const eventHandler = new EventHandler(registry);
+    const event = makeSessionCreated();
 
-    eventHandler.handle({
-      type: EventType.SESSION_CREATED,
-      properties: { foo: "bar" },
-    });
+    eventHandler.handle(event as any);
 
     assert.equal(h1.handle.mock.calls.length, 1);
     assert.equal(h2.handle.mock.calls.length, 1);
-    assert.deepEqual(h1.handle.mock.calls[0].arguments, [
-      { foo: "bar" },
-      undefined,
-    ]);
+    assert.deepEqual(h1.handle.mock.calls[0].arguments, [event]);
   });
 
   it("silently ignores unregistered event types", () => {
-    const registry = new EventsRegistry();
-    const eventHandler = new EventHandler(
-      {
-        writeTrace: mock.fn(),
-        writeTraceError: mock.fn(),
-        ensureDir: () => {},
-      } as any,
-      registry,
-    );
+    const eventHandler = new EventHandler(new EventsRegistry());
 
-    eventHandler.handle({ type: "unknown.event", properties: {} });
+    assert.doesNotThrow(() =>
+      eventHandler.handle({ type: "unknown.event", data: {} } as any),
+    );
   });
 });

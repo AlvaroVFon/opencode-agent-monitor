@@ -1,5 +1,8 @@
-export type GetAgent = (sessionID: string) => string;
-
 export interface Handler<T = unknown> {
-  handle(properties: T, getAgent?: GetAgent): void;
+  /**
+   * Consume one OpenCode event. Handlers are registered for a single event
+   * type by the dispatcher, so implementations may assume the shape they
+   * declare and narrow defensively only for optional data.
+   */
+  handle(event: T): void;
 }

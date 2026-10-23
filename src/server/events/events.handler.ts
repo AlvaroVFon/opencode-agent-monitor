@@ -1,25 +1,16 @@
-import type { GetAgent } from "../handler.interface";
+import { Handler } from "../handler.interface";
 import { EventsRegistry } from "./events.registry";
-import { TraceHelper } from "../helpers/trace.helpers";
+import type { OpenCodeEvent } from "../types";
 
 export class EventHandler {
-  constructor(
-    private readonly traceHelper: TraceHelper,
-    private readonly eventsRegistry: EventsRegistry,
-  ) {}
+  constructor(private readonly eventsRegistry: EventsRegistry) {}
 
-  handle(
-    event: { type: string; properties: unknown },
-    getAgent?: GetAgent,
-  ): void {
+  handle(event: OpenCodeEvent): void {
     const handlers = this.eventsRegistry.get(event.type);
-
-    if (!handlers || handlers.length === 0) {
-      return;
-    }
+    if (!handlers || handlers.length === 0) return;
 
     for (const handler of handlers) {
-      handler.handle(event.properties, getAgent);
+      (handler as Handler<OpenCodeEvent>).handle(event);
     }
   }
 }
