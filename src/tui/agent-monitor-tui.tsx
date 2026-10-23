@@ -1,8 +1,7 @@
 import { createEffect, createMemo, onCleanup, Show } from "solid-js";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { Plugin } from "@opencode/plugin/tui";
 import type { Context } from "@opencode/plugin/tui/context";
+import { TraceDirResolver } from "../shared/trace-dir.js";
 import { AgentCostPanel } from "./components/agent-cost-panel";
 import { FullscreenStatsPanel } from "./components/fullscreen-stats-panel";
 import { CursorPersistence, TuiStorageCursors } from "./cursor-store";
@@ -14,14 +13,6 @@ export const SIDEBAR_SLOT = "sidebar.content";
 export const PANEL_SLOT = "session.panel";
 export const PANEL_NAME = "agent-monitor.stats";
 export const TOGGLE_COMMAND = "agent-monitor.toggle";
-
-function resolveTraceDir(options: Readonly<Record<string, unknown>>): string {
-  if (typeof options.traceDir === "string") return options.traceDir;
-  if (typeof process.env.AGENT_MONITOR_DIR === "string") {
-    return process.env.AGENT_MONITOR_DIR;
-  }
-  return join(homedir(), ".config", "opencode", ".tracing");
-}
 
 function togglePanel(context: Context): void {
   if (context.ui.panel.current()?.name === PANEL_NAME) {
@@ -62,7 +53,7 @@ const plugin = Plugin.define({
       new TuiStorageCursors(context.storage),
     );
     const monitor = new TuiMonitor({
-      traceDir: resolveTraceDir(context.options),
+      traceDir: TraceDirResolver.resolve(context.options),
       theme: createV2PanelTheme(context.theme),
       cursors,
       onError: (error) =>

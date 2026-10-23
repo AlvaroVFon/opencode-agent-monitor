@@ -3,6 +3,7 @@ import { TraceHelper } from "./helpers/trace.helpers";
 import { LocationFilter } from "./helpers/location.helper";
 import { ToolHookHandler } from "./hooks/tool.hooks";
 import { createEventHandler } from "./wire/handler-wiring";
+import { TraceDirResolver } from "../shared/trace-dir";
 
 /**
  * OpenCode V2 server plugin.
@@ -13,13 +14,7 @@ import { createEventHandler } from "./wire/handler-wiring";
 export const AgentMonitor = Plugin.define({
   id: "agent-monitor",
   async setup(ctx) {
-    const traceDir =
-      typeof ctx.options.traceDir === "string"
-        ? ctx.options.traceDir
-        : typeof process.env.AGENT_MONITOR_DIR === "string"
-          ? process.env.AGENT_MONITOR_DIR
-          : undefined;
-    const traceHelper = new TraceHelper(traceDir);
+    const traceHelper = new TraceHelper(TraceDirResolver.resolve(ctx.options));
     const eventHandler = createEventHandler(traceHelper);
     const toolHandler = new ToolHookHandler(traceHelper);
     const locationFilter = new LocationFilter(
