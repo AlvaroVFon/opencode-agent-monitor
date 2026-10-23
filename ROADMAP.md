@@ -49,9 +49,9 @@
 
 ## Fase E: OpenCode V2
 
-- **E.1 Migración del plugin de servidor:** `Plugin.define` + `ctx.event.subscribe()` + tool hooks, eventos `session.step.*`, `session.skill.activated`, `session.compaction.*`.
-- **E.2 Migración del plugin de TUI:** slots `sidebar.content`/`session.panel`, keymap layers, `context.storage.store` y `ResolvedTheme`.
-- **E.3 Esquema v2:** `schemaVersion: 2` con campos aditivos (`kind`, `messageID`, `cacheWrite`, `skillID`), CLI compatible con archivos v1 y v2.
+- **E.1 Migración del plugin de servidor:** ✅ `Plugin.define` + `ctx.event.subscribe()` + tool hooks, eventos `session.step.*`, `session.skill.activated`, `session.compaction.*`.
+- **E.2 Migración del plugin de TUI:** ✅ slots `sidebar.content`/`session.panel`, keymap layers, `context.storage.store` y `ResolvedTheme`.
+- **E.3 Esquema v2:** ✅ `schemaVersion: 2` con campos aditivos (`kind`, `messageID`, `cacheWrite`, `skillID`), CLI compatible con archivos v1 y v2.
 
 ---
 
