@@ -51,10 +51,13 @@ pnpm test:prod      # tsx scripts/test-prod.mts
 
 ## Local development
 
-`pnpm test:prod` rewrites `~/.config/opencode/opencode.json` (server plugin) and
-`~/.config/opencode/cli.json` (TUI plugin) to the built `dist/` files and backs
-the originals up. There is no project-local `.opencode/opencode.json` in this
-repo.
+`pnpm test:prod` generates a local plugin **package** at
+`~/.config/opencode/.agent-monitor-prod/agent-monitor/` (`package.json` with
+`exports["."]` + `exports["./tui"]`, `index.js`, `tui.js`) and points
+`~/.config/opencode/opencode.json` at it, backing the original up. Only
+`opencode.json` is rewritten: the V2 CLI loads the `./tui` export of every
+active server plugin by itself, so `cli.json` needs no entry. There is no
+project-local `.opencode/opencode.json` in this repo.
 
 ```bash
 pnpm install --ignore-scripts

@@ -125,15 +125,25 @@ pnpm build
 pnpm test:prod
 ```
 
-OpenCode V2 requires configured local plugins to be directories, so
-`pnpm test:prod` generates wrapper directories under
-`~/.config/opencode/.agent-monitor-prod/` and points
-`~/.config/opencode/opencode.json` (server) and
-`~/.config/opencode/cli.json` (TUI) at them. Run `pnpm test:prod --restore` to
-revert.
+OpenCode V2 loads a plugin as a **package**: one directory that exposes both
+the server entrypoint (`exports["."]`) and the TUI entrypoint (`exports["./tui"]`).
+The CLI gets the active plugin list from the server and loads the matching
+`./tui` export on its own, so `cli.json` does not need an entry.
 
-Alternatively, drop `dist/agent-monitor.js` into `.opencode/plugins/` for the
-server side; OpenCode discovers direct files there.
+`pnpm test:prod` therefore builds and registers a single wrapper package under
+`~/.config/opencode/.agent-monitor-prod/agent-monitor/` (`index.js` + `tui.js`)
+and points only `~/.config/opencode/opencode.json` at it. Run
+`pnpm test:prod --restore` to revert.
+
+Two configuration shapes are silently ignored by the V2 CLI — avoid them:
+
+- A bare file path such as `dist/tui.js` in `cli.json`.
+- A wrapper directory that only exposes the server entrypoint, with no `tui.js`
+  sibling and no `exports["./tui"]`.
+
+Alternatively, create `~/.config/opencode/plugins/agent-monitor/` (or
+`.opencode/plugins/agent-monitor/`) with `index.js` and `tui.js`; OpenCode
+discovers that directory layout automatically.
 
 ## License
 
